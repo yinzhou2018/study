@@ -1,2 +1,3 @@
 /dotnet/**/bin
 /dotnet/**/obj
+.DS_Store
