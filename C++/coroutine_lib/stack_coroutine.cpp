@@ -2,9 +2,13 @@
 
 #ifdef __aarch64__
 #include "swap_context_arm64.h"
+#else
+#include "swap_context_x64.h"
 #endif  //__aarch64__
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include "stack_allocator_win.h"
+#else
 #include "stack_allocator_posix.h"
 #endif  // _WIN32
 
