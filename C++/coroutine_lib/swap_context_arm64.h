@@ -13,25 +13,22 @@
   asm volatile("stp x29, x30, [sp, -0x10]");
 
 // 恢复上下文
-#define RESTORE_CONTEXT(sp, destroy_current_running_corountine) \
-  asm volatile("mov sp, %0" ::"r"(sp));                         \
-  if (destroy_current_running_corountine) {                     \
-    auto tmp_coroutine = g_current_running_coroutine;           \
-    g_current_running_coroutine = nullptr;                      \
-    coroutine_destroy(tmp_coroutine);                           \
-  }                                                             \
-  asm volatile("ldp x19, x20, [sp]");                           \
-  asm volatile("ldp x21, x22, [sp, 0x10]");                     \
-  asm volatile("ldp x23, x24, [sp, 0x20]");                     \
-  asm volatile("ldp x25, x26, [sp, 0x30]");                     \
-  asm volatile("ldp x27, x28, [sp, 0x40]");                     \
-  asm volatile("ldp x29, x30, [sp, 0x50]");                     \
-  asm volatile("mov sp, x29");                                  \
-  asm volatile("ldp x29, x30, [sp]");                           \
-  asm volatile("add sp, sp, 0x10");                             \
+#define RESTORE_CONTEXT(sp)                 \
+  if (sp) {                                 \
+    asm volatile("mov sp, %0" ::"r"(sp));   \
+  }                                         \
+  asm volatile("ldp x19, x20, [sp]");       \
+  asm volatile("ldp x21, x22, [sp, 0x10]"); \
+  asm volatile("ldp x23, x24, [sp, 0x20]"); \
+  asm volatile("ldp x25, x26, [sp, 0x30]"); \
+  asm volatile("ldp x27, x28, [sp, 0x40]"); \
+  asm volatile("ldp x29, x30, [sp, 0x50]"); \
+  asm volatile("mov sp, x29");              \
+  asm volatile("ldp x29, x30, [sp]");       \
+  asm volatile("add sp, sp, 0x10");         \
   asm volatile("br x30");
 
 // 交换上下文
 #define SWAP_CONTEXT(saved_sp, restored_sp) \
   SAVE_CONTEXT(saved_sp)                    \
-  RESTORE_CONTEXT(restored_sp, false)
+  RESTORE_CONTEXT(restored_sp)

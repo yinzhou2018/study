@@ -31,8 +31,13 @@ thread_local std::vector<Coroutine*> g_coroutines;
 
 static void coroutine_main() {
   g_current_running_coroutine->pf_entry();
-  auto return_sp = g_current_running_coroutine->return_sp;
-  RESTORE_CONTEXT(return_sp, true);
+
+  asm volatile("mov sp, %0"::"r"(g_current_running_coroutine->return_sp));
+  auto tmp_coroutine = g_current_running_coroutine;
+  g_current_running_coroutine = nullptr;
+  coroutine_destroy(tmp_coroutine);
+  
+  RESTORE_CONTEXT(nullptr);
 }
 
 CoroutineState coroutine_state(CoroutineHandle handle) {
@@ -99,7 +104,7 @@ void coroutine_resume(CoroutineHandle handle) {
     g_current_running_coroutine->state = CoroutineState::SUSPENDED;
   real_handle->return_coroutine = g_current_running_coroutine;
   g_current_running_coroutine = real_handle;
-  
+
   SWAP_CONTEXT(real_handle->return_sp, real_handle->recover_sp);
 }
 
