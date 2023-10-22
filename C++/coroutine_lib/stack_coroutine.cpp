@@ -1,4 +1,5 @@
 #include "stack_coroutine.h"
+#include <vector>
 
 #ifdef __aarch64__
 #include "swap_context_arm64.h"
@@ -15,70 +16,102 @@
 #include <stdint.h>
 #include <string.h>
 
-enum CoroutineState { SUSPENDED = 0, RUNNING, DEAD };
-
-constexpr auto COROUTINE_STACK_SIZE = 4096;
 struct Coroutine {
   int8_t* stack;
+  size_t stack_size;
   PF_Routine_Entry pf_entry;
   size_t* recover_sp;
   size_t* return_sp;
+  Coroutine* return_coroutine;
   CoroutineState state;
 };
 
-thread_local Coroutine* current_running_coroutine = nullptr;
+thread_local Coroutine* g_current_running_coroutine = nullptr;
+thread_local std::vector<Coroutine*> g_coroutines;
 
-void coroutine_entry(Coroutine* coroutine) {
-  coroutine->pf_entry();
-  current_running_coroutine = nullptr;
-  auto return_sp = coroutine->return_sp;
-
-  // TODO: 协程栈资源没有释放
-  // munmap(coroutine->stack, COROUTINE_STACK_SIZE);
-  // delete coroutine;
-
-  RESTORE_CONTEXT(return_sp, 1);
+static void coroutine_main() {
+  g_current_running_coroutine->pf_entry();
+  auto return_sp = g_current_running_coroutine->return_sp;
+  RESTORE_CONTEXT(return_sp, true);
 }
 
-CoroutineHandle coroutine_create(PF_Routine_Entry entry) {
-  // 先简单点，不允许嵌套创建协程
-  if (nullptr != current_running_coroutine)
+CoroutineState coroutine_state(CoroutineHandle handle) {
+  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), (Coroutine*)handle);
+  return (iter != g_coroutines.end()) ? (*iter)->state : CoroutineState::DEAD;
+}
+
+CoroutineHandle coroutine_create(PF_Routine_Entry entry, size_t initial_stack_size) {
+  if (initial_stack_size < MIN_COROUTINE_STACK_SIZE)
     return nullptr;
+
+  // 大小对齐到2倍sizeof(size_t)大小，否则执行会有对齐异常
+  auto remainder = initial_stack_size % (sizeof(size_t) * 2);
+  auto aligned_initial_stack_size =
+      (0 == remainder) ? initial_stack_size : (initial_stack_size + sizeof(size_t) * 2 - remainder);
 
   auto handle = new Coroutine;
   memset(handle, 0, sizeof(Coroutine));
+  handle->stack_size = aligned_initial_stack_size;
   handle->pf_entry = entry;
-  handle->stack = (int8_t*)stack_allocate(COROUTINE_STACK_SIZE);
-  handle->recover_sp = (size_t*)(handle->stack + COROUTINE_STACK_SIZE - sizeof(size_t) * 2);  // 栈底
+  handle->stack = (int8_t*)stack_allocate(aligned_initial_stack_size);
+  handle->recover_sp = (size_t*)(handle->stack + aligned_initial_stack_size - sizeof(size_t) * 2);  // 栈底
 
 #ifdef __aarch64__
-  // 31个通用寄存器 + 1个程序计数器
-  *(handle->recover_sp - 1) = (size_t)coroutine_entry;
-  handle->recover_sp -= 32;
-  *handle->recover_sp = (int64_t)handle;  // 寄存器x0传递参数
-#endif                                    // __aarch64__
+  // 模拟保存上下文
+  *(handle->recover_sp - 1) = (size_t)coroutine_main;
+  *(handle->recover_sp - 2) = (size_t)(handle->recover_sp);
+  *(handle->recover_sp - 4) = (size_t)(handle->recover_sp - 2);
+  handle->recover_sp -= 14;
+#endif  // __aarch64__
 
+  g_coroutines.push_back(handle);
   return (CoroutineHandle)handle;
 }
 
+bool coroutine_destroy(CoroutineHandle handle) {
+  // 运行过程中不能自毁
+  if (g_current_running_coroutine == handle)
+    return false;
+
+  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), handle);
+  if (iter == g_coroutines.end())
+    return false;
+
+  auto real_handle = *iter;
+  g_coroutines.erase(iter);
+  stack_deallocate(real_handle->stack, real_handle->stack_size);
+  delete real_handle;
+  return true;
+}
+
 void coroutine_resume(CoroutineHandle handle) {
-  // 先简单点，不允许运行的协程调用
-  if (nullptr == handle || nullptr != current_running_coroutine)
+  // 已经在运行中
+  if (handle == g_current_running_coroutine)
     return;
 
-  Coroutine* real_handle = (Coroutine*)handle;
-  if (SUSPENDED == real_handle->state) {
-    real_handle->state = RUNNING;
-    current_running_coroutine = real_handle;
-    SWAP_CONTEXT(real_handle->return_sp, real_handle->recover_sp, 2);
-  }
+  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), (Coroutine*)handle);
+  if (iter == g_coroutines.end())
+    return;
+
+  auto real_handle = (Coroutine*)handle;
+  real_handle->state = CoroutineState::RUNNING;
+  if (g_current_running_coroutine)
+    g_current_running_coroutine->state = CoroutineState::SUSPENDED;
+  real_handle->return_coroutine = g_current_running_coroutine;
+  g_current_running_coroutine = real_handle;
+  
+  SWAP_CONTEXT(real_handle->return_sp, real_handle->recover_sp);
 }
 
 void coroutine_yeild() {
-  if (nullptr == current_running_coroutine)
+  if (nullptr == g_current_running_coroutine)
     return;
-  current_running_coroutine->state = SUSPENDED;
-  auto tmp_coroutine = current_running_coroutine;
-  current_running_coroutine = nullptr;
-  SWAP_CONTEXT(tmp_coroutine->recover_sp, tmp_coroutine->return_sp, 3);
+
+  g_current_running_coroutine->state = CoroutineState::SUSPENDED;
+  auto tmp_coroutine = g_current_running_coroutine;
+  g_current_running_coroutine = g_current_running_coroutine->return_coroutine;
+  if (g_current_running_coroutine)
+    g_current_running_coroutine->state = CoroutineState::RUNNING;
+
+  SWAP_CONTEXT(tmp_coroutine->recover_sp, tmp_coroutine->return_sp);
 }

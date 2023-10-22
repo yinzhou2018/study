@@ -13,6 +13,8 @@ int main(int, char**) {
   auto handle = coroutine_create(coroutine1);
   coroutine_resume(handle);
   std::cout << "main1" << std::endl;
+  std::cout << "coroutine state: " << (int)coroutine_state(handle) << std::endl;
   coroutine_resume(handle);
   std::cout << "main2" << std::endl;
+  std::cout << "coroutine state: " << (int)coroutine_state(handle) << std::endl;
 }
