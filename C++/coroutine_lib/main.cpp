@@ -2,19 +2,34 @@
 
 #include <iostream>
 
+void coroutine2() {
+  for (auto i = 0; i < 10; ++i) {
+    std::cout << "coroutine2 loop count: " << i << std::endl;
+    coroutine_yeild();
+  }
+}
+
 void coroutine1() {
-  std::cout << "coroutine1" << std::endl;
-  coroutine_yeild();
-  std::cout << "coroutine2" << std::endl;
+  for (auto i = 0; i < 10; ++i) {
+    std::cout << "coroutine1 loop count: " << i << std::endl;
+    coroutine_yeild();
+  }
+
+  auto handle = coroutine_create(coroutine2);
+  auto i = 0;
+  while (coroutine_state(handle) != CoroutineState::DEAD) {
+    coroutine_resume(handle);
+    coroutine_yeild();
+  }
 }
 
 int main(int, char**) {
   std::cout << "main" << std::endl;
   auto handle = coroutine_create(coroutine1);
-  coroutine_resume(handle);
-  std::cout << "main1" << std::endl;
-  std::cout << "coroutine state: " << (int)coroutine_state(handle) << std::endl;
-  coroutine_resume(handle);
-  std::cout << "main2" << std::endl;
-  std::cout << "coroutine state: " << (int)coroutine_state(handle) << std::endl;
+  auto i = 0;
+  while (coroutine_state(handle) != CoroutineState::DEAD) {
+    coroutine_resume(handle);
+    std::cout << "main loop count: " << i++ << std::endl;
+  }
+  std::cout << "main finished" << std::endl;
 }

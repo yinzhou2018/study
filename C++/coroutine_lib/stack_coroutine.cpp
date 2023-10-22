@@ -29,14 +29,26 @@ struct Coroutine {
 thread_local Coroutine* g_current_running_coroutine = nullptr;
 thread_local std::vector<Coroutine*> g_coroutines;
 
+static bool coroutine_destroy_impl(Coroutine* coroutine) {
+  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), coroutine);
+  if (iter == g_coroutines.end())
+    return false;
+
+  g_coroutines.erase(iter);
+  if (g_current_running_coroutine == coroutine) {
+    g_current_running_coroutine = g_current_running_coroutine->return_coroutine;
+    if (g_current_running_coroutine)
+      g_current_running_coroutine->state = CoroutineState::RUNNING;
+  }
+  stack_deallocate(coroutine->stack, coroutine->stack_size);
+  delete coroutine;
+  return true;
+}
+
 static void coroutine_main() {
   g_current_running_coroutine->pf_entry();
-
-  asm volatile("mov sp, %0"::"r"(g_current_running_coroutine->return_sp));
-  auto tmp_coroutine = g_current_running_coroutine;
-  g_current_running_coroutine = nullptr;
-  coroutine_destroy(tmp_coroutine);
-  
+  asm volatile("mov sp, %0" ::"r"(g_current_running_coroutine->return_sp));
+  coroutine_destroy_impl(g_current_running_coroutine);
   RESTORE_CONTEXT(nullptr);
 }
 
@@ -77,16 +89,7 @@ bool coroutine_destroy(CoroutineHandle handle) {
   // 运行过程中不能自毁
   if (g_current_running_coroutine == handle)
     return false;
-
-  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), handle);
-  if (iter == g_coroutines.end())
-    return false;
-
-  auto real_handle = *iter;
-  g_coroutines.erase(iter);
-  stack_deallocate(real_handle->stack, real_handle->stack_size);
-  delete real_handle;
-  return true;
+  return coroutine_destroy_impl((Coroutine*)handle);
 }
 
 void coroutine_resume(CoroutineHandle handle) {
