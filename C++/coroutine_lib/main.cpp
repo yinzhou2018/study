@@ -20,6 +20,7 @@ void coroutine1() {
   while (coroutine_state(handle) != CoroutineState::DEAD) {
     coroutine_resume(handle);
     coroutine_yeild();
+    coroutine_destroy(handle);
   }
 }
 

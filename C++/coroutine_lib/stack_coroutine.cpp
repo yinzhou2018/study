@@ -1,5 +1,4 @@
 #include "stack_coroutine.h"
-#include <vector>
 
 #ifdef __aarch64__
 #include "swap_context_arm64.h"
@@ -15,11 +14,11 @@
 
 #include <stdint.h>
 #include <string.h>
-
+#include <vector>
 struct Coroutine {
   int8_t* stack;
   size_t stack_size;
-  PF_Routine_Entry pf_entry;
+  PF_Coroutine_Entry pf_entry;
   size_t* recover_sp;
   size_t* return_sp;
   Coroutine* return_coroutine;
@@ -57,7 +56,7 @@ CoroutineState coroutine_state(CoroutineHandle handle) {
   return (iter != g_coroutines.end()) ? (*iter)->state : CoroutineState::DEAD;
 }
 
-CoroutineHandle coroutine_create(PF_Routine_Entry entry, size_t initial_stack_size) {
+CoroutineHandle coroutine_create(PF_Coroutine_Entry entry, size_t initial_stack_size) {
   if (initial_stack_size < MIN_COROUTINE_STACK_SIZE)
     return nullptr;
 
