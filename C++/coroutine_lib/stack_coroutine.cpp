@@ -1,9 +1,9 @@
 #include "stack_coroutine.h"
 
 #ifdef __aarch64__
-#include "swap_context_arm64.h"
+#include "coroutine_context_arm64.h"
 #else
-#include "swap_context_x64.h"
+#include "coroutine_context_x64.h"
 #endif  //__aarch64__
 
 #ifdef _WIN32
@@ -71,15 +71,7 @@ CoroutineHandle coroutine_create(PF_Coroutine_Entry entry, size_t initial_stack_
   handle->pf_entry = entry;
   handle->stack = (int8_t*)stack_allocate(aligned_initial_stack_size);
   handle->recover_sp = (size_t*)(handle->stack + aligned_initial_stack_size - sizeof(size_t) * 2);  // 栈底
-
-#ifdef __aarch64__
-  // 模拟保存上下文
-  *(handle->recover_sp - 1) = (size_t)coroutine_main;
-  *(handle->recover_sp - 2) = (size_t)(handle->recover_sp);
-  *(handle->recover_sp - 4) = (size_t)(handle->recover_sp - 2);
-  handle->recover_sp -= 14;
-#endif  // __aarch64__
-
+  BUILD_INITIAL_CONTEXT(handle->recover_sp, coroutine_main);
   g_coroutines.push_back(handle);
   return (CoroutineHandle)handle;
 }

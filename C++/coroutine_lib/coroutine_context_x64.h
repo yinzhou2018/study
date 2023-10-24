@@ -1,5 +1,6 @@
 #pragma once
 
+#define BUILD_INITIAL_CONTEXT(sp, entry)
 #define SAVE_CONTEXT(sp)
 #define RESTORE_CONTEXT(sp)
 
