@@ -14,7 +14,9 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <algorithm>
 #include <vector>
+
 struct Coroutine {
   int8_t* stack;
   size_t stack_size;
