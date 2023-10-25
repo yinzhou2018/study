@@ -1,5 +1,5 @@
 /dotnet/**/bin
 /dotnet/**/obj
-/C++/**/build
+/cpp/**/build
 /java/**/build
 .DS_Store
