@@ -46,7 +46,10 @@ static bool coroutine_destroy_impl(Coroutine* coroutine) {
 
 static void coroutine_main() {
   g_current_running_coroutine->pf_entry();
+#ifdef __aarch64__
   asm volatile("mov sp, %0" ::"r"(g_current_running_coroutine->return_sp));
+#else
+#endif  //__aarch64__
   coroutine_destroy_impl(g_current_running_coroutine);
   RESTORE_CONTEXT(nullptr);
 }
