@@ -1,59 +1,36 @@
 #include "stack_coroutine.h"
 
-#ifdef __aarch64__
-#include "coroutine_context_arm64.h"
-#else
-#include "coroutine_context_x64.h"
-#endif  //__aarch64__
-
 #ifdef _WIN32
 #include "stack_allocator_win.h"
 #else
 #include "stack_allocator_posix.h"
 #endif  // _WIN32
 
+#include <setjmp.h>
 #include <stdint.h>
 #include <string.h>
+
 #include <algorithm>
 #include <vector>
 
 struct Coroutine {
   int8_t* stack;
+  int8_t* stack_bottom;
   size_t stack_size;
   PF_Coroutine_Entry pf_entry;
-  size_t* recover_sp;
-  size_t* return_sp;
-  Coroutine* return_coroutine;
+  jmp_buf self_context;
+  jmp_buf caller_context;
   CoroutineState state;
-};
+};  // Coroutine
 
 thread_local Coroutine* g_current_running_coroutine = nullptr;
 thread_local std::vector<Coroutine*> g_coroutines;
 
-static bool coroutine_destroy_impl(Coroutine* coroutine) {
-  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), coroutine);
-  if (iter == g_coroutines.end())
-    return false;
-
-  g_coroutines.erase(iter);
-  if (g_current_running_coroutine == coroutine) {
-    g_current_running_coroutine = g_current_running_coroutine->return_coroutine;
-    if (g_current_running_coroutine)
-      g_current_running_coroutine->state = CoroutineState::RUNNING;
-  }
-  stack_deallocate(coroutine->stack, coroutine->stack_size);
-  delete coroutine;
-  return true;
-}
-
 static void coroutine_main() {
+  g_current_running_coroutine->state = CoroutineState::RUNNING;
   g_current_running_coroutine->pf_entry();
-#ifdef __aarch64__
-  asm volatile("mov sp, %0" ::"r"(g_current_running_coroutine->return_sp));
-#else
-#endif  //__aarch64__
-  coroutine_destroy_impl(g_current_running_coroutine);
-  RESTORE_CONTEXT(nullptr);
+  g_current_running_coroutine->state = CoroutineState::DEAD;
+  longjmp(g_current_running_coroutine->caller_context, 1);
 }
 
 CoroutineState coroutine_state(CoroutineHandle handle) {
@@ -75,8 +52,7 @@ CoroutineHandle coroutine_create(PF_Coroutine_Entry entry, size_t initial_stack_
   handle->stack_size = aligned_initial_stack_size;
   handle->pf_entry = entry;
   handle->stack = (int8_t*)stack_allocate(aligned_initial_stack_size);
-  handle->recover_sp = (size_t*)(handle->stack + aligned_initial_stack_size - sizeof(size_t) * 2);  // 栈底
-  BUILD_INITIAL_CONTEXT(handle->recover_sp, coroutine_main);
+  handle->stack_bottom = handle->stack + aligned_initial_stack_size - sizeof(size_t) * 2;
   g_coroutines.push_back(handle);
   return (CoroutineHandle)handle;
 }
@@ -85,7 +61,16 @@ bool coroutine_destroy(CoroutineHandle handle) {
   // 运行过程中不能自毁
   if (g_current_running_coroutine == handle)
     return false;
-  return coroutine_destroy_impl((Coroutine*)handle);
+
+  auto coroutine = (Coroutine*)handle;
+  auto iter = std::find(g_coroutines.begin(), g_coroutines.end(), coroutine);
+  if (iter == g_coroutines.end())
+    return false;
+
+  g_coroutines.erase(iter);
+  stack_deallocate(coroutine->stack, coroutine->stack_size);
+  delete coroutine;
+  return true;
 }
 
 void coroutine_resume(CoroutineHandle handle) {
@@ -97,25 +82,41 @@ void coroutine_resume(CoroutineHandle handle) {
   if (iter == g_coroutines.end())
     return;
 
-  auto real_handle = (Coroutine*)handle;
-  real_handle->state = CoroutineState::RUNNING;
-  if (g_current_running_coroutine)
-    g_current_running_coroutine->state = CoroutineState::SUSPENDED;
-  real_handle->return_coroutine = g_current_running_coroutine;
-  g_current_running_coroutine = real_handle;
+  auto current_coroutine = g_current_running_coroutine;
+  if (current_coroutine)
+    current_coroutine->state = CoroutineState::SUSPENDED;
 
-  SWAP_CONTEXT(real_handle->return_sp, real_handle->recover_sp);
+  auto next_coroutine = *iter;
+  if (0 == setjmp(next_coroutine->caller_context)) {
+    if (CoroutineState::CREATED == next_coroutine->state) {
+      g_current_running_coroutine = next_coroutine;
+#ifdef __aarch64__
+      asm volatile("mov sp, %0" ::"r"(next_coroutine->stack_bottom));
+#else   // TODO
+#endif  //__aarch64__
+      coroutine_main();
+    } else {
+      longjmp(next_coroutine->self_context, 1);
+    }
+  } else {
+    if (CoroutineState::DEAD == g_current_running_coroutine->state)
+      coroutine_destroy(g_current_running_coroutine);
+    g_current_running_coroutine = current_coroutine;
+    if (current_coroutine)
+      current_coroutine->state = CoroutineState::RUNNING;
+  }
 }
 
 void coroutine_yeild() {
   if (nullptr == g_current_running_coroutine)
     return;
 
-  g_current_running_coroutine->state = CoroutineState::SUSPENDED;
-  auto tmp_coroutine = g_current_running_coroutine;
-  g_current_running_coroutine = g_current_running_coroutine->return_coroutine;
-  if (g_current_running_coroutine)
-    g_current_running_coroutine->state = CoroutineState::RUNNING;
-
-  SWAP_CONTEXT(tmp_coroutine->recover_sp, tmp_coroutine->return_sp);
+  auto current_coroutine = g_current_running_coroutine;
+  current_coroutine->state = CoroutineState::SUSPENDED;
+  if (0 == setjmp(current_coroutine->self_context)) {
+    longjmp(current_coroutine->caller_context, 1);
+  } else {
+    current_coroutine->state = CoroutineState::RUNNING;
+    g_current_running_coroutine = current_coroutine;
+  }
 }
