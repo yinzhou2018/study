@@ -92,7 +92,8 @@ void coroutine_resume(CoroutineHandle handle) {
       g_current_running_coroutine = next_coroutine;
 #ifdef __aarch64__
       asm volatile("mov sp, %0" ::"r"(next_coroutine->stack_bottom));
-#else   // TODO
+#else
+      asm volatile("mov %0, %%rsp" ::"r"(next_coroutine->stack_bottom));
 #endif  //__aarch64__
       coroutine_main();
     } else {
