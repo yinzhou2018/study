@@ -13,6 +13,39 @@
 #include <algorithm>
 #include <vector>
 
+#ifdef _WIN32
+// windows-x64平台longjmp实现及其复杂诡异，会导致stack coruption;
+// 基于setjmp反汇编代码对应重新实现私有longjmp接口搞定问题。
+#define longjmp longjmp_private
+static void longjmp_private(jmp_buf, int) {
+  asm volatile("mov %edx, %eax");
+  asm volatile("mov (%rcx), %rdx");
+  asm volatile("mov 8(%rcx), %rbx");
+  asm volatile("mov 16(%rcx), %rsp");
+  asm volatile("mov 24(%rcx), %rbp");
+  asm volatile("mov 32(%rcx), %rsi");
+  asm volatile("mov 40(%rcx), %rdi");
+  asm volatile("mov 48(%rcx), %r12");
+  asm volatile("mov 56(%rcx), %r13");
+  asm volatile("mov 64(%rcx), %r14");
+  asm volatile("mov 72(%rcx), %r15");
+  asm volatile("ldmxcsr 88(%rcx)");
+  asm volatile("fnclex");
+  asm volatile("fldcw 92(%rcx)");
+  asm volatile("movdqa 96(%rcx), %xmm6");
+  asm volatile("movdqa 112(%rcx), %xmm7");
+  asm volatile("movdqa 128(%rcx), %xmm8");
+  asm volatile("movdqa 144(%rcx), %xmm9");
+  asm volatile("movdqa 160(%rcx), %xmm10");
+  asm volatile("movdqa 176(%rcx), %xmm11");
+  asm volatile("movdqa 192(%rcx), %xmm12");
+  asm volatile("movdqa 208(%rcx), %xmm13");
+  asm volatile("movdqa 224(%rcx), %xmm14");
+  asm volatile("movdqa 240(%rcx), %xmm15");
+  asm volatile("jmp *80(%rcx)");
+}
+#endif  // _WIN32
+
 struct Coroutine {
   int8_t* stack;
   int8_t* stack_bottom;
