@@ -6,7 +6,7 @@ enable_testing()
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SRC_LIST main.cpp stack_coroutine.cpp)
+set(SRC_LIST main.cpp stack_coroutine.cpp task_loop.cpp)
 if(CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
   list(APPEND SRC_LIST stack_allocator_win.cpp)
 else()

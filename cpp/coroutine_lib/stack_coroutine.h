@@ -1,4 +1,6 @@
 #pragma once
+#include "task_loop.h"
+
 #include <stddef.h>
 #include <future>
 
@@ -13,13 +15,22 @@ constexpr auto MIN_COROUTINE_STACK_SIZE = 2048;  // 2k
 #endif  //_WIN32
 
 CoroutineHandle coroutine_create(PF_Coroutine_Entry entry, size_t initial_stack_size = MIN_COROUTINE_STACK_SIZE);
+CoroutineHandle coroutine_get_current();
 bool coroutine_destroy(CoroutineHandle handle);
 void coroutine_resume(CoroutineHandle handle);
 void coroutine_yeild();
 CoroutineState coroutine_state(CoroutineHandle handle);
 
-template<typename Callable, typename... Args>
+template <typename Callable, typename... Args>
 auto coroutine_await(Callable&& func, Args&&... args) {
   auto fut = func(std::forward<Args>(args)...);
-  return fut.get();
+  auto shared_fut = fut.share();
+  auto current = coroutine_get_current();
+  (void)std::async(std::launch::async, [shared_fut, current]() {
+    shared_fut.wait();
+    auto task = [current]() { coroutine_resume(current); };
+    task_loop_post(task);
+  });
+  coroutine_yeild();
+  return shared_fut.get();
 }

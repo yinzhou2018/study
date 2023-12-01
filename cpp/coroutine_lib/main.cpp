@@ -1,44 +1,47 @@
 #include "stack_coroutine.h"
+#include "task_loop.h"
 
 #include <iostream>
 
-void coroutine2() {
-  for (auto i = 0; i < 10; ++i) {
-    std::cout << "coroutine2 loop count: " << i << std::endl;
-    coroutine_yeild();
-  }
+std::future<int> sum(int base) {
+  auto fut = std::async(std::launch::async, [base]() -> int {
+    auto value = base;
+    for (auto i = 1; i <= 100; ++i)
+      value += i;
+    return value;
+  });
+  return fut;
+}
+
+std::future<int> dummy2() {
+  std::cout << "dummy2 started..." << std::endl;
+  auto result = coroutine_await(sum, 0);
+  std::cout << "dummy2 result: " << result << std::endl;
+  return sum(result);
+}
+
+std::future<int> dummy1() {
+  std::cout << "dummy1 started..." << std::endl;
+  auto result = coroutine_await(dummy2);
+  std::cout << "dummy1 result: " << result << std::endl;
+  return sum(result);
 }
 
 void coroutine1() {
-  for (auto i = 0; i < 10; ++i) {
-    std::cout << "coroutine1 loop count: " << i << std::endl;
-    coroutine_yeild();
-  }
-
-  auto handle = coroutine_create(coroutine2);
-  auto i = 0;
-  while (coroutine_state(handle) != CoroutineState::DEAD) {
-    coroutine_resume(handle);
-    coroutine_yeild();
-    coroutine_destroy(handle);
-  }
-}
-
-std::future<size_t> calc_total_len(const std::string& str1, const std::string& str2) {
-  std::packaged_task<size_t()> task([&str1, &str2]() -> size_t { return str1.size() + str2.size(); });
-  // task();
-  return task.get_future();
+  std::cout << "coroutine1 started..." << std::endl;
+  auto result = coroutine_await(dummy1);
+  std::cout << "coroutine1 result: " << result << std::endl;
+  task_loop_quit();
 }
 
 int main(int, char**) {
-  auto result = coroutine_await(calc_total_len, std::string("hello"), std::string("world"));
-  std::cout << "result: " << result << std::endl;
-  // std::cout << "main" << std::endl;
-  // auto handle = coroutine_create(coroutine1);
-  // auto i = 0;
-  // while (coroutine_state(handle) != CoroutineState::DEAD) {
-  //   coroutine_resume(handle);
-  //   std::cout << "main loop count: " << i++ << std::endl;
-  // }
-  // std::cout << "main finished" << std::endl;
+  std::cout << "main started..." << std::endl;
+  auto task = []() {
+    auto handle = coroutine_create(coroutine1);
+    coroutine_resume(handle);
+    std::cout << "task finished..." << std::endl;
+  };
+  task_loop_post(task);
+  task_loop_run();
+  std::cout << "main finished..." << std::endl;
 }
