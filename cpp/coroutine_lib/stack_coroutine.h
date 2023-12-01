@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <future>
 
 typedef void (*PF_Coroutine_Entry)();
 typedef void* CoroutineHandle;
@@ -16,3 +17,9 @@ bool coroutine_destroy(CoroutineHandle handle);
 void coroutine_resume(CoroutineHandle handle);
 void coroutine_yeild();
 CoroutineState coroutine_state(CoroutineHandle handle);
+
+template<typename Callable, typename... Args>
+auto coroutine_await(Callable&& func, Args&&... args) {
+  auto fut = func(std::forward<Args>(args)...);
+  return fut.get();
+}

@@ -10,6 +10,9 @@
 
 static async Task<int> DoneAsync()
 {
+  var i = 0;
+  var j = 10 / i;
+  Console.WriteLine(j);
   Console.WriteLine("Warming up ...");
   await Task.Delay(3000);
   Console.WriteLine($"DoneAsync Thread 1: {Thread.CurrentThread.ManagedThreadId.ToString()}");
