@@ -1,4 +1,5 @@
 #include <coroutine>
+#include <future>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
@@ -90,7 +91,24 @@ coro_ret<int> coroutine_7in7out() {
   co_return 808;
 }
 
+void print(std::string& str) {
+  str[0] = 'e';
+  std::cout << str << std::endl;
+}
+
+template <typename F, typename... Args>
+void call(F&& callable, Args&&... args) {
+  std::packaged_task<void()> task(std::bind(callable, std::forward<Args>(args)...));
+  // callable(std::forward<Args>(args)...);
+  (void)task();
+}
+
 int main(int argc, char* argv[]) {
+  std::string s = "abcd";
+  call(print, s);
+  std::cout << s << std::endl;
+  return 0;
+
   bool done = false;
   std::cout << "Start coroutine_7in7out ()\n";
   // 调用协程,得到返回值c_r，后面使用这个返回值来管理协程。

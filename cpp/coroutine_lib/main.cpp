@@ -27,17 +27,17 @@ std::future<int> dummy1() {
   return sum(result);
 }
 
-void coroutine1() {
-  std::cout << "coroutine1 started..." << std::endl;
+void coroutine_main() {
+  std::cout << "coroutine_main started..." << std::endl;
   auto result = coroutine_await(dummy1);
-  std::cout << "coroutine1 result: " << result << std::endl;
+  std::cout << "coroutine_main result: " << result << std::endl;
   task_loop_quit();
 }
 
 int main(int, char**) {
   std::cout << "main started..." << std::endl;
   auto task = []() {
-    auto handle = coroutine_create(coroutine1);
+    auto handle = coroutine_create(coroutine_main);
     coroutine_resume(handle);
     std::cout << "task finished..." << std::endl;
   };
