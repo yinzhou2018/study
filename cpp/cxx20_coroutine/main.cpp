@@ -32,6 +32,26 @@ struct coro_ret {
   }
   //! 通过promise获取数据，返回值
   T get() { return coro_handle_.promise().return_data_; }
+
+  bool await_ready() const {
+    std::cout << "await ready..." << std::endl;
+    return coro_handle_.done();
+  }
+
+  void await_suspend(std::coroutine_handle<> h) const {
+    std::cout << "await suspend..." << std::endl;
+    // (void)std::async(std::launch::async, [this, h]() {
+    //   while (!this->coro_handle_.done())
+    //     std::this_thread::yield();
+    //   h.resume();
+    // });
+  }
+
+  T await_resume() const {
+    std::cout << "await resume..." << std::endl;
+    return coro_handle_.promise().return_data_;
+  }
+
   //! promise_type就是承诺对象，承诺对象用于协程内外交流
   struct promise_type {
     promise_type() = default;
@@ -45,8 +65,8 @@ struct coro_ret {
     //! 返回std::suspend_always{} 挂起
     //! 当然你也可以返回其他awaiter
     auto initial_suspend() {
-      // return std::suspend_never{};
-      return std::suspend_always{};
+      return std::suspend_never{};
+      // return std::suspend_always{};
     }
     //! co_return 后这个函数会被调用
     void return_value(T v) {
@@ -73,59 +93,66 @@ struct coro_ret {
     T return_data_;
   };
 };
+
+template <typename T>
+auto operator co_await(std::future<T> future) noexcept
+  requires(!std::is_reference_v<T>)
+{
+  struct awaiter : std::future<T> {
+    bool await_ready() const noexcept {
+      using namespace std::chrono_literals;
+      return this->wait_for(0s) != std::future_status::timeout;
+    }
+
+    void await_suspend(std::coroutine_handle<> cont) const {
+      std::thread([this, cont] {
+        this->wait();
+        cont();
+      }).detach();
+    }
+
+    T await_resume() { return this->get(); }
+  };
+
+  return awaiter{std::move(future)};
+}
+
+std::future<int> coroutine_3() {
+  std::cout << "coroutine 3" << std::endl;
+  auto fut = std::async(std::launch::async, []() -> int {
+    auto val = 0;
+    for (auto i = 0; i < 10; ++i) {
+      val += i;
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    return val;
+  });
+  return fut;
+}
+
+coro_ret<int> coroutine_2() {
+  std::cout << "coroutine 2" << std::endl;
+  auto val = co_await coroutine_3();
+  co_return (val + 10);
+}
+
+coro_ret<int> coroutine_1() {
+  std::cout << "coroutine 1" << std::endl;
+  auto val = co_await coroutine_2();
+  co_return (val + 10);
+}
+
 // 这就是一个协程函数
 coro_ret<int> coroutine_7in7out() {
-  // 进入协程看initial_suspend，返回std::suspend_always{};会有一次挂起
-  std::cout << "Coroutine co_await std::suspend_never" << std::endl;
-  // co_await std::suspend_never{} 不会挂起
-  co_await std::suspend_never{};
-  std::cout << "Coroutine co_await std::suspend_always" << std::endl;
-  co_await std::suspend_always{};
-  std::cout << "Coroutine stage 1 ,co_yield" << std::endl;
-  co_yield 101;
-  std::cout << "Coroutine stage 2 ,co_yield" << std::endl;
-  co_yield 202;
-  std::cout << "Coroutine stage 3 ,co_yield" << std::endl;
-  co_yield 303;
-  std::cout << "Coroutine stage end, co_return" << std::endl;
+  auto val = co_await coroutine_1();
+  std::cout << "value is: " << val << std::endl;
   co_return 808;
 }
 
-void print(std::string& str) {
-  str[0] = 'e';
-  std::cout << str << std::endl;
-}
-
-template <typename F, typename... Args>
-void call(F&& callable, Args&&... args) {
-  std::packaged_task<void()> task(std::bind(callable, std::forward<Args>(args)...));
-  // callable(std::forward<Args>(args)...);
-  (void)task();
-}
-
 int main(int argc, char* argv[]) {
-  std::string s = "abcd";
-  call(print, s);
-  std::cout << s << std::endl;
-  return 0;
-
   bool done = false;
   std::cout << "Start coroutine_7in7out ()\n";
-  // 调用协程,得到返回值c_r，后面使用这个返回值来管理协程。
   auto c_r = coroutine_7in7out();
-  // 第一次停止因为initial_suspend 返回的是suspend_always
-  // 此时没有进入Stage 1
-  std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
-  done = c_r.move_next();
-  // 此时是，co_await std::suspend_always{}
-  std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
-  done = c_r.move_next();
-  // 此时打印Stage 1
-  std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
-  done = c_r.move_next();
-  std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
-  done = c_r.move_next();
-  std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
   done = c_r.move_next();
   std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
   return 0;
