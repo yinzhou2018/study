@@ -40,11 +40,11 @@ struct coro_ret {
 
   void await_suspend(std::coroutine_handle<> h) const {
     std::cout << "await suspend..." << std::endl;
-    // (void)std::async(std::launch::async, [this, h]() {
-    //   while (!this->coro_handle_.done())
-    //     std::this_thread::yield();
-    //   h.resume();
-    // });
+    std::thread([this, h] {
+      while (!this->coro_handle_.done())
+        std::this_thread::yield();
+      h.resume();
+    }).detach();
   }
 
   T await_resume() const {
@@ -130,21 +130,23 @@ std::future<int> coroutine_3() {
   return fut;
 }
 
-coro_ret<int> coroutine_2() {
-  std::cout << "coroutine 2" << std::endl;
-  auto val = co_await coroutine_3();
-  co_return (val + 10);
-}
+// coro_ret<int> coroutine_2() {
+//   std::cout << "coroutine 2" << std::endl;
+//   auto val = co_await coroutine_3();
+//   co_return (val + 10);
+// }
 
 coro_ret<int> coroutine_1() {
   std::cout << "coroutine 1" << std::endl;
-  auto val = co_await coroutine_2();
+  auto val = co_await coroutine_3();
   co_return (val + 10);
 }
 
 // 这就是一个协程函数
 coro_ret<int> coroutine_7in7out() {
+  std::cout << "1. Thread id: " << std::this_thread::get_id() << std::endl;
   auto val = co_await coroutine_1();
+  std::cout << "2. Thread id: " << std::this_thread::get_id() << std::endl;
   std::cout << "value is: " << val << std::endl;
   co_return 808;
 }
@@ -153,7 +155,10 @@ int main(int argc, char* argv[]) {
   bool done = false;
   std::cout << "Start coroutine_7in7out ()\n";
   auto c_r = coroutine_7in7out();
-  done = c_r.move_next();
+  while (!done) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    done = c_r.coro_handle_.done();
+  }
   std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
   return 0;
 }
