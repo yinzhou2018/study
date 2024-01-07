@@ -4,5 +4,5 @@
 #include "exception_study.h"
 
 int main(int, char**) {
-  std::cout << "Hello, from playground!\n";
+  std::cout << "Hello, Welcome to playground...\n";
 }
