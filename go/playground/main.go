@@ -1,7 +1,7 @@
 package main
 
 import (
-	"first-console/utils"
+	"playground/utils"
 	"fmt"
 )
 
