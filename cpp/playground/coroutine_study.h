@@ -1,3 +1,4 @@
+#pragma once
 #include <coroutine>
 #include <future>
 #include <iostream>
@@ -143,7 +144,7 @@ coro_ret<int> coroutine_1() {
 }
 
 // 这就是一个协程函数
-coro_ret<int> coroutine_7in7out() {
+coro_ret<int> coroutine_root() {
   std::cout << "1. Thread id: " << std::this_thread::get_id() << std::endl;
   auto val = co_await coroutine_1();
   std::cout << "2. Thread id: " << std::this_thread::get_id() << std::endl;
@@ -151,42 +152,13 @@ coro_ret<int> coroutine_7in7out() {
   co_return 808;
 }
 
-decltype(auto) add(auto a, auto b) {
-  auto val = a + b;
-  auto& val_ref = val;
-  return val_ref;
-}
-
-struct Person {
-  std::string name;
-  int age;
-};
-
-template <typename T>
-struct Protector {
-  static constexpr bool value = false;
-};
-
-template <typename T>
-int hello() {
-  static_assert(Protector<T>::value, "hello");
-}
-
-int main(int argc, char* argv[]) {
-  int i = 10;
-  decltype(auto) j = i;
-  decltype(auto) k = (i);
-
-  auto p = Person{.name = "yin", .age = 30};
-  auto p2 = Person{.name = "yin"};
-
+void coroutine_study() {
   bool done = false;
-  std::cout << "Start coroutine_7in7out ()\n";
-  auto c_r = coroutine_7in7out();
+  std::cout << "Start coroutine_root\n";
+  auto c_r = coroutine_root();
   while (!done) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     done = c_r.coro_handle_.done();
   }
   std::cout << "Coroutine " << (done ? "is done " : "isn't done ") << "ret =" << c_r.get() << std::endl;
-  return 0;
 }
