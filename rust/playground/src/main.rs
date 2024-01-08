@@ -28,6 +28,14 @@ where
   return Ok(result);
 }
 
+fn get_lengther_one<'a>(left: &'a str, right: &'a str) -> &'a str {
+  if left.len() > right.len() {
+    return left;
+  } else {
+    return right;
+  }
+}
+
 fn main() {
   // println!("Hello, world!");
   // hello();
@@ -36,4 +44,19 @@ fn main() {
 
   let result = call(divide).unwrap();
   println!("10 divided by 0 is {}", result);
+
+  let s1 = "abc".to_string();
+  // let left: &str;
+  // let right: &str;
+  let result: &str;
+  {
+    // let s1 = "abc".to_string();
+    // let s2 = "cdfg".to_string();
+    let s2 = "cdfg".to_string();
+    let left = &s1;
+    let right = &s2;
+    result = get_lengther_one(left, right);
+  }
+
+  println!("{}", result);
 }

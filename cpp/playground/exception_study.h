@@ -1,6 +1,11 @@
 #pragma once
 #include <iostream>
 
+#ifdef WIN32
+#include <Windows.h>
+#include <excpt.h>
+#endif  // WIN32
+
 void visit_nullptr() {
   std::cout << __FUNCTION__ << std::endl;
   int* p = nullptr;
@@ -46,6 +51,15 @@ void visit_misaligned_address() {
 }
 
 void exception_study() {
+#ifdef WIN32
+  __try {
+    // visit_nullptr();
+    // visit_invalid_address();
+    visit_misaligned_address();
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    std::cout << "exception code: " << GetExceptionCode() << std::endl;
+  }
+#else
   try {
     // visit_nullptr();
     // visit_misaligned_address();
@@ -54,4 +68,5 @@ void exception_study() {
   } catch (...) {
     std::cout << "crashed..." << std::endl;
   }
+#endif  // WIN32
 }
