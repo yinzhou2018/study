@@ -63,6 +63,9 @@
     "xmemory": "cpp",
     "xstring": "cpp",
     "xtr1common": "cpp",
-    "xutility": "cpp"
-  }
+    "xutility": "cpp",
+    "resumable": "cpp",
+    "span": "cpp"
+  },
+  "C_Cpp.errorSquiggles": "disabled"
 }

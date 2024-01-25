@@ -7,15 +7,15 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'first-console'",
+      "name": "Debug executable 'playground'",
       "cargo": {
         "args": [
           "build",
-          "--bin=first-console",
-          "--package=first-console"
+          "--bin=playground",
+          "--package=playground"
         ],
         "filter": {
-          "name": "first-console",
+          "name": "playground",
           "kind": "bin"
         }
       },
@@ -25,16 +25,16 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'first-console'",
+      "name": "Debug unit tests in executable 'playground'",
       "cargo": {
         "args": [
           "test",
           "--no-run",
-          "--bin=first-console",
-          "--package=first-console"
+          "--bin=playground",
+          "--package=playground"
         ],
         "filter": {
-          "name": "first-console",
+          "name": "playground",
           "kind": "bin"
         }
       },

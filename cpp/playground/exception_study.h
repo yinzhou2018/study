@@ -47,7 +47,7 @@ void visit_misaligned_address() {
   int* p = new int{10};
   std::cout << "size: " << sizeof(int) << "," << *p << std::endl;
   int* misaligned_p = (int*)((char*)p + 1);
-  std::cout << (long)misaligned_p << ": " << *misaligned_p << std::endl;
+  std::cout << misaligned_p << ": " << *misaligned_p << std::endl;
 }
 
 void exception_study() {

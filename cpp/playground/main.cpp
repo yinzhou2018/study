@@ -5,6 +5,6 @@
 
 int main(int, char**) {
   std::cout << "Hello, Welcome to playground...\n";
-  exception_study();
+  advanced_feature_study();
   return 0;
 }
