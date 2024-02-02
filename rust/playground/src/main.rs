@@ -1,3 +1,5 @@
+use std::{cell::RefCell, sync::Arc};
+
 trait Callable {
   fn call(&self);
 }
@@ -44,7 +46,39 @@ fn move_semantic_study() {
   print(dummy);
 }
 
+fn smart_ptr_study() {
+  // let mut p1 = Box::new(10);
+  // *p1 = 20;
+  // let r2: &mut i32 = &mut p1;
+  // let r1: &i32 = &p1;
+  // println!("{}", r1);
+  // println!("{}", r2);
+  let cell = RefCell::new(10);
+  {
+    let mut mut_ref = cell.borrow_mut();
+    *mut_ref = 20;
+  }
+
+  let v_ref = cell.borrow();
+  let i = 30;
+  let j = &i;
+  println!("{}, {}", v_ref, j);
+}
+
+fn cocurrent_study() {
+  let data = Arc::new(std::sync::RwLock::new(20));
+  let data_copied = Arc::clone(&data);
+  let handle = std::thread::spawn(move || {
+    *data_copied.write().unwrap() = 10;
+    println!("Thread id: {:?}, {}", std::thread::current().id(), data_copied.read().unwrap());
+  });
+  handle.join().unwrap();
+  println!("Thread id: {:?}, {}", std::thread::current().id(), data.read().unwrap());
+}
+
 fn main() {
   types_vals_size_study();
   move_semantic_study();
+  smart_ptr_study();
+  cocurrent_study();
 }
