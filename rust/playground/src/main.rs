@@ -1,4 +1,5 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{cell::RefCell, future::Future, sync::Arc};
+mod utils;
 
 trait Callable {
   fn call(&self);
@@ -8,6 +9,7 @@ struct DummyCallable {
   age: i32,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct Dummy2Callable {
   age: i32,
   height: i32,
@@ -43,7 +45,16 @@ fn print(dummy: Dummy2Callable) {
 
 fn move_semantic_study() {
   let dummy = Dummy2Callable { age: 30, height: 20 };
+  println!("{:?}", dummy);
   print(dummy);
+  let mut dummy1 = dummy;
+  dummy1.age = 40;
+  print(dummy1);
+  let mut x = [0; 5];
+  let mut y = x;
+  x[1] = 10;
+  y[1] = 20;
+  println!("{:?}, {:?}", x, y);
 }
 
 fn smart_ptr_study() {
@@ -70,7 +81,11 @@ fn cocurrent_study() {
   let data_copied = Arc::clone(&data);
   let handle = std::thread::spawn(move || {
     *data_copied.write().unwrap() = 10;
-    println!("Thread id: {:?}, {}", std::thread::current().id(), data_copied.read().unwrap());
+    println!(
+      "Thread id: {:?}, {}",
+      std::thread::current().id(),
+      data_copied.read().unwrap()
+    );
   });
   handle.join().unwrap();
   println!("Thread id: {:?}, {}", std::thread::current().id(), data.read().unwrap());
@@ -81,4 +96,5 @@ fn main() {
   move_semantic_study();
   smart_ptr_study();
   cocurrent_study();
+  utils::m1::m2::m3::hello();
 }
