@@ -66,7 +66,9 @@
     "xutility": "cpp",
     "resumable": "cpp",
     "span": "cpp",
-    "fstream": "cpp"
+    "fstream": "cpp",
+    "array": "cpp",
+    "ranges": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }

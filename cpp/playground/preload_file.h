@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <fstream>
 #include <vector>
 
@@ -27,9 +28,7 @@ bool preload_file(const char* file_path) {
 
     // 每次在控制台输出开头几个字节方便调试
     auto show_count = read_size > 5 ? 5 : read_size;
-    for (auto i = 0; i < show_count; ++i) {
-      std::cout << (int)buffer[i] << " ";
-    }
+    std::for_each_n(buffer.begin(), show_count, [](auto elem) { std::cout << (int)elem << " "; });
   }
 
   return true;
