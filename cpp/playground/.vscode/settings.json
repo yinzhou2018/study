@@ -65,7 +65,10 @@
     "xtr1common": "cpp",
     "xutility": "cpp",
     "resumable": "cpp",
-    "span": "cpp"
+    "span": "cpp",
+    "fstream": "cpp",
+    "array": "cpp",
+    "ranges": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
