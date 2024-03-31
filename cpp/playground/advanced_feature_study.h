@@ -1,8 +1,10 @@
 #pragma once
-#include <string.h>
 #include <iostream>
+#include <ranges>
 #include <span>
+#include <thread>
 #include <variant>
+#include <vector>
 
 decltype(auto) add(auto a, auto b) {
   auto val = a + b;
@@ -65,19 +67,32 @@ bool numEq(T left, T right) {
   }
 }
 
-void advanced_feature_study() {
-  Shape shape(Circle{});
-  visit(shape);
-  // std::visit([](auto&& shape) { printShapeInfo(shape); }, shape);
-  std::cout << numEq(10, 20) << std::endl;
-  std::cout << numEq(10.2, 20.3) << std::endl;
-  // numEq(Circle{}, Circle{});
-
-  int8_t* bytes = new int8_t[128]{0};
-  int8_t ary[] = {1, 2, 3};
-  std::span<int8_t, sizeof(ary)> sp(ary);
-  std::span<int8_t> sp1(bytes, 128);
-  for (auto& e : sp) {
-    std::cout << e << std::endl;
+constexpr int sum(int n) {
+  auto result = 0;
+  for (auto i : std::views::iota(1) | std::views::take(n)) {
+    result += i;
   }
+  return result;
+}
+
+volatile int cnt = 0;
+
+void f() {
+  for (int n = 0; n < 1000; ++n)
+    cnt++;
+}
+
+void sync_study() {
+  std::vector<std::thread> v;
+  for (int n = 0; n < 10; ++n)
+    v.emplace_back(f);
+  for (auto& t : v)
+    t.join();
+  std::cout << "Final counter value is " << cnt << '\n';
+}
+
+void advanced_feature_study() {
+  constexpr auto val = sum(10);
+  std::cout << val << std::endl;
+  sync_study();
 }

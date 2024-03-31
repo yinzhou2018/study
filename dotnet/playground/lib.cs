@@ -1,6 +1,6 @@
 static class Lib
 {
-  public static int Add(int a, int b)
+  internal static int Add(int a, int b)
   {
     return a + b;
   }

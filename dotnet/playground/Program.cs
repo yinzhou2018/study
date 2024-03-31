@@ -1,25 +1,30 @@
-﻿static async Task Main(string[] args)
+﻿
+Printer printer = new Printer2();
+printer.Print();
+var val = Lib.Add(10, 20);
+Console.WriteLine(val);
+Console.WriteLine(printer.Name);
+Func<int, int> square = x => x + val;
+Console.WriteLine(square(5));
+val = 100;
+Console.WriteLine(square(10));
+
+class Printer
 {
-  Console.WriteLine("Let's start ...");
-  var done = DoneAsync();
-  Console.WriteLine("Done is running ...");
-  var result = await done;
-  Console.WriteLine($"Main Thread 1: {Thread.CurrentThread.ManagedThreadId.ToString()}");
-  Console.WriteLine(result);
+  public virtual void Print()
+  {
+    Console.WriteLine("Printer.");
+  }
+
+  public virtual string Name { get { return "Printer"; } }
 }
 
-static async Task<int> DoneAsync()
+class Printer2 : Printer
 {
-  var i = 0;
-  var j = 10 / i;
-  Console.WriteLine(j);
-  Console.WriteLine("Warming up ...");
-  await Task.Delay(3000);
-  Console.WriteLine($"DoneAsync Thread 1: {Thread.CurrentThread.ManagedThreadId.ToString()}");
-  Console.WriteLine("Done ...");
-  return 1;
-}
+  public override void Print()
+  {
+    Console.WriteLine("Printer2.");
+  }
 
-Console.WriteLine($"Global Thread 1: {Thread.CurrentThread.ManagedThreadId.ToString()}");
-await Main(["hello"]);
-Console.WriteLine($"Global Thread 2: {Thread.CurrentThread.ManagedThreadId.ToString()}");
+  public override string Name { get { return "Printer2"; } }
+}
