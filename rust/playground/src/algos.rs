@@ -17,11 +17,11 @@ fn quick_sort(ary: &mut [i32]) {
   // 循环不变式：`key_idx`指向本次选中key值所在位置，left左边值 <= key, right右边值 > key
   while left < right {
     if ary[left] > key {
-      if ary[right] == key {
-        key_idx = left;
-      }
       (ary[left], ary[right]) = (ary[right], ary[left]);
       right = right - 1;
+      if ary[left] == key {
+        key_idx = left;
+      }
     } else {
       left = left + 1;
     }
