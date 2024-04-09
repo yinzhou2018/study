@@ -68,7 +68,9 @@
     "span": "cpp",
     "fstream": "cpp",
     "array": "cpp",
-    "ranges": "cpp"
+    "ranges": "cpp",
+    "cassert": "cpp",
+    "__config": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
