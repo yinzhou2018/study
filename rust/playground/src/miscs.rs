@@ -1,4 +1,11 @@
-use std::{fmt::Display, ops::Deref, pin::Pin};
+use core::slice;
+use std::{
+  cell::Cell,
+  fmt::{Debug, Display},
+  marker::PhantomData,
+  ops::Deref,
+  pin::Pin,
+};
 
 trait Callable {
   fn call(&self) -> &dyn Callable;
@@ -28,6 +35,7 @@ impl Callable for Dummy2Callable {
 }
 
 fn types_vals_size_study() {
+  println!("box type size: {}", std::mem::size_of::<Box<Person>>());
   println!("char size: {}", std::mem::size_of::<char>());
   println!("String reference size: {}", std::mem::size_of::<&String>());
   println!("String slice size: {}", std::mem::size_of::<&str>());
@@ -127,47 +135,59 @@ fn trait_study() {
   println!("{}", trait_obj.summarize());
 }
 
-struct DropImpl;
-impl Drop for DropImpl {
+#[derive(Debug)]
+struct Slice<'a, T> {
+  start: *const T,
+  end: *const T,
+  phantom: PhantomData<&'a T>,
+}
+
+fn create_slice<T>(ary: &[T]) -> Slice<T> {
+  Slice {
+    start: ary.as_ptr(),
+    end: unsafe { ary.as_ptr().add(ary.len()) },
+    phantom: PhantomData,
+  }
+}
+
+#[derive(Debug)]
+struct InnerDrop;
+impl Drop for InnerDrop {
   fn drop(&mut self) {
-    println!("DropImpl destructor...");
+    println!("InnerDrop destructor...");
   }
 }
 
-struct ImportantExcerpt<'a> {
-  part: &'a str,
+#[derive(Debug)]
+struct DropImplWithInnerDrop {
+  inner: *const InnerDrop,
+  _marker: PhantomData<InnerDrop>,
 }
 
-impl<'a: 'b, 'b> ImportantExcerpt<'a> {
-  fn announce_and_return_part(&'a self, announcement: &'b str) -> &'a str {
-    println!("Attention please: {}", announcement);
-    self.part
+impl Drop for DropImplWithInnerDrop {
+  fn drop(&mut self) {
+    println!("DropImplWithInnerDrop destructor...");
   }
-}
-
-fn assign<T>(input: &mut T, val: T)
-where
-  T: Display,
-{
-  *input = val;
-  // println!("{}, {}", *input, val);
 }
 
 fn lifetime_study() {
-  let val = ImportantExcerpt { part: "abcd" };
-  let result;
+  let slice;
   {
-    let s2 = String::from("abcd");
-    result = val.announce_and_return_part(&s2);
+    let ary = [1, 2, 3];
+    slice = create_slice(&ary);
+    println!("{:?}", slice);
   }
-  println!("{result}");
 
-  let mut hello: &'static str = "hello";
+  let pointer;
   {
-    let world = String::from("world");
-    assign(&mut hello, &world);
-    println!("{hello}"); // use after free
+    let inner = InnerDrop;
+    pointer = &inner as *const InnerDrop;
   }
+  let drop_impl_with_inner_drop = DropImplWithInnerDrop {
+    inner: pointer,
+    _marker: PhantomData,
+  };
+  println!("{:?}", drop_impl_with_inner_drop);
 }
 
 pub fn miscs_study() {

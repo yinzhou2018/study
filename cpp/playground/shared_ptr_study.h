@@ -7,7 +7,7 @@ struct DemoData {
   DemoData() { std::cout << "DemoData constructor..." << std::endl; }
   ~DemoData() { std::cout << "DemoData destructor..." << std::endl; }
 
-//  private:
+  //  private:
   int a = 10;
   int b = 30;
 };
@@ -98,6 +98,9 @@ std::weak_ptr<DemoData> make_demo_data() {
 }
 
 void shared_ptr_study() {
+  DemoData a[10];
+  std::cout << "DemoData: " << a[0].a << std::endl;
+
   auto p = make_demo_data();
   std::cout << "p user count: " << p.use_count() << std::endl;
 }
