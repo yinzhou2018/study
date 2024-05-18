@@ -1,11 +1,4 @@
-use core::slice;
-use std::{
-  cell::Cell,
-  fmt::{Debug, Display},
-  marker::PhantomData,
-  ops::Deref,
-  pin::Pin,
-};
+use std::{marker::PhantomData, pin::Pin};
 
 trait Callable {
   fn call(&self) -> &dyn Callable;
@@ -128,6 +121,13 @@ fn trait_study() {
     content: "好像微博没Tweet好用".to_string(),
   };
 
+  println!("Old weibo address: {:?}", &weibo as *const Weibo);
+  let weibo2 = weibo;
+  println!("New weibo address: {:?}", &weibo2 as *const Weibo);
+
+  // let Weibo { username, content } = weibo;
+  // println!("{}: {}", username, content);
+
   // println!("{}", post.summarize());
   // println!("{}", weibo.summarize());
 
@@ -171,6 +171,11 @@ impl Drop for DropImplWithInnerDrop {
 }
 
 fn lifetime_study() {
+  let mut v: Vec<&str> = Vec::new();
+  let s: String = "Short-lived".into();
+  v.push(&s);
+  drop(s);
+
   let slice;
   {
     let ary = [1, 2, 3];
@@ -183,11 +188,42 @@ fn lifetime_study() {
     let inner = InnerDrop;
     pointer = &inner as *const InnerDrop;
   }
-  let drop_impl_with_inner_drop = DropImplWithInnerDrop {
-    inner: pointer,
-    _marker: PhantomData,
-  };
+  let drop_impl_with_inner_drop = DropImplWithInnerDrop { inner: pointer, _marker: PhantomData };
   println!("{:?}", drop_impl_with_inner_drop);
+}
+
+struct Manager<'a> {
+  name: String,
+  age: i32,
+  item: Item<'a>,
+}
+
+impl<'a> Manager<'a> {
+  pub fn new(name: String, age: i32) -> Self {
+    let mut parent = Self { name, age, item: unsafe { std::mem::zeroed() } };
+    parent.item = Item { manager: &parent as *const Manager, marker: PhantomData };
+    parent
+  }
+
+  pub fn get_item(&self) -> &Item {
+    &self.item
+  }
+}
+
+#[derive(Clone, Copy)]
+struct Item<'a> {
+  manager: *const Manager<'a>,
+  marker: PhantomData<&'a Manager<'a>>,
+}
+
+struct Wrapper<'a> {
+  s: &'a str,
+}
+
+impl<'a> Wrapper<'a> {
+  pub fn new(s: &'a str) -> Self {
+    Self { s }
+  }
 }
 
 pub fn miscs_study() {

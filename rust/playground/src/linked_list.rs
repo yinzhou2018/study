@@ -1,23 +1,23 @@
 use std::ptr::{self};
 
-struct Node<T> {
+struct Node<T: Copy> {
   value: T,
   next: Option<Box<Node<T>>>,
 }
 
-// impl<T> Drop for Node<T> {
-//   fn drop(&mut self) {
-//     println!("Node destructor...");
-//   }
-// }
+impl<T: Copy> Drop for Node<T> {
+  fn drop(&mut self) {
+    println!("Node destructor...");
+  }
+}
 
-pub struct LinkedList<T> {
+pub struct LinkedList<T: Copy> {
   head: Option<Box<Node<T>>>,
   tail: *mut Node<T>,
   size: i32,
 }
 
-impl<T> LinkedList<T> {
+impl<T: Copy> LinkedList<T> {
   pub fn new() -> Self {
     LinkedList { head: None, tail: ptr::null_mut(), size: 0 }
   }
@@ -34,7 +34,7 @@ impl<T> LinkedList<T> {
 
   pub fn push_front(&mut self, value: T) {
     self.size += 1;
-    let mut node = Box::new(Node { value, next: self.head.take() });
+    let node = Box::new(Node { value, next: self.head.take() });
     self.head = Some(node);
     if self.tail.is_null() {
       self.tail = self.head.as_mut().unwrap().as_mut();
@@ -57,8 +57,8 @@ impl<T> LinkedList<T> {
       None
     } else {
       self.size -= 1;
-      let node = self.head.take()?;
-      self.head = node.next;
+      let mut node = self.head.take()?;
+      self.head = node.next.take();
       if self.head.is_none() {
         self.tail = ptr::null_mut();
       }
@@ -91,7 +91,7 @@ impl<T> LinkedList<T> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  
+
   #[test]
   fn test_linked_list() {
     let mut list = LinkedList::new();

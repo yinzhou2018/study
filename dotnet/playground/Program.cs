@@ -3,6 +3,7 @@ Printer printer = new Printer2();
 printer.Print();
 var val = Lib.Add(10, 20);
 Console.WriteLine(val);
+Console.WriteLine(Lib2.Add(100, 200));
 Console.WriteLine(printer.Name);
 Func<int, int> square = x => x + val;
 Console.WriteLine(square(5));

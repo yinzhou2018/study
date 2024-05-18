@@ -1,4 +1,4 @@
-static class Lib
+public static class Lib
 {
   internal static int Add(int a, int b)
   {
@@ -6,3 +6,10 @@ static class Lib
   }
 }
 
+public static class Lib2
+{
+  internal static int Add(int a, int b)
+  {
+    return a + b;
+  }
+}

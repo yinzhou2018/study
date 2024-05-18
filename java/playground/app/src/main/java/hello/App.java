@@ -3,6 +3,8 @@
  */
 package hello;
 
+import utils1.*;
+
 public class App {
   public String getGreeting() {
     return "Hello World!";
@@ -14,5 +16,7 @@ public class App {
 
   public static void main(String[] args) {
     System.out.println(new App().getGreeting());
+    // System.out.println(UtilsImpl2.add(1, 2));
+    System.out.println(Utils.add(1, 2));
   }
 }

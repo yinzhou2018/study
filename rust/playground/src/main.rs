@@ -11,4 +11,8 @@ fn main() {
   multithread::multithread_study();
   usb::usb_study();
   // web_server::main();
+  let mut list = linked_list::LinkedList::new();
+  list.push_front(1);
+  list.push_front(2);
+  list.push_front(3);
 }
