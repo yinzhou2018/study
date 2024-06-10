@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "sourceLanguages": ["swift"],
+      "args": [],
+      "cwd": "${workspaceFolder:playground}",
+      "name": "Debug playground",
+      "program": "${workspaceFolder:playground}/.build/debug/playground",
+      "preLaunchTask": "swift: Build Debug playground"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "sourceLanguages": ["swift"],
+      "args": [],
+      "cwd": "${workspaceFolder:playground}",
+      "name": "Release playground",
+      "program": "${workspaceFolder:playground}/.build/release/playground",
+      "preLaunchTask": "swift: Build Release playground"
+    }
+  ]
+}
