@@ -1,9 +1,9 @@
 package playground
 
-import utils1.*
+// import utils
 
 fun main(args: Array<String>) {
-  val a = add(1, 2)
+  val a = utils.add(1, 2)
   println("Hello World: ${args.joinToString()}")
   println("${a}")
 }
