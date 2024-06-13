@@ -7,6 +7,7 @@
 
 namespace osr_utils {
 
+uint64_t GetTimeNow();
 int GetCefMouseModifiers(WPARAM wparam);
 int GetCefKeyboardModifiers(WPARAM wparam, LPARAM lparam);
 bool IsKeyDown(WPARAM wparam);

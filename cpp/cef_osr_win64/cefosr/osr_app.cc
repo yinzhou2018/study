@@ -13,7 +13,9 @@ OsrApp::OsrApp() = default;
 
 void OsrApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
-  window_ = OsrWindow::Create("https://www.google.com");
+  // const char* kUrl = "https://www.google.com";
+  const char* kUrl = "E:\\demo.html";
+  window_ = OsrWindow::Create(kUrl);
   window_->Show();
 }
 

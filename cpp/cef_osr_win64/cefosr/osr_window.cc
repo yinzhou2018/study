@@ -9,6 +9,8 @@
 #include <functional>
 #include <iostream>
 
+#pragma comment(lib, "Msimg32.lib")
+
 using namespace std::placeholders;
 OsrWindow* g_win_ = nullptr;
 
@@ -47,7 +49,7 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
   wcex.hInstance = GetModuleHandle(nullptr);
   wcex.hIcon = nullptr;
   wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-  wcex.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
+  wcex.hbrBackground = static_cast<HBRUSH>(GetStockObject(GRAY_BRUSH));
   wcex.lpszMenuName = nullptr;
   wcex.lpszClassName = window_class;
   wcex.hIconSm = nullptr;
@@ -68,6 +70,9 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
   browser_settings.remote_fonts = STATE_ENABLED;
   browser_settings.webgl = STATE_ENABLED;
   browser_settings.windowless_frame_rate = 60;
+
+  // Enable or disable transparent background for document without background color
+  // browser_settings.background_color = (cef_color_t)-1;
 
   CefWindowInfo window_info;
   window_info.SetAsWindowless(window->hwnd_);
@@ -304,7 +309,8 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         const void* buffer,
                         int width,
                         int height) {
-  HDC hdc = GetDC(hwnd_);
+  HDC hdc = ::GetDC(hwnd_);
+
   BITMAPINFO bmi = {};
   bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
   bmi.bmiHeader.biWidth = width;
@@ -312,9 +318,24 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
   bmi.bmiHeader.biPlanes = 1;
   bmi.bmiHeader.biBitCount = 32;
   bmi.bmiHeader.biCompression = BI_RGB;
+  auto bmp =
+      ::CreateDIBitmap(hdc, reinterpret_cast<const BITMAPINFOHEADER*>(&bmi), CBM_INIT, buffer, &bmi, DIB_RGB_COLORS);
+  auto mem_dc = ::CreateCompatibleDC(hdc);
+  ::SelectObject(mem_dc, bmp);
 
-  SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
-  ReleaseDC(hwnd_, hdc);
+  BLENDFUNCTION blendFunc;
+  blendFunc.BlendOp = AC_SRC_OVER;
+  blendFunc.BlendFlags = 0;
+  blendFunc.SourceConstantAlpha = 255;
+  blendFunc.AlphaFormat = AC_SRC_ALPHA;
+
+  ::AlphaBlend(hdc, 0, 0, width, height, mem_dc, 0, 0, width, height, blendFunc);
+
+  // SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
+  ::SelectObject(mem_dc, nullptr);
+  ::DeleteObject(bmp);
+  ::DeleteDC(mem_dc);
+  ::ReleaseDC(hwnd_, hdc);
 }
 
 void OsrWindow::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,

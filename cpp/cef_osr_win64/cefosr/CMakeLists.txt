@@ -3,19 +3,7 @@
 # can be found in the LICENSE file.
 
 # cefosr sources.
-set(CEFOSR_SRCS
-  osr_app.cc
-  osr_app.h
-  osr_window.cc
-  osr_window.h
-  osr_ime_handler.cc
-  osr_ime_handler.h
-  osr_input_handler.cc
-  osr_input_handler.h
-  osr_utils.cc
-  osr_utils.h
-  cefosr.rc
-  )
+file(GLOB_RECURSE CEFOSR_SRCS "*.cc" "*.h" "*.rc")
 
 # Target executable names.
 set(CEF_TARGET "cefosr")
