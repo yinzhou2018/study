@@ -22,14 +22,11 @@ class OsrInputHandler {
   OsrWindow* owner_;
 
   // Mouse state tracking.
-  POINT last_mouse_pos_;
-  POINT current_mouse_pos_;
-  bool mouse_rotation_ = false;
   bool mouse_tracking_ = false;
   int last_click_x_ = 0;
   int last_click_y_ = 0;
   CefBrowserHost::MouseButtonType last_click_button_ = MBT_LEFT;
-  int last_click_count_ = 1;
+  int last_click_count_ = 0;
   double last_click_time_ = 0;
   bool last_mouse_down_on_view_ = false;
 };  // OsrInputHandler
