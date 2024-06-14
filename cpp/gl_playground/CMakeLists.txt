@@ -6,11 +6,13 @@ set(CMAKE_CXX_STANDARD 20)
 # 环境搭建：https://cloud.tencent.com/developer/article/2071165
 
 if (WIN32)
+add_compile_options(/utf-8)
 set(GLFW_HOME "./glfw-3.3.9.bin.WIN64")
-link_directories("${GLFW_HOME}/lib-mingw-w64")
+link_directories("${GLFW_HOME}/lib-vc2022")
 set(GL_LIB "")
 set(GLFW_LIB_NAME "glfw3dll")
-file(COPY "./glfw-3.3.9.bin.WIN64/lib-mingw-w64/glfw3.dll" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY "./glfw-3.3.9.bin.WIN64/lib-vc2022/glfw3.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Debug")
+file(COPY "./glfw-3.3.9.bin.WIN64/lib-vc2022/glfw3.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Release")
 elseif (APPLE)
 set(GLFW_HOME "./glfw-3.3.9.bin.MACOS")
 link_directories("${GLFW_HOME}/lib-universal")
@@ -28,9 +30,11 @@ include_directories("${GLAD_HOME}/include")
 
 # 编译 GLAD 库
 add_library(glad SHARED "${GLAD_HOME}/src/glad.c")
+target_compile_definitions(glad PUBLIC GLAD_GLAPI_EXPORT)
+target_compile_definitions(glad PRIVATE GLAD_GLAPI_EXPORT_BUILD)
 
 # 创建可执行文件
-set(SRC_FILES main.cpp)
+file(GLOB SRC_FILES "*.cc" "*.h" "*.cpp")
 if (APPLE)
 add_executable(gl_playground MACOSX_BUNDLE ${SRC_FILES})
 set_target_properties(gl_playground PROPERTIES
