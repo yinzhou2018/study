@@ -18,6 +18,7 @@ class OsrInputHandler {
 
  private:
   void OnCaptureLost();
+  void ApplyPopupOffset(int& x, int& y);
 
   OsrWindow* owner_;
 

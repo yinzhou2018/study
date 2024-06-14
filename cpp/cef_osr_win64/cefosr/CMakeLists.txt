@@ -15,6 +15,7 @@ ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
 SET_CEF_TARGET_OUT_DIR()
 
 # Executable target.
+add_compile_options(/utf-8)
 add_executable(${CEF_TARGET} WIN32 ${CEFOSR_SRCS})
 add_dependencies(${CEF_TARGET} libcef_dll_wrapper)
 SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_TARGET})

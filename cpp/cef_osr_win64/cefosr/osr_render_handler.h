@@ -15,10 +15,6 @@ class OsrRenderHandler {
 
   void SetBrowser(CefRefPtr<CefBrowser> browser);
 
-  // Rotate the texture based on mouse events.
-  virtual void SetSpin(float spinX, float spinY) = 0;
-  virtual void IncrementSpin(float spinDX, float spinDY) = 0;
-
   // Popup hit testing.
   virtual bool IsOverPopupWidget(int x, int y) const = 0;
   virtual int GetPopupXOffset() const = 0;

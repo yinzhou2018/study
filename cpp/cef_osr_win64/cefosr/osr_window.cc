@@ -1,6 +1,8 @@
 #include "osr_window.h"
 #include "osr_ime_handler.h"
 #include "osr_input_handler.h"
+#include "osr_render_handler_d3d11.h"
+#include "osr_render_handler_gl.h"
 #include "osr_utils.h"
 
 #include "include/cef_app.h"
@@ -186,13 +188,15 @@ LRESULT OsrWindow::OnDPIChanged(UINT msg, WPARAM wParam, LPARAM lParam, bool& ha
 }
 
 LRESULT OsrWindow::OnClose(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
-  if (browser_) {
-    browser_->GetHost()->CloseBrowser(true);
-  }
-
   if (hook_) {
     ::UnhookWindowsHookEx(hook_);
     hook_ = nullptr;
+  }
+
+  if (browser_) {
+    browser_->GetHost()->CloseBrowser(true);
+  } else {
+    CefQuitMessageLoop();
   }
 
   return 0;
@@ -230,10 +234,34 @@ bool OsrWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
 
 void OsrWindow::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   browser_ = browser;
+
+  RECT client_rect;
+  ::GetClientRect(hwnd_, &client_rect);
+  OsrRendererSettings settings;
+
+  if (settings.shared_texture_enabled) {
+    // Try to initialize D3D11 rendering.
+    auto render_handler = new OsrRenderHandlerWinD3D11(settings, hwnd_);
+    if (render_handler->Initialize(browser_, client_rect.right - client_rect.left,
+                                   client_rect.bottom - client_rect.top)) {
+      render_handler_.reset(render_handler);
+    } else {
+      LOG(ERROR) << "Failed to initialize D3D11 rendering.";
+      delete render_handler;
+    }
+  }
+
+  // Fall back to GL rendering.
+  if (!render_handler_) {
+    auto render_handler = new OsrRenderHandlerGL(settings, hwnd_);
+    render_handler->Initialize(browser_);
+    render_handler_.reset(render_handler);
+  }
 }
 
 void OsrWindow::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   browser_ = nullptr;
+  render_handler_.reset();
   CefQuitMessageLoop();
 }
 
@@ -309,43 +337,55 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         const void* buffer,
                         int width,
                         int height) {
-  HDC hdc = ::GetDC(hwnd_);
+  DCHECK(render_handler_);
+  render_handler_->OnPaint(browser, type, dirtyRects, buffer, width, height);
+  // HDC hdc = ::GetDC(hwnd_);
 
-  BITMAPINFO bmi = {};
-  bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  bmi.bmiHeader.biWidth = width;
-  bmi.bmiHeader.biHeight = -height;  // top-down
-  bmi.bmiHeader.biPlanes = 1;
-  bmi.bmiHeader.biBitCount = 32;
-  bmi.bmiHeader.biCompression = BI_RGB;
-  auto bmp =
-      ::CreateDIBitmap(hdc, reinterpret_cast<const BITMAPINFOHEADER*>(&bmi), CBM_INIT, buffer, &bmi, DIB_RGB_COLORS);
-  auto mem_dc = ::CreateCompatibleDC(hdc);
-  ::SelectObject(mem_dc, bmp);
+  // BITMAPINFO bmi = {};
+  // bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  // bmi.bmiHeader.biWidth = width;
+  // bmi.bmiHeader.biHeight = -height;  // top-down
+  // bmi.bmiHeader.biPlanes = 1;
+  // bmi.bmiHeader.biBitCount = 32;
+  // bmi.bmiHeader.biCompression = BI_RGB;
+  // auto bmp =
+  //     ::CreateDIBitmap(hdc, reinterpret_cast<const BITMAPINFOHEADER*>(&bmi), CBM_INIT, buffer, &bmi, DIB_RGB_COLORS);
+  // auto mem_dc = ::CreateCompatibleDC(hdc);
+  // ::SelectObject(mem_dc, bmp);
 
-  BLENDFUNCTION blendFunc;
-  blendFunc.BlendOp = AC_SRC_OVER;
-  blendFunc.BlendFlags = 0;
-  blendFunc.SourceConstantAlpha = 255;
-  blendFunc.AlphaFormat = AC_SRC_ALPHA;
+  // BLENDFUNCTION blendFunc;
+  // blendFunc.BlendOp = AC_SRC_OVER;
+  // blendFunc.BlendFlags = 0;
+  // blendFunc.SourceConstantAlpha = 255;
+  // blendFunc.AlphaFormat = AC_SRC_ALPHA;
 
-  ::AlphaBlend(hdc, 0, 0, width, height, mem_dc, 0, 0, width, height, blendFunc);
+  // ::AlphaBlend(hdc, 0, 0, width, height, mem_dc, 0, 0, width, height, blendFunc);
 
-  // SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
-  ::SelectObject(mem_dc, nullptr);
-  ::DeleteObject(bmp);
-  ::DeleteDC(mem_dc);
-  ::ReleaseDC(hwnd_, hdc);
+  // // SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
+  // ::SelectObject(mem_dc, nullptr);
+  // ::DeleteObject(bmp);
+  // ::DeleteDC(mem_dc);
+  // ::ReleaseDC(hwnd_, hdc);
 }
 
 void OsrWindow::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
                                    PaintElementType type,
                                    const RectList& dirtyRects,
-                                   const CefAcceleratedPaintInfo& info) {}
+                                   const CefAcceleratedPaintInfo& info) {
+  DCHECK(render_handler_);
+  render_handler_->OnAcceleratedPaint(browser, type, dirtyRects, info);
+}
 
-void OsrWindow::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {}
+void OsrWindow::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {
+  render_handler_->OnPopupShow(browser, show);
+}
 
-void OsrWindow::OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) {}
+void OsrWindow::OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) {
+  CefRect device_rect = {
+      osr_utils::LogicalToDevice(rect.x, scale_factor_), osr_utils::LogicalToDevice(rect.y, scale_factor_),
+      osr_utils::LogicalToDevice(rect.width, scale_factor_), osr_utils::LogicalToDevice(rect.height, scale_factor_)};
+  render_handler_->OnPopupSize(browser, device_rect);
+}
 
 void OsrWindow::OnImeCompositionRangeChanged(CefRefPtr<CefBrowser> browser,
                                              const CefRange& selected_range,

@@ -44,18 +44,6 @@ OsrRenderHandlerGL::~OsrRenderHandlerGL() {
   DisableGL();
 }
 
-void OsrRenderHandlerGL::SetSpin(float spinX, float spinY) {
-  CEF_REQUIRE_UI_THREAD();
-  renderer_.SetSpin(spinX, spinY);
-  Invalidate();
-}
-
-void OsrRenderHandlerGL::IncrementSpin(float spinDX, float spinDY) {
-  CEF_REQUIRE_UI_THREAD();
-  renderer_.IncrementSpin(spinDX, spinDY);
-  Invalidate();
-}
-
 bool OsrRenderHandlerGL::IsOverPopupWidget(int x, int y) const {
   CEF_REQUIRE_UI_THREAD();
   const CefRect& rc = renderer_.popup_rect();

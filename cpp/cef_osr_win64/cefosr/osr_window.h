@@ -5,6 +5,7 @@
 
 class OsrImeHandler;
 class OsrInputHandler;
+class OsrRenderHandler;
 
 constexpr const char* kLastFocusedIsEditableMessage = "last_focused_is_editable";
 constexpr const char* kLastFocusedIsNotEditableMessage = "last_focused_is_not_editable";
@@ -80,6 +81,7 @@ class OsrWindow : public CefClient, CefLifeSpanHandler, CefRenderHandler, CefLoa
 
   std::unique_ptr<OsrImeHandler> ime_handler_;
   std::unique_ptr<OsrInputHandler> input_handler_;
+  std::unique_ptr<OsrRenderHandler> render_handler_;
   friend class OsrImeHandler;
   friend class OsrInputHandler;
 

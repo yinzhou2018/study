@@ -48,8 +48,6 @@ class OsrRenderHandlerWinD3D11 : public OsrRenderHandler {
   // May fail if D3D11 cannot be initialized.
   bool Initialize(CefRefPtr<CefBrowser> browser, int width, int height);
 
-  void SetSpin(float spinX, float spinY) override;
-  void IncrementSpin(float spinDX, float spinDY) override;
   bool IsOverPopupWidget(int x, int y) const override;
   int GetPopupXOffset() const override;
   int GetPopupYOffset() const override;

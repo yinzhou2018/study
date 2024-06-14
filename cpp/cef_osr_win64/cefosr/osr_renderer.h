@@ -51,10 +51,6 @@ class OsrRenderer {
                           int width,
                           int height);
 
-  // Apply spin.
-  void SetSpin(float spinX, float spinY);
-  void IncrementSpin(float spinDX, float spinDY);
-
   int GetViewWidth() const { return view_width_; }
   int GetViewHeight() const { return view_height_; }
 

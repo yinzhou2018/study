@@ -1,4 +1,5 @@
 #include "osr_input_handler.h"
+#include "osr_render_handler.h"
 #include "osr_utils.h"
 #include "osr_window.h"
 
@@ -55,10 +56,24 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
   }
 
   DCHECK_GT(owner_->scale_factor_, 0);
-  CefRefPtr<CefBrowserHost> browser_host = owner_->browser_->GetHost();
+  auto browser_host = owner_->browser_->GetHost();
 
   int x = GET_X_LPARAM(lParam);
   int y = GET_Y_LPARAM(lParam);
+  POINT point = {x, y};
+  if (WM_MOUSEWHEEL == message) {
+    ::ScreenToClient(owner_->hwnd_, &point);
+  } else if (WM_MOUSELEAVE == message) {
+    ::GetCursorPos(&point);
+    ::ScreenToClient(owner_->hwnd_, &point);
+  }
+  CefMouseEvent mouse_event;
+  mouse_event.x = point.x;
+  mouse_event.y = point.y;
+  ApplyPopupOffset(mouse_event.x, mouse_event.y);
+  mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
+  mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
+  mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
 
   switch (message) {
     case WM_LBUTTONDOWN:
@@ -84,17 +99,7 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
       last_click_time_ = currentTime;
       last_click_button_ = btnType;
 
-      CefMouseEvent mouse_event;
-      mouse_event.x = x;
-      mouse_event.y = y;
-
-      // TODO(Popup): Fix this.
-      // last_mouse_down_on_view_ = !IsOverPopupWidget(x, y);
-      // ApplyPopupOffset(mouse_event.x, mouse_event.y);
-
-      mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
-      mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
-      mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
+      last_mouse_down_on_view_ = !owner_->render_handler_->IsOverPopupWidget(x, y);
       browser_host->SendMouseClickEvent(mouse_event, btnType, false, last_click_count_);
     } break;
 
@@ -105,21 +110,12 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
         ::ReleaseCapture();
       }
 
-      CefBrowserHost::MouseButtonType btnType =
-          (message == WM_LBUTTONUP ? MBT_LEFT : (message == WM_RBUTTONUP ? MBT_RIGHT : MBT_MIDDLE));
-      CefMouseEvent mouse_event;
-      mouse_event.x = x;
-      mouse_event.y = y;
+      if (last_mouse_down_on_view_ && owner_->render_handler_->IsOverPopupWidget(x, y) &&
+          (owner_->render_handler_->GetPopupXOffset() || owner_->render_handler_->GetPopupYOffset())) {
+        break;
+      }
 
-      // TODO(Popup): Fix this.
-      // if (last_mouse_down_on_view_ && IsOverPopupWidget(x, y) && (GetPopupXOffset() || GetPopupYOffset())) {
-      //   break;
-      // }
-      // ApplyPopupOffset(mouse_event.x, mouse_event.y);
-
-      mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
-      mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
-      mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
+      auto btnType = (message == WM_LBUTTONUP ? MBT_LEFT : (message == WM_RBUTTONUP ? MBT_RIGHT : MBT_MIDDLE));
       browser_host->SendMouseClickEvent(mouse_event, btnType, true, last_click_count_);
     } break;
 
@@ -135,16 +131,6 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
         mouse_tracking_ = true;
       }
 
-      CefMouseEvent mouse_event;
-      mouse_event.x = x;
-      mouse_event.y = y;
-
-      // TODO(Popup): Fix this.
-      // ApplyPopupOffset(mouse_event.x, mouse_event.y);
-
-      mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
-      mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
-      mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
       browser_host->SendMouseMoveEvent(mouse_event, false);
     } break;
 
@@ -159,17 +145,6 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
         mouse_tracking_ = false;
       }
 
-      // Determine the cursor position in screen coordinates.
-      POINT p;
-      ::GetCursorPos(&p);
-      ::ScreenToClient(owner_->hwnd_, &p);
-
-      CefMouseEvent mouse_event;
-      mouse_event.x = p.x;
-      mouse_event.y = p.y;
-      mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
-      mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
-      mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
       browser_host->SendMouseMoveEvent(mouse_event, true);
     } break;
 
@@ -180,19 +155,7 @@ LRESULT OsrInputHandler::OnMouseMessage(UINT message, WPARAM wParam, LPARAM lPar
         break;
       }
 
-      ::ScreenToClient(owner_->hwnd_, &screen_point);
       int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-
-      CefMouseEvent mouse_event;
-      mouse_event.x = screen_point.x;
-      mouse_event.y = screen_point.y;
-
-      // TODO(Popup): Fix this.
-      // ApplyPopupOffset(mouse_event.x, mouse_event.y);
-
-      mouse_event.x = osr_utils::DeviceToLogical(mouse_event.x, owner_->scale_factor_);
-      mouse_event.y = osr_utils::DeviceToLogical(mouse_event.y, owner_->scale_factor_);
-      mouse_event.modifiers = osr_utils::GetCefMouseModifiers(wParam);
       browser_host->SendMouseWheelEvent(mouse_event, osr_utils::IsKeyDown(VK_SHIFT) ? delta : 0,
                                         !osr_utils::IsKeyDown(VK_SHIFT) ? delta : 0);
     } break;
@@ -275,5 +238,12 @@ LRESULT OsrInputHandler::OnCancelMode(UINT message, WPARAM wParam, LPARAM lParam
 void OsrInputHandler::OnCaptureLost() {
   if (owner_->browser_) {
     owner_->browser_->GetHost()->SendCaptureLostEvent();
+  }
+}
+
+void OsrInputHandler::ApplyPopupOffset(int& x, int& y) {
+  if (owner_->render_handler_->IsOverPopupWidget(x, y)) {
+    x += owner_->render_handler_->GetPopupXOffset();
+    y += owner_->render_handler_->GetPopupYOffset();
   }
 }

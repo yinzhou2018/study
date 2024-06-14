@@ -105,16 +105,6 @@ bool OsrRenderHandlerWinD3D11::Initialize(CefRefPtr<CefBrowser> browser, int wid
   return true;
 }
 
-void OsrRenderHandlerWinD3D11::SetSpin(float spinX, float spinY) {
-  CEF_REQUIRE_UI_THREAD();
-  // Spin support is not implemented.
-}
-
-void OsrRenderHandlerWinD3D11::IncrementSpin(float spinDX, float spinDY) {
-  CEF_REQUIRE_UI_THREAD();
-  // Spin support is not implemented.
-}
-
 bool OsrRenderHandlerWinD3D11::IsOverPopupWidget(int x, int y) const {
   CEF_REQUIRE_UI_THREAD();
   return popup_layer_ && popup_layer_->contains(x, y);

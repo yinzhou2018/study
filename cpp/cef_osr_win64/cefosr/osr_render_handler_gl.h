@@ -13,8 +13,6 @@ class OsrRenderHandlerGL : public OsrRenderHandler {
   // Must be called immediately after object creation.
   void Initialize(CefRefPtr<CefBrowser> browser);
 
-  void SetSpin(float spinX, float spinY) override;
-  void IncrementSpin(float spinDX, float spinDY) override;
   bool IsOverPopupWidget(int x, int y) const override;
   int GetPopupXOffset() const override;
   int GetPopupYOffset() const override;

@@ -1051,16 +1051,6 @@ void OsrRenderer::OnPaint(CefRefPtr<CefBrowser> browser,
   }
 }
 
-void OsrRenderer::SetSpin(float spinX, float spinY) {
-  spin_x_ = spinX;
-  spin_y_ = spinY;
-}
-
-void OsrRenderer::IncrementSpin(float spinDX, float spinDY) {
-  spin_x_ -= spinDX;
-  spin_y_ -= spinDY;
-}
-
 #if defined(__clang__)
 // End disable NSOpenGL deprecation warnings.
 #pragma clang diagnostic pop
