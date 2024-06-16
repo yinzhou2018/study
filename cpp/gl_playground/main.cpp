@@ -2,6 +2,11 @@
 #include <glfw/glfw3.h>
 #include <iostream>
 
+#include "shader.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define WINDOW_TITLE "gl-playground"
@@ -10,6 +15,8 @@ void init();
 void draw_frame_with_core_mode();
 void on_input(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+unsigned int shaderProgram;
 
 int main() {
   glfwInit();
@@ -30,6 +37,10 @@ int main() {
     glfwTerminate();
     return -1;
   }
+  int nrAttributes;
+  glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
+  std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
+
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -56,18 +67,73 @@ int main() {
 }
 
 void init() {
-  unsigned int VAO;
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
-
+  // set up vertex data (and buffer(s)) and configure vertex attributes
+  // ------------------------------------------------------------------
+  // float vertices[] = {
+  //     // positions         // colors        // texture coords
+  //     0.5f,  -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // bottom right
+  //     -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,  // bottom left
+  //     0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,  // top
+  // };
   float vertices[] = {
-      0.5f,  0.5f,  0.0f,  // 右上角
-      0.5f,  -0.5f, 0.0f,  // 右下角
-      -0.5f, -0.5f, 0.0f,  // 左下角
-      -0.5f, 0.5f,  0.0f   // 左上角
+      // ---- 位置 ----     ---- 颜色 ----   - 箱子纹理坐标 - - 笑脸纹理坐标 -
+      0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 2.0f, 2.0f,  // 右上
+      0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,  // 右下
+      -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // 左下
+      -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 2.0f,  // 左上
   };
 
+  stbi_set_flip_vertically_on_load(true);
+  int width, height, nrChannels;
+  unsigned char* data =
+      stbi_load("/Users/yinzhou/Desktop/study/cpp/gl_playground/container.jpg", &width, &height, &nrChannels, 0);
+
+  unsigned int texture0;
+  glGenTextures(1, &texture0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texture0);
+
+  // float borderColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
+  // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+  // 必须设置，否则纹理无法正确加载导致渲染异常
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+  stbi_image_free(data);
+
+  data = stbi_load("/Users/yinzhou/Desktop/study/cpp/gl_playground/awesomeface.png", &width, &height, &nrChannels, 0);
+  unsigned int texture1;
+  glGenTextures(1, &texture1);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, texture1);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  // float borderColor[] = {1.0f, 1.0f, 0.0f, 0.0f};
+  // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+  stbi_image_free(data);
+
+  unsigned int VBO, VAO;
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+  // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+  glBindVertexArray(VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
   unsigned int indices[] = {
+      // 注意索引从0开始!
+      // 此例的索引(0,1,2,3)就是顶点数组vertices的下标，
+      // 这样可以由下标代表顶点组合成矩形
       0, 1, 3,  // 第一个三角形
       1, 2, 3   // 第二个三角形
   };
@@ -75,28 +141,19 @@ void init() {
   glGenBuffers(1, &EBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-  unsigned int VBO;
-  glGenBuffers(1, &VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  const char* vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "void main()\n"
-      "{\n"
-      "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-      "}\0";
-  const char* fragmentShaderSource =
-      "#version 330 core\n"
-      "out vec4 FragColor;\n"
-      "void main()\n"
-      "{\n"
-      "  FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-      "}\0";
+  // position attribute
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+  // color attribute
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+  // texture1 coord attribute
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
+  // texture2 coord attribute
+  glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(8 * sizeof(float)));
+  glEnableVertexAttribArray(3);
 
   unsigned int vertexShader;
   vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -118,7 +175,7 @@ void init() {
     glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
     std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
   }
-  unsigned int shaderProgram;
+  // unsigned int shaderProgram;
   shaderProgram = glCreateProgram();
   glAttachShader(shaderProgram, vertexShader);
   glAttachShader(shaderProgram, fragmentShader);
@@ -131,13 +188,23 @@ void init() {
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
   glUseProgram(shaderProgram);
+  glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
+  glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1);
 
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
 void draw_frame_with_core_mode() {
+  glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   // glDrawArrays(GL_TRIANGLES, 0, 3);
+
+  // 更新uniform颜色
+  // float timeValue = glfwGetTime();
+  // float greenValue = sin(timeValue) / 2.0f + 0.5f;
+  // int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+  // glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
