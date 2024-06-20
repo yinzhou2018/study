@@ -29,10 +29,13 @@ LRESULT CALLBACK OsrWindow::s_window_proc(HWND hwnd, UINT msg, WPARAM wParam, LP
   return window ? window->WindowProc(hwnd, msg, wParam, lParam) : ::DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-LRESULT CALLBACK OsrWindow::s_hook_proc(int code, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK OsrWindow::s_getmessage_hook_proc(int code, WPARAM wParam, LPARAM lParam) {
   if (code == HC_ACTION && g_win_ && g_win_->ime_handler_) {
     MSG* msg = reinterpret_cast<MSG*>(lParam);
     if ((VK_PROCESSKEY == msg->wParam) && (WM_KEYDOWN == msg->message)) {
+      // 更早hook到WM_KEYDOWN消息，才能通过`ImmGetVirtualKey`获取到真实的虚拟键码，
+      // 详见MSDN: https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immgetvirtualkey
+      // 解决搜狗输入法没按标准规范操作带来的问题
       g_win_->ime_handler_->OnImeKeydown(::ImmGetVirtualKey(g_win_->hwnd_));
     }
   }
@@ -62,7 +65,7 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
                     CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
 
   g_win_ = window;
-  window->hook_ = ::SetWindowsHookEx(WH_GETMESSAGE, OsrWindow::s_hook_proc, nullptr, ::GetCurrentThreadId());
+  window->hook_ = ::SetWindowsHookEx(WH_GETMESSAGE, OsrWindow::s_getmessage_hook_proc, nullptr, ::GetCurrentThreadId());
 
   CefBrowserSettings browser_settings;
   browser_settings.image_loading = STATE_ENABLED;
@@ -94,6 +97,7 @@ LRESULT OsrWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   static const MSGHandlerEntry s_msg_handlers[] = {
       {WM_SIZE, std::bind(&OsrWindow::OnSized, this, _1, _2, _3, _4)},
       {WM_PAINT, std::bind(&OsrWindow::OnNativePaint, this, _1, _2, _3, _4)},
+      // {WM_ERASEBKGND, std::bind(&OsrWindow::OnEraseBackground, this, _1, _2, _3, _4)},
       {WM_DPICHANGED, std::bind(&OsrWindow::OnDPIChanged, this, _1, _2, _3, _4)},
       {WM_CLOSE, std::bind(&OsrWindow::OnClose, this, _1, _2, _3, _4)},
       {WM_SETFOCUS, std::bind(&OsrWindow::OnFocusMessage, this, _1, _2, _3, _4)},
@@ -161,6 +165,11 @@ LRESULT OsrWindow::OnNativePaint(UINT msg, WPARAM wParam, LPARAM lParam, bool& h
   }
   handled = true;
   return 0;
+}
+
+LRESULT OsrWindow::OnEraseBackground(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
+  handled = true;
+  return browser_ != nullptr;
 }
 
 LRESULT OsrWindow::OnDPIChanged(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {

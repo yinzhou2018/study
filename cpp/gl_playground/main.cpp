@@ -85,8 +85,7 @@ void init() {
 
   stbi_set_flip_vertically_on_load(true);
   int width, height, nrChannels;
-  unsigned char* data =
-      stbi_load("/Users/yinzhou/Desktop/study/cpp/gl_playground/container.jpg", &width, &height, &nrChannels, 0);
+  unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
 
   unsigned int texture0;
   glGenTextures(1, &texture0);
@@ -105,7 +104,7 @@ void init() {
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
   stbi_image_free(data);
 
-  data = stbi_load("/Users/yinzhou/Desktop/study/cpp/gl_playground/awesomeface.png", &width, &height, &nrChannels, 0);
+  data = stbi_load("awesomeface.png", &width, &height, &nrChannels, 0);
   unsigned int texture1;
   glGenTextures(1, &texture1);
   glActiveTexture(GL_TEXTURE1);

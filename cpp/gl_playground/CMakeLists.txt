@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 
 # 环境搭建：https://cloud.tencent.com/developer/article/2071165
 
+file(GLOB PNG_SOURCES "*.png")
+file(GLOB JPG_SOURCES "*.jpg")
+list(APPEND IMG_SOURCES ${PNG_SOURCES} ${JPG_SOURCES})
+
 if (WIN32)
 add_compile_options(/utf-8)
 set(GLFW_HOME "./glfw-3.3.9.bin.WIN64")
@@ -13,6 +17,12 @@ set(GL_LIB "")
 set(GLFW_LIB_NAME "glfw3dll")
 file(COPY "./glfw-3.3.9.bin.WIN64/lib-vc2022/glfw3.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Debug")
 file(COPY "./glfw-3.3.9.bin.WIN64/lib-vc2022/glfw3.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Release")
+
+foreach(FILE ${IMG_SOURCES})
+    file(COPY ${FILE} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Debug")
+    file(COPY ${FILE} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Release")
+endforeach()
+
 elseif (APPLE)
 set(GLFW_HOME "./glfw-3.3.9.bin.MACOS")
 link_directories("${GLFW_HOME}/lib-universal")

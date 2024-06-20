@@ -65,13 +65,14 @@ class OsrWindow : public CefClient, CefLifeSpanHandler, CefRenderHandler, CefLoa
   LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
   LRESULT OnSized(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnNativePaint(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
+  LRESULT OnEraseBackground(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnDPIChanged(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnClose(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnMove(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnFocusMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
 
   static LRESULT CALLBACK s_window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-  static LRESULT CALLBACK s_hook_proc(int code, WPARAM wParam, LPARAM lParam);
+  static LRESULT CALLBACK s_getmessage_hook_proc(int code, WPARAM wParam, LPARAM lParam);
 
   CefRefPtr<CefBrowser> browser_ = nullptr;
   bool browser_hidden_ = false;
