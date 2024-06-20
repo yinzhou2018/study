@@ -9,13 +9,15 @@
 #include "osr_app.h"
 #include "osr_window.h"
 
+std::string kURL_;
+
 OsrApp::OsrApp() = default;
 
 void OsrApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
   // const char* kUrl = "https://www.google.com";
-  const char* kUrl = "demo.html";
-  window_ = OsrWindow::Create(kUrl);
+  const char* kUrl = "E:/demo.html";
+  window_ = OsrWindow::Create(kURL_.empty() ? kUrl : kURL_);
   window_->Show();
 }
 
@@ -52,6 +54,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   UNREFERENCED_PARAMETER(lpCmdLine);
 
   int exit_code;
+
+  // Parse command-line arguments for use in this method.
+  CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
+  command_line->InitFromString(::GetCommandLineW());
+  kURL_ = std::string(command_line->GetSwitchValue("url"));
 
 #if defined(ARCH_CPU_32_BITS)
   // Run the main thread on 32-bit Windows using a fiber with the preferred 4MiB
@@ -93,10 +100,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
     // The sub-process has completed so return here.
     return exit_code;
   }
-
-  // Parse command-line arguments for use in this method.
-  CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
-  command_line->InitFromString(::GetCommandLineW());
 
   // Specify CEF global settings here.
   CefSettings settings;
