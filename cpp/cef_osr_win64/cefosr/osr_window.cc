@@ -80,6 +80,7 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
   // browser_settings.background_color = (cef_color_t)-1;
 
   CefWindowInfo window_info;
+  window_info.shared_texture_enabled = true;
   window_info.SetAsWindowless(window->hwnd_);
 
   CefBrowserHost::CreateBrowser(window_info, window, url, browser_settings, nullptr, nullptr);
@@ -97,7 +98,7 @@ LRESULT OsrWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   static const MSGHandlerEntry s_msg_handlers[] = {
       {WM_SIZE, std::bind(&OsrWindow::OnSized, this, _1, _2, _3, _4)},
       {WM_PAINT, std::bind(&OsrWindow::OnNativePaint, this, _1, _2, _3, _4)},
-      // {WM_ERASEBKGND, std::bind(&OsrWindow::OnEraseBackground, this, _1, _2, _3, _4)},
+      {WM_ERASEBKGND, std::bind(&OsrWindow::OnEraseBackground, this, _1, _2, _3, _4)},
       {WM_DPICHANGED, std::bind(&OsrWindow::OnDPIChanged, this, _1, _2, _3, _4)},
       {WM_CLOSE, std::bind(&OsrWindow::OnClose, this, _1, _2, _3, _4)},
       {WM_SETFOCUS, std::bind(&OsrWindow::OnFocusMessage, this, _1, _2, _3, _4)},
@@ -247,6 +248,7 @@ void OsrWindow::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   RECT client_rect;
   ::GetClientRect(hwnd_, &client_rect);
   OsrRendererSettings settings;
+  settings.shared_texture_enabled = true;
 
   if (settings.shared_texture_enabled) {
     // Try to initialize D3D11 rendering.
