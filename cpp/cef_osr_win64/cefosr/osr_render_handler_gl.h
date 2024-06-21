@@ -10,9 +10,6 @@ class OsrRenderHandlerGL : public OsrRenderHandler {
   OsrRenderHandlerGL(const OsrRendererSettings& settings, HWND hwnd);
   ~OsrRenderHandlerGL() override;
 
-  // Must be called immediately after object creation.
-  void Initialize(CefRefPtr<CefBrowser> browser);
-
   bool IsOverPopupWidget(int x, int y) const override;
   int GetPopupXOffset() const override;
   int GetPopupYOffset() const override;

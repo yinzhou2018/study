@@ -42,7 +42,7 @@ LRESULT CALLBACK OsrWindow::s_getmessage_hook_proc(int code, WPARAM wParam, LPAR
   return ::CallNextHookEx(nullptr, code, wParam, lParam);
 }
 
-CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
+CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url, const OsrRendererSettings& settings) {
   WNDCLASSEX wcex = {0};
   LPCWSTR window_class = L"OSRWindowClass";
 
@@ -61,8 +61,14 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
   ::RegisterClassEx(&wcex);
 
   OsrWindow* window = new OsrWindow();
-  ::CreateWindowExW(0, window_class, L"OSRWindow", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                    CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
+  auto hwnd = ::CreateWindowExW(0, window_class, L"OSRWindow", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+                                CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
+
+  if (RHIType::RT_D3D11 == settings.rhi_type) {
+    window->render_handler_ = std::make_unique<OsrRenderHandlerD3D11>(settings, hwnd);
+  } else {
+    window->render_handler_ = std::make_unique<OsrRenderHandlerGL>(settings, hwnd);
+  }
 
   g_win_ = window;
   window->hook_ = ::SetWindowsHookEx(WH_GETMESSAGE, OsrWindow::s_getmessage_hook_proc, nullptr, ::GetCurrentThreadId());
@@ -74,13 +80,11 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url) {
   browser_settings.local_storage = STATE_ENABLED;
   browser_settings.remote_fonts = STATE_ENABLED;
   browser_settings.webgl = STATE_ENABLED;
-  browser_settings.windowless_frame_rate = 60;
-
-  // Enable or disable transparent background for document without background color
-  // browser_settings.background_color = (cef_color_t)-1;
+  browser_settings.windowless_frame_rate = settings.frame_rate;
+  browser_settings.background_color = settings.background_color;
 
   CefWindowInfo window_info;
-  window_info.shared_texture_enabled = true;
+  window_info.shared_texture_enabled = settings.shared_texture_enabled;
   window_info.SetAsWindowless(window->hwnd_);
 
   CefBrowserHost::CreateBrowser(window_info, window, url, browser_settings, nullptr, nullptr);
@@ -98,7 +102,7 @@ LRESULT OsrWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   static const MSGHandlerEntry s_msg_handlers[] = {
       {WM_SIZE, std::bind(&OsrWindow::OnSized, this, _1, _2, _3, _4)},
       {WM_PAINT, std::bind(&OsrWindow::OnNativePaint, this, _1, _2, _3, _4)},
-      {WM_ERASEBKGND, std::bind(&OsrWindow::OnEraseBackground, this, _1, _2, _3, _4)},
+      // {WM_ERASEBKGND, std::bind(&OsrWindow::OnEraseBackground, this, _1, _2, _3, _4)},
       {WM_DPICHANGED, std::bind(&OsrWindow::OnDPIChanged, this, _1, _2, _3, _4)},
       {WM_CLOSE, std::bind(&OsrWindow::OnClose, this, _1, _2, _3, _4)},
       {WM_SETFOCUS, std::bind(&OsrWindow::OnFocusMessage, this, _1, _2, _3, _4)},
@@ -158,12 +162,21 @@ LRESULT OsrWindow::OnSized(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled
 }
 
 LRESULT OsrWindow::OnNativePaint(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
+  // 随便绘制一段文本，测试基于DirectComposition的alpha合成效果
   PAINTSTRUCT ps;
-  BeginPaint(hwnd_, &ps);
+  auto dc = BeginPaint(hwnd_, &ps);
+  RECT client_rect = {0};
+  ::GetClientRect(hwnd_, &client_rect);
+  std::wstring text = L"注意：我是基于GDI绘制的原生内容！";
+  ::SetBkMode(dc, TRANSPARENT);
+  ::DrawTextExW(dc, (LPWSTR)text.c_str(), (int)text.size(), &client_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                nullptr);
   EndPaint(hwnd_, &ps);
+
   if (browser_) {
     browser_->GetHost()->Invalidate(PET_VIEW);
   }
+
   handled = true;
   return 0;
 }
@@ -229,6 +242,16 @@ LRESULT OsrWindow::OnFocusMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& 
   return 0;
 }
 
+void OsrWindow::OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+                                    CefRefPtr<CefFrame> frame,
+                                    CefRefPtr<CefContextMenuParams> params,
+                                    CefRefPtr<CefMenuModel> model) {
+  // 仅保留编辑区域的菜单
+  if (!params->IsEditable()) {
+    model->Clear();
+  }
+}
+
 bool OsrWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                          CefRefPtr<CefFrame> frame,
                                          CefProcessId source_process,
@@ -244,30 +267,7 @@ bool OsrWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
 
 void OsrWindow::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   browser_ = browser;
-
-  RECT client_rect;
-  ::GetClientRect(hwnd_, &client_rect);
-  OsrRendererSettings settings;
-  settings.shared_texture_enabled = true;
-
-  if (settings.shared_texture_enabled) {
-    // Try to initialize D3D11 rendering.
-    auto render_handler = new OsrRenderHandlerWinD3D11(settings, hwnd_);
-    if (render_handler->Initialize(browser_, client_rect.right - client_rect.left,
-                                   client_rect.bottom - client_rect.top)) {
-      render_handler_.reset(render_handler);
-    } else {
-      LOG(ERROR) << "Failed to initialize D3D11 rendering.";
-      delete render_handler;
-    }
-  }
-
-  // Fall back to GL rendering.
-  if (!render_handler_) {
-    auto render_handler = new OsrRenderHandlerGL(settings, hwnd_);
-    render_handler->Initialize(browser_);
-    render_handler_.reset(render_handler);
-  }
+  render_handler_->SetBrowser(browser);
 }
 
 void OsrWindow::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
@@ -291,7 +291,7 @@ bool OsrWindow::OnCursorChange(CefRefPtr<CefBrowser> browser,
                                const CefCursorInfo& custom_cursor_info) {
   // Change the window's cursor.
   SetClassLongPtr(hwnd_, GCLP_HCURSOR, static_cast<LONG>(reinterpret_cast<LONG_PTR>(cursor)));
-  SetCursor(cursor);
+  ::SetCursor(cursor);
   return true;
 }
 

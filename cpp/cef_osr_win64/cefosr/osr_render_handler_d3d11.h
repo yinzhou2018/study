@@ -6,6 +6,11 @@
 #include "osr_render_handler.h"
 #include "osr_renderer_settings.h"
 
+#include <dcomp.h>
+#include <wrl.h>
+
+using namespace Microsoft::WRL;
+
 class BrowserLayer : public d3d11::Layer {
  public:
   explicit BrowserLayer(const std::shared_ptr<d3d11::Device>& device);
@@ -13,6 +18,7 @@ class BrowserLayer : public d3d11::Layer {
   void render(const std::shared_ptr<d3d11::Context>& ctx) override;
 
   void on_paint(void* share_handle);
+  void on_paint(void* buffer, int width, int height);
 
   // After calling on_paint() we can query the texture size.
   std::pair<uint32_t, uint32_t> texture_size() const;
@@ -40,13 +46,11 @@ class PopupLayer : public BrowserLayer {
   DISALLOW_COPY_AND_ASSIGN(PopupLayer);
 };
 
-class OsrRenderHandlerWinD3D11 : public OsrRenderHandler {
+class OsrRenderHandlerD3D11 : public OsrRenderHandler {
  public:
-  OsrRenderHandlerWinD3D11(const OsrRendererSettings& settings, HWND hwnd);
+  OsrRenderHandlerD3D11(const OsrRendererSettings& settings, HWND hwnd);
 
-  // Must be called immediately after object creation.
-  // May fail if D3D11 cannot be initialized.
-  bool Initialize(CefRefPtr<CefBrowser> browser, int width, int height);
+  bool Initialize(int width, int height);
 
   bool IsOverPopupWidget(int x, int y) const override;
   int GetPopupXOffset() const override;
@@ -74,7 +78,11 @@ class OsrRenderHandlerWinD3D11 : public OsrRenderHandler {
   std::shared_ptr<BrowserLayer> browser_layer_;
   std::shared_ptr<PopupLayer> popup_layer_;
 
-  DISALLOW_COPY_AND_ASSIGN(OsrRenderHandlerWinD3D11);
+  ComPtr<IDCompositionDevice> dcomp_device_;
+  ComPtr<IDCompositionTarget> dcomp_target_;
+  ComPtr<IDCompositionVisual> dcomp_visual_;
+
+  DISALLOW_COPY_AND_ASSIGN(OsrRenderHandlerD3D11);
 };
 
 #endif  // CEF_CEFOSR_OSR_RENDER_HANDLER_D3D11_H_

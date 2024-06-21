@@ -4,6 +4,11 @@
 
 #include "include/internal/cef_types.h"
 
+enum class RHIType {
+  RT_D3D11,
+  RT_OPENGL,
+};  // RHIType
+
 struct OsrRendererSettings {
   OsrRendererSettings() = default;
 
@@ -15,6 +20,13 @@ struct OsrRendererSettings {
 
   // Render using shared textures. Supported on Windows only via D3D11.
   bool shared_texture_enabled = false;
+
+  // Composition with native window rendering.
+  bool composition_enabled = false;
+
+  int frame_rate = 60;
+
+  RHIType rhi_type = RHIType::RT_D3D11;
 
   // Client implements a BeginFrame timer by calling
   // CefBrowserHost::SendExternalBeginFrame at the specified frame rate.

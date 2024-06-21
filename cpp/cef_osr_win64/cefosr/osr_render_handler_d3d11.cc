@@ -5,6 +5,8 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 
+#pragma comment(lib, "Dcomp.lib")
+
 BrowserLayer::BrowserLayer(const std::shared_ptr<d3d11::Device>& device) : d3d11::Layer(device, false /* flip */) {
   frame_buffer_ = std::make_shared<d3d11::FrameBuffer>(device_);
 }
@@ -16,6 +18,10 @@ void BrowserLayer::render(const std::shared_ptr<d3d11::Context>& ctx) {
 
 void BrowserLayer::on_paint(void* share_handle) {
   frame_buffer_->on_paint(share_handle);
+}
+
+void BrowserLayer::on_paint(void* buffer, int width, int height) {
+  frame_buffer_->on_paint(buffer, width, height);
 }
 
 std::pair<uint32_t, uint32_t> BrowserLayer::texture_size() const {
@@ -69,10 +75,14 @@ void PopupLayer::set_bounds(const CefRect& bounds) {
   move(x, y, w, h);
 }
 
-OsrRenderHandlerWinD3D11::OsrRenderHandlerWinD3D11(const OsrRendererSettings& settings, HWND hwnd)
-    : OsrRenderHandler(settings, hwnd) {}
+OsrRenderHandlerD3D11::OsrRenderHandlerD3D11(const OsrRendererSettings& settings, HWND hwnd)
+    : OsrRenderHandler(settings, hwnd) {
+  RECT rc;
+  ::GetClientRect(hwnd, &rc);
+  Initialize(rc.right, rc.bottom);
+}
 
-bool OsrRenderHandlerWinD3D11::Initialize(CefRefPtr<CefBrowser> browser, int width, int height) {
+bool OsrRenderHandlerD3D11::Initialize(int width, int height) {
   CEF_REQUIRE_UI_THREAD();
 
   // Create a D3D11 device instance.
@@ -83,10 +93,21 @@ bool OsrRenderHandlerWinD3D11::Initialize(CefRefPtr<CefBrowser> browser, int wid
   }
 
   // Create a D3D11 swapchain for the window.
-  swap_chain_ = device_->create_swapchain(hwnd());
+  swap_chain_ = device_->create_swapchain(hwnd(), composition_enabled());
   DCHECK(swap_chain_);
   if (!swap_chain_) {
     return false;
+  }
+
+  if (composition_enabled()) {
+    auto device_if = (ID3D11Device*)*device_;
+    ComPtr<IDXGIDevice> dxgi_device;
+    device_if->QueryInterface((IDXGIDevice**)&dxgi_device);
+    DCompositionCreateDevice(dxgi_device.Get(), __uuidof(IDCompositionDevice), &dcomp_device_);
+    dcomp_device_->CreateTargetForHwnd(hwnd(), TRUE, &dcomp_target_);
+    dcomp_device_->CreateVisual(&dcomp_visual_);
+    dcomp_visual_->SetContent((IDXGISwapChain1*)*swap_chain_);
+    dcomp_target_->SetRoot(dcomp_visual_.Get());
   }
 
   // Create the browser layer.
@@ -101,16 +122,15 @@ bool OsrRenderHandlerWinD3D11::Initialize(CefRefPtr<CefBrowser> browser, int wid
 
   start_time_ = osr_utils::GetTimeNow();
 
-  SetBrowser(browser);
   return true;
 }
 
-bool OsrRenderHandlerWinD3D11::IsOverPopupWidget(int x, int y) const {
+bool OsrRenderHandlerD3D11::IsOverPopupWidget(int x, int y) const {
   CEF_REQUIRE_UI_THREAD();
   return popup_layer_ && popup_layer_->contains(x, y);
 }
 
-int OsrRenderHandlerWinD3D11::GetPopupXOffset() const {
+int OsrRenderHandlerD3D11::GetPopupXOffset() const {
   CEF_REQUIRE_UI_THREAD();
   if (popup_layer_) {
     return popup_layer_->xoffset();
@@ -118,7 +138,7 @@ int OsrRenderHandlerWinD3D11::GetPopupXOffset() const {
   return 0;
 }
 
-int OsrRenderHandlerWinD3D11::GetPopupYOffset() const {
+int OsrRenderHandlerD3D11::GetPopupYOffset() const {
   CEF_REQUIRE_UI_THREAD();
   if (popup_layer_) {
     return popup_layer_->yoffset();
@@ -126,7 +146,7 @@ int OsrRenderHandlerWinD3D11::GetPopupYOffset() const {
   return 0;
 }
 
-void OsrRenderHandlerWinD3D11::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {
+void OsrRenderHandlerD3D11::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {
   CEF_REQUIRE_UI_THREAD();
 
   if (show) {
@@ -145,25 +165,32 @@ void OsrRenderHandlerWinD3D11::OnPopupShow(CefRefPtr<CefBrowser> browser, bool s
   }
 }
 
-void OsrRenderHandlerWinD3D11::OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) {
+void OsrRenderHandlerD3D11::OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) {
   CEF_REQUIRE_UI_THREAD();
   popup_layer_->set_bounds(rect);
 }
 
-void OsrRenderHandlerWinD3D11::OnPaint(CefRefPtr<CefBrowser> browser,
-                                       CefRenderHandler::PaintElementType type,
-                                       const CefRenderHandler::RectList& dirtyRects,
-                                       const void* buffer,
-                                       int width,
-                                       int height) {
-  // Not used with this implementation.
-  NOTREACHED();
+void OsrRenderHandlerD3D11::OnPaint(CefRefPtr<CefBrowser> browser,
+                                    CefRenderHandler::PaintElementType type,
+                                    const CefRenderHandler::RectList& dirtyRects,
+                                    const void* buffer,
+                                    int width,
+                                    int height) {
+  CEF_REQUIRE_UI_THREAD();
+
+  if (type == PET_POPUP) {
+    popup_layer_->on_paint((void*)buffer, width, height);
+  } else {
+    browser_layer_->on_paint((void*)buffer, width, height);
+  }
+
+  Render();
 }
 
-void OsrRenderHandlerWinD3D11::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
-                                                  CefRenderHandler::PaintElementType type,
-                                                  const CefRenderHandler::RectList& dirtyRects,
-                                                  const CefAcceleratedPaintInfo& info) {
+void OsrRenderHandlerD3D11::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
+                                               CefRenderHandler::PaintElementType type,
+                                               const CefRenderHandler::RectList& dirtyRects,
+                                               const CefAcceleratedPaintInfo& info) {
   CEF_REQUIRE_UI_THREAD();
 
   if (type == PET_POPUP) {
@@ -175,7 +202,7 @@ void OsrRenderHandlerWinD3D11::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
   Render();
 }
 
-void OsrRenderHandlerWinD3D11::Render() {
+void OsrRenderHandlerD3D11::Render() {
   // Update composition + layers based on time.
   const auto t = (osr_utils::GetTimeNow() - start_time_) / 1000000.0;
   composition_->tick(t);
@@ -190,11 +217,19 @@ void OsrRenderHandlerWinD3D11::Render() {
   swap_chain_->resize(texture_size.first, texture_size.second);
 
   // Clear the render target.
-  swap_chain_->clear(0.0f, 0.0f, 1.0f, 1.0f);
+  if (composition_enabled()) {
+    swap_chain_->clear(0.0f, 0.0f, 0.0f, 0.0f);
+  } else {
+    swap_chain_->clear(1.0f, 1.0f, 1.0f, 1.0f);
+  }
 
   // Render the scene.
   composition_->render(ctx);
 
   // Present to window.
   swap_chain_->present(send_begin_frame() ? 0 : 1);
+
+  if (composition_enabled()) {
+    dcomp_device_->Commit();
+  }
 }

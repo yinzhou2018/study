@@ -6,13 +6,19 @@
 class OsrImeHandler;
 class OsrInputHandler;
 class OsrRenderHandler;
+struct OsrRendererSettings;
 
 constexpr const char* kLastFocusedIsEditableMessage = "last_focused_is_editable";
 constexpr const char* kLastFocusedIsNotEditableMessage = "last_focused_is_not_editable";
 
-class OsrWindow : public CefClient, CefLifeSpanHandler, CefRenderHandler, CefLoadHandler, CefDisplayHandler {
+class OsrWindow : public CefClient,
+                  CefLifeSpanHandler,
+                  CefRenderHandler,
+                  CefLoadHandler,
+                  CefDisplayHandler,
+                  CefContextMenuHandler {
  public:
-  static CefRefPtr<OsrWindow> Create(const std::string& url);
+  static CefRefPtr<OsrWindow> Create(const std::string& url, const OsrRendererSettings& settings);
   void Show();
 
  private:
@@ -23,6 +29,7 @@ class OsrWindow : public CefClient, CefLifeSpanHandler, CefRenderHandler, CefLoa
   CefRefPtr<CefRenderHandler> GetRenderHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process,
@@ -70,6 +77,12 @@ class OsrWindow : public CefClient, CefLifeSpanHandler, CefRenderHandler, CefLoa
   LRESULT OnClose(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnMove(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnFocusMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
+
+  // CefContextMenuHandler methods:
+  void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefContextMenuParams> params,
+                           CefRefPtr<CefMenuModel> model) override;
 
   static LRESULT CALLBACK s_window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
   static LRESULT CALLBACK s_getmessage_hook_proc(int code, WPARAM wParam, LPARAM lParam);

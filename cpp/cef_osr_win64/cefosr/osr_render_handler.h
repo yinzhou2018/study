@@ -6,6 +6,9 @@
 #include "include/cef_render_handler.h"
 #include "osr_renderer_settings.h"
 
+#include <dcomp.h>
+#include <wrl.h>
+
 // Abstract base class for implementing OSR rendering with different backends on
 // Windows. Methods are only called on the UI thread.
 class OsrRenderHandler {
@@ -40,6 +43,7 @@ class OsrRenderHandler {
                                   const CefAcceleratedPaintInfo& info) = 0;
 
   bool send_begin_frame() const { return settings_.external_begin_frame_enabled; }
+  bool composition_enabled() const { return settings_.composition_enabled; }
   HWND hwnd() const { return hwnd_; }
 
  protected:

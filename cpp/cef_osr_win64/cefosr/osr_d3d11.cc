@@ -40,7 +40,7 @@ void Context::flush() {
   ctx_->Flush();
 }
 
-SwapChain::SwapChain(IDXGISwapChain* swapchain,
+SwapChain::SwapChain(IDXGISwapChain1* swapchain,
                      ID3D11RenderTargetView* rtv,
                      ID3D11SamplerState* sampler,
                      ID3D11BlendState* blender)
@@ -82,7 +82,8 @@ void SwapChain::clear(float red, float green, float blue, float alpha) {
 }
 
 void SwapChain::present(int sync_interval) {
-  swapchain_->Present(sync_interval, 0);
+  DXGI_PRESENT_PARAMETERS params = {0};
+  swapchain_->Present1(sync_interval, 0, &params);
 }
 
 void SwapChain::resize(int width, int height) {
@@ -268,10 +269,7 @@ std::shared_ptr<Device> Device::create() {
   flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-  D3D_FEATURE_LEVEL feature_levels[] = {
-      D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0,
-      // D3D_FEATURE_LEVEL_9_3,
-  };
+  D3D_FEATURE_LEVEL feature_levels[] = {D3D_FEATURE_LEVEL_11_1};
   UINT num_feature_levels = sizeof(feature_levels) / sizeof(feature_levels[0]);
 
   ID3D11Device* pdev = nullptr;
@@ -280,13 +278,6 @@ std::shared_ptr<Device> Device::create() {
   D3D_FEATURE_LEVEL selected_level;
   HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, feature_levels, num_feature_levels,
                                  D3D11_SDK_VERSION, &pdev, &selected_level, &pctx);
-
-  if (hr == E_INVALIDARG) {
-    // DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1
-    // so we need to retry without it.
-    hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, &feature_levels[1],
-                           num_feature_levels - 1, D3D11_SDK_VERSION, &pdev, &selected_level, &pctx);
-  }
 
   if (SUCCEEDED(hr)) {
     const auto dev = std::make_shared<Device>(pdev, pctx);
@@ -324,7 +315,7 @@ std::shared_ptr<Context> Device::immedidate_context() {
   return ctx_;
 }
 
-std::shared_ptr<SwapChain> Device::create_swapchain(HWND window, int width, int height) {
+std::shared_ptr<SwapChain> Device::create_swapchain(HWND window, bool for_compostion, int width, int height) {
   HRESULT hr;
   IDXGIFactory1* dxgi_factory = nullptr;
 
@@ -360,61 +351,42 @@ std::shared_ptr<SwapChain> Device::create_swapchain(HWND window, int width, int 
     return nullptr;
   }
 
-  IDXGISwapChain* swapchain = nullptr;
+  IDXGISwapChain1* swapchain1 = nullptr;
 
   // Create swap chain.
   IDXGIFactory2* dxgi_factory2 = nullptr;
   hr = dxgi_factory->QueryInterface(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgi_factory2));
   if (dxgi_factory2) {
-    DXGI_SWAP_CHAIN_DESC1 sd;
-    ZeroMemory(&sd, sizeof(sd));
+    DXGI_SWAP_CHAIN_DESC1 sd = {0};
     sd.Width = width;
     sd.Height = height;
     sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.BufferCount = 1;
+    sd.BufferCount = 2;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
-    IDXGISwapChain1* swapchain1 = nullptr;
-    hr = dxgi_factory2->CreateSwapChainForHwnd(device_.get(), window, &sd, nullptr, nullptr, &swapchain1);
-    if (SUCCEEDED(hr)) {
-      hr = swapchain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapchain));
-      swapchain1->Release();
+    if (for_compostion) {
+      sd.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+      dxgi_factory2->CreateSwapChainForComposition(device_.get(), &sd, nullptr, &swapchain1);
+    } else {
+      dxgi_factory2->CreateSwapChainForHwnd(device_.get(), window, &sd, nullptr, nullptr, &swapchain1);
     }
-
     dxgi_factory2->Release();
-  } else {
-    // DirectX 11.0 systems.
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 1;
-    sd.BufferDesc.Width = width;
-    sd.BufferDesc.Height = height;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = window;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-
-    hr = dxgi_factory->CreateSwapChain(device_.get(), &sd, &swapchain);
   }
 
   // We don't handle full-screen swapchains so we block the ALT+ENTER shortcut.
   dxgi_factory->MakeWindowAssociation(window, DXGI_MWA_NO_ALT_ENTER);
   dxgi_factory->Release();
 
-  if (!swapchain) {
+  if (!swapchain1) {
     return nullptr;
   }
 
   ID3D11Texture2D* back_buffer = nullptr;
-  hr = swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&back_buffer));
+  hr = swapchain1->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&back_buffer));
   if (FAILED(hr)) {
-    swapchain->Release();
+    swapchain1->Release();
     return nullptr;
   }
 
@@ -422,7 +394,7 @@ std::shared_ptr<SwapChain> Device::create_swapchain(HWND window, int width, int 
   hr = device_->CreateRenderTargetView(back_buffer, nullptr, &rtv);
   back_buffer->Release();
   if (FAILED(hr)) {
-    swapchain->Release();
+    swapchain1->Release();
     return nullptr;
   }
 
@@ -473,7 +445,7 @@ std::shared_ptr<SwapChain> Device::create_swapchain(HWND window, int width, int 
     device_->CreateBlendState(&desc, &blender);
   }
 
-  return std::make_shared<SwapChain>(swapchain, rtv, sampler, blender);
+  return std::make_shared<SwapChain>(swapchain1, rtv, sampler, blender);
 }
 
 std::shared_ptr<Geometry> Device::create_quad(float x, float y, float width, float height, bool flip) {
@@ -871,6 +843,10 @@ void FrameBuffer::on_paint(void* shared_handle) {
       LOG(ERROR) << "d3d11: Could not open shared texture!";
     }
   }
+}
+
+void FrameBuffer::on_paint(void* buffer, int width, int height) {
+  shared_buffer_ = device_->create_texture(width, height, DXGI_FORMAT_B8G8R8A8_UNORM, buffer, width * 4);
 }
 
 }  // namespace d3d11

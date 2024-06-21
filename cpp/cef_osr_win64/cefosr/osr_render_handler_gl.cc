@@ -34,11 +34,6 @@ class ScopedGLContext {
 OsrRenderHandlerGL::OsrRenderHandlerGL(const OsrRendererSettings& settings, HWND hwnd)
     : OsrRenderHandler(settings, hwnd), renderer_(settings) {}
 
-void OsrRenderHandlerGL::Initialize(CefRefPtr<CefBrowser> browser) {
-  CEF_REQUIRE_UI_THREAD();
-  SetBrowser(browser);
-}
-
 OsrRenderHandlerGL::~OsrRenderHandlerGL() {
   CEF_REQUIRE_UI_THREAD();
   DisableGL();

@@ -7,9 +7,12 @@
 #include "include/wrapper/cef_helpers.h"
 
 #include "osr_app.h"
+#include "osr_renderer_settings.h"
 #include "osr_window.h"
 
 std::string kURL_;
+auto shared_texture_enabled_ = false;
+auto composition_enabled_ = false;
 
 OsrApp::OsrApp() = default;
 
@@ -17,7 +20,10 @@ void OsrApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
   // const char* kUrl = "https://www.google.com";
   const char* kUrl = "E:/demo.html";
-  window_ = OsrWindow::Create(kURL_.empty() ? kUrl : kURL_);
+  OsrRendererSettings settings;
+  settings.shared_texture_enabled = shared_texture_enabled_;
+  settings.composition_enabled = composition_enabled_;
+  window_ = OsrWindow::Create(kURL_.empty() ? kUrl : kURL_, settings);
   window_->Show();
 }
 
@@ -59,6 +65,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
   command_line->InitFromString(::GetCommandLineW());
   kURL_ = std::string(command_line->GetSwitchValue("url"));
+  shared_texture_enabled_ = !command_line->HasSwitch("shared_texture_disabled");
+  composition_enabled_ = !command_line->HasSwitch("composition_disabled");
 
 #if defined(ARCH_CPU_32_BITS)
   // Run the main thread on 32-bit Windows using a fiber with the preferred 4MiB

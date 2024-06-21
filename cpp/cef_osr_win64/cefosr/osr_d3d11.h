@@ -30,9 +30,7 @@ struct Rect {
 template <class T>
 class ScopedBinder {
  public:
-  ScopedBinder(const std::shared_ptr<Context>& ctx,
-               const std::shared_ptr<T>& target)
-      : target_(target) {
+  ScopedBinder(const std::shared_ptr<Context>& ctx, const std::shared_ptr<T>& target) : target_(target) {
     if (target_) {
       target_->bind(ctx);
     }
@@ -74,15 +72,9 @@ class Device {
 
   std::shared_ptr<Context> immedidate_context();
 
-  std::shared_ptr<SwapChain> create_swapchain(HWND,
-                                              int width = 0,
-                                              int height = 0);
+  std::shared_ptr<SwapChain> create_swapchain(HWND, bool for_composition, int width = 0, int height = 0);
 
-  std::shared_ptr<Geometry> create_quad(float x,
-                                        float y,
-                                        float width,
-                                        float height,
-                                        bool flip = false);
+  std::shared_ptr<Geometry> create_quad(float x, float y, float width, float height, bool flip = false);
 
   std::shared_ptr<Texture2D> create_texture(int width,
                                             int height,
@@ -118,10 +110,7 @@ class Device {
 // Encapsulate a DXGI swapchain for a window.
 class SwapChain {
  public:
-  SwapChain(IDXGISwapChain*,
-            ID3D11RenderTargetView*,
-            ID3D11SamplerState*,
-            ID3D11BlendState*);
+  SwapChain(IDXGISwapChain1*, ID3D11RenderTargetView*, ID3D11SamplerState*, ID3D11BlendState*);
 
   void bind(const std::shared_ptr<Context>& ctx);
   void unbind();
@@ -134,10 +123,12 @@ class SwapChain {
   int width() const { return width_; }
   int height() const { return height_; }
 
+  explicit operator IDXGISwapChain1*() { return swapchain_.get(); }
+
  private:
   const std::shared_ptr<ID3D11SamplerState> sampler_;
   const std::shared_ptr<ID3D11BlendState> blender_;
-  const std::shared_ptr<IDXGISwapChain> swapchain_;
+  const std::shared_ptr<IDXGISwapChain1> swapchain_;
   std::shared_ptr<ID3D11RenderTargetView> rtv_;
   std::shared_ptr<Context> ctx_;
   int width_ = 0;
@@ -179,9 +170,7 @@ class Texture2D {
 
 class Effect {
  public:
-  Effect(ID3D11VertexShader* vsh,
-         ID3D11PixelShader* psh,
-         ID3D11InputLayout* layout);
+  Effect(ID3D11VertexShader* vsh, ID3D11PixelShader* psh, ID3D11InputLayout* layout);
 
   void bind(const std::shared_ptr<Context>& ctx);
   void unbind();
@@ -197,10 +186,7 @@ class Effect {
 
 class Geometry {
  public:
-  Geometry(D3D_PRIMITIVE_TOPOLOGY primitive,
-           uint32_t vertices,
-           uint32_t stride,
-           ID3D11Buffer*);
+  Geometry(D3D_PRIMITIVE_TOPOLOGY primitive, uint32_t vertices, uint32_t stride, ID3D11Buffer*);
 
   void bind(const std::shared_ptr<Context>& ctx);
   void unbind();
@@ -237,8 +223,7 @@ class Layer {
 
  protected:
   // Helper method for derived classes to draw a textured-quad.
-  void render_texture(const std::shared_ptr<Context>& ctx,
-                      const std::shared_ptr<Texture2D>& texture);
+  void render_texture(const std::shared_ptr<Context>& ctx, const std::shared_ptr<Texture2D>& texture);
 
   const std::shared_ptr<Device> device_;
   const bool flip_;
@@ -256,9 +241,7 @@ class Layer {
 // A collection of layers. Will render 1-N layers to a D3D11 device.
 class Composition : public std::enable_shared_from_this<Composition> {
  public:
-  explicit Composition(const std::shared_ptr<Device>& device,
-                       int width = 0,
-                       int height = 0);
+  explicit Composition(const std::shared_ptr<Device>& device, int width = 0, int height = 0);
 
   int width() const { return width_; }
   int height() const { return height_; }
@@ -296,6 +279,9 @@ class FrameBuffer {
 
   // Called in response to CEF's OnAcceleratedPaint notification.
   void on_paint(void* shared_handle);
+
+  // Called in response to CEF's OnPaint notification.
+  void on_paint(void* buffer, int width, int height);
 
   // Returns what should be considered the front buffer.
   std::shared_ptr<Texture2D> texture() const { return shared_buffer_; }
