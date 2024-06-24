@@ -10,21 +10,29 @@
 #include "osr_renderer_settings.h"
 #include "osr_window.h"
 
-std::string kURL_;
-auto shared_texture_enabled_ = false;
-auto composition_enabled_ = false;
+#include <thread>
 
-OsrApp::OsrApp() = default;
+void OsrApp::CreateOsrWindow(const std::string& url, const OsrRendererSettings& settings) {
+  // const char* kUrl = "https://33tool.com/marquee/";
+  const char* kUrl = "E:\\demo\\index.html";
+  url_ = url.empty() ? kUrl : url;
+  window_ = OsrWindow::Create(settings);
+
+  if (single_thread_mode_) {
+    window_->CreateBrowser(url_);
+  }
+
+  window_->Show();
+}
 
 void OsrApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
-  // const char* kUrl = "https://www.google.com";
-  const char* kUrl = "E:/demo.html";
-  OsrRendererSettings settings;
-  settings.shared_texture_enabled = shared_texture_enabled_;
-  settings.composition_enabled = composition_enabled_;
-  window_ = OsrWindow::Create(kURL_.empty() ? kUrl : kURL_, settings);
-  window_->Show();
+
+  // 单线程情况下，会先进行Cef初始化，再创建窗口，初始化期间就会回调到这里，此时window还不存在，
+  // 多线程情况下，独立线程进行Cef初始化，window已经提前创建出来，需在在这里创建Browser
+  if (!single_thread_mode_) {
+    window_->CreateBrowser(url_);
+  }
 }
 
 void OsrApp::OnFocusedNodeChanged(CefRefPtr<CefBrowser> browser,
@@ -40,6 +48,33 @@ void OsrApp::OnFocusedNodeChanged(CefRefPtr<CefBrowser> browser,
     auto message = CefProcessMessage::Create(kLastFocusedIsNotEditableMessage);
     frame->SendProcessMessage(PID_BROWSER, message);
   }
+}
+
+int InitializeAndRunCEF(const CefMainArgs& main_args,
+                        const CefSettings& settings,
+                        OsrApp* app,
+                        void* sandbox_info,
+                        std::string* url,
+                        OsrRendererSettings* renderer_settings) {
+  // Initialize the CEF browser process. May return false if initialization
+  // fails or if early exit is desired (for example, due to process singleton
+  // relaunch behavior).
+  if (!CefInitialize(main_args, settings, app, sandbox_info)) {
+    return CefGetExitCode();
+  }
+
+  // 单线程情况下，必须在Cef初始化后创建窗口，否则有UI显示不正常
+  if (url && renderer_settings) {
+    app->CreateOsrWindow(*url, *renderer_settings);
+  }
+
+  // Run the CEF message loop. This will block until CefQuitMessageLoop() is
+  // called.
+  CefRunMessageLoop();
+
+  // Shut down CEF.
+  CefShutdown();
+  return 0;
 }
 
 // When generating projects with CMake the CEF_USE_SANDBOX value will be defined
@@ -64,9 +99,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   // Parse command-line arguments for use in this method.
   CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
   command_line->InitFromString(::GetCommandLineW());
-  kURL_ = std::string(command_line->GetSwitchValue("url"));
-  shared_texture_enabled_ = !command_line->HasSwitch("shared_texture_disabled");
-  composition_enabled_ = !command_line->HasSwitch("composition_disabled");
+
+  auto single_thread_mode = command_line->HasSwitch("single-thread-mode");
+  // auto single_thread_mode = true;
 
 #if defined(ARCH_CPU_32_BITS)
   // Run the main thread on 32-bit Windows using a fiber with the preferred 4MiB
@@ -98,7 +133,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   // SimpleApp implements application-level callbacks for the browser process.
   // It will create the first browser instance in OnContextInitialized() after
   // CEF has initialized.
-  CefRefPtr<OsrApp> app(new OsrApp);
+  CefRefPtr<OsrApp> app(new OsrApp(single_thread_mode));
 
   // CEF applications have multiple sub-processes (render, GPU, etc) that share
   // the same executable. This function checks the command-line and, if this is
@@ -122,19 +157,26 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   settings.no_sandbox = true;
 #endif
 
-  // Initialize the CEF browser process. May return false if initialization
-  // fails or if early exit is desired (for example, due to process singleton
-  // relaunch behavior).
-  if (!CefInitialize(main_args, settings, app.get(), sandbox_info)) {
-    return CefGetExitCode();
+  std::string url = command_line->GetSwitchValue("url");
+  OsrRendererSettings renderer_settings;
+  renderer_settings.frame_rate = command_line->GetSwitchValue("frame-rate").empty()
+                                     ? 60
+                                     : atoi(std::string(command_line->GetSwitchValue("frame-rate")).c_str());
+  renderer_settings.shared_texture_enabled = command_line->HasSwitch("shared-texture-enabled");
+  renderer_settings.composition_enabled = !command_line->HasSwitch("composition-disabled");
+
+  if (single_thread_mode) {
+    InitializeAndRunCEF(main_args, settings, app.get(), sandbox_info, &url, &renderer_settings);
+  } else {
+    app->CreateOsrWindow(url, renderer_settings);
+    auto cef_thread = std::thread(&InitializeAndRunCEF, main_args, settings, app.get(), sandbox_info, nullptr, nullptr);
+    MSG msg = {0};
+    while (::GetMessage(&msg, nullptr, 0, 0)) {
+      ::TranslateMessage(&msg);
+      ::DispatchMessage(&msg);
+    }
+    cef_thread.join();
   }
-
-  // Run the CEF message loop. This will block until CefQuitMessageLoop() is
-  // called.
-  CefRunMessageLoop();
-
-  // Shut down CEF.
-  CefShutdown();
 
   return 0;
 }

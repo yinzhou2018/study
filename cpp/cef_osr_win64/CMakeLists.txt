@@ -136,7 +136,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 # Only generate Debug and Release configuration types.
-set(CMAKE_CONFIGURATION_TYPES Debug Release)
+set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo)
 
 # Project name.
 # TODO: Change this line to match your project name when you copy this file.

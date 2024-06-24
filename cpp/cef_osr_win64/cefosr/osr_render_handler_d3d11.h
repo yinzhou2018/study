@@ -71,6 +71,8 @@ class OsrRenderHandlerD3D11 : public OsrRenderHandler {
  private:
   void Render() override;
 
+  CefRenderHandler::RectList dirty_rects_;
+
   uint64_t start_time_ = 0;
   std::shared_ptr<d3d11::Device> device_;
   std::shared_ptr<d3d11::SwapChain> swap_chain_;

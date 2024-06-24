@@ -83,8 +83,6 @@ OsrRenderHandlerD3D11::OsrRenderHandlerD3D11(const OsrRendererSettings& settings
 }
 
 bool OsrRenderHandlerD3D11::Initialize(int width, int height) {
-  CEF_REQUIRE_UI_THREAD();
-
   // Create a D3D11 device instance.
   device_ = d3d11::Device::create();
   DCHECK(device_);
@@ -126,12 +124,10 @@ bool OsrRenderHandlerD3D11::Initialize(int width, int height) {
 }
 
 bool OsrRenderHandlerD3D11::IsOverPopupWidget(int x, int y) const {
-  CEF_REQUIRE_UI_THREAD();
   return popup_layer_ && popup_layer_->contains(x, y);
 }
 
 int OsrRenderHandlerD3D11::GetPopupXOffset() const {
-  CEF_REQUIRE_UI_THREAD();
   if (popup_layer_) {
     return popup_layer_->xoffset();
   }
@@ -139,7 +135,6 @@ int OsrRenderHandlerD3D11::GetPopupXOffset() const {
 }
 
 int OsrRenderHandlerD3D11::GetPopupYOffset() const {
-  CEF_REQUIRE_UI_THREAD();
   if (popup_layer_) {
     return popup_layer_->yoffset();
   }
@@ -147,8 +142,6 @@ int OsrRenderHandlerD3D11::GetPopupYOffset() const {
 }
 
 void OsrRenderHandlerD3D11::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {
-  CEF_REQUIRE_UI_THREAD();
-
   if (show) {
     DCHECK(!popup_layer_);
 
@@ -166,7 +159,6 @@ void OsrRenderHandlerD3D11::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show
 }
 
 void OsrRenderHandlerD3D11::OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) {
-  CEF_REQUIRE_UI_THREAD();
   popup_layer_->set_bounds(rect);
 }
 
@@ -176,8 +168,7 @@ void OsrRenderHandlerD3D11::OnPaint(CefRefPtr<CefBrowser> browser,
                                     const void* buffer,
                                     int width,
                                     int height) {
-  CEF_REQUIRE_UI_THREAD();
-
+  dirty_rects_ = dirtyRects;
   if (type == PET_POPUP) {
     popup_layer_->on_paint((void*)buffer, width, height);
   } else {
@@ -191,8 +182,7 @@ void OsrRenderHandlerD3D11::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
                                                CefRenderHandler::PaintElementType type,
                                                const CefRenderHandler::RectList& dirtyRects,
                                                const CefAcceleratedPaintInfo& info) {
-  CEF_REQUIRE_UI_THREAD();
-
+  dirty_rects_ = dirtyRects;
   if (type == PET_POPUP) {
     popup_layer_->on_paint(info.shared_texture_handle);
   } else {
@@ -227,7 +217,7 @@ void OsrRenderHandlerD3D11::Render() {
   composition_->render(ctx);
 
   // Present to window.
-  swap_chain_->present(send_begin_frame() ? 0 : 1);
+  swap_chain_->present(1);
 
   if (composition_enabled()) {
     dcomp_device_->Commit();

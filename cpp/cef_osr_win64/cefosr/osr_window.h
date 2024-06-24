@@ -2,11 +2,11 @@
 #define CEF_CEFOSR_OSR_WINDOW_H_
 
 #include "include/cef_client.h"
+#include "osr_renderer_settings.h"
 
 class OsrImeHandler;
 class OsrInputHandler;
 class OsrRenderHandler;
-struct OsrRendererSettings;
 
 constexpr const char* kLastFocusedIsEditableMessage = "last_focused_is_editable";
 constexpr const char* kLastFocusedIsNotEditableMessage = "last_focused_is_not_editable";
@@ -18,8 +18,10 @@ class OsrWindow : public CefClient,
                   CefDisplayHandler,
                   CefContextMenuHandler {
  public:
-  static CefRefPtr<OsrWindow> Create(const std::string& url, const OsrRendererSettings& settings);
+  static CefRefPtr<OsrWindow> Create(const OsrRendererSettings& settings);
   void Show();
+  void CreateBrowser(const std::string& url);
+  bool IsOnMainThread() const { return created_thread_id_ == ::GetCurrentThreadId(); }
 
  private:
   OsrWindow() = default;
@@ -77,6 +79,7 @@ class OsrWindow : public CefClient,
   LRESULT OnClose(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnMove(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnFocusMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
+  LRESULT OnAsyncCallMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
 
   // CefContextMenuHandler methods:
   void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
@@ -87,11 +90,13 @@ class OsrWindow : public CefClient,
   static LRESULT CALLBACK s_window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
   static LRESULT CALLBACK s_getmessage_hook_proc(int code, WPARAM wParam, LPARAM lParam);
 
+  OsrRendererSettings settings_;
   CefRefPtr<CefBrowser> browser_ = nullptr;
   bool browser_hidden_ = false;
   float scale_factor_ = 0.0f;
   HWND hwnd_ = nullptr;
   HHOOK hook_ = nullptr;
+  DWORD created_thread_id_ = ::GetCurrentThreadId();
 
   std::unique_ptr<OsrImeHandler> ime_handler_;
   std::unique_ptr<OsrInputHandler> input_handler_;

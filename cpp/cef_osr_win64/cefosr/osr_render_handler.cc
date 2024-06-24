@@ -10,16 +10,13 @@ OsrRenderHandler::OsrRenderHandler(const OsrRendererSettings& settings, HWND hwn
       hwnd_(hwnd),
 
       weak_factory_(this) {
-  CEF_REQUIRE_UI_THREAD();
   DCHECK(hwnd_);
 }
 
 OsrRenderHandler::~OsrRenderHandler() {
-  CEF_REQUIRE_UI_THREAD();
 }
 
 void OsrRenderHandler::SetBrowser(CefRefPtr<CefBrowser> browser) {
-  CEF_REQUIRE_UI_THREAD();
   browser_ = browser;
   if (browser_ && settings_.external_begin_frame_enabled) {
     // Start the BeginFrame timer.
@@ -28,7 +25,6 @@ void OsrRenderHandler::SetBrowser(CefRefPtr<CefBrowser> browser) {
 }
 
 void OsrRenderHandler::Invalidate() {
-  CEF_REQUIRE_UI_THREAD();
   if (begin_frame_pending_) {
     // The timer is already running.
     return;

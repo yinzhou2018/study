@@ -5,13 +5,19 @@
 #include "osr_render_handler_gl.h"
 #include "osr_utils.h"
 
+#include "include/base/cef_bind.h"
+#include "include/base/cef_callback.h"
 #include "include/cef_app.h"
+#include "include/wrapper/cef_closure_task.h"
 
 #include <windowsx.h>
 #include <functional>
 #include <iostream>
 
 #pragma comment(lib, "Msimg32.lib")
+
+#define WM_ASYNC_CALL_MESSAGE (WM_USER + 1)
+using AsyncCallFunction = std::function<void()>;
 
 using namespace std::placeholders;
 OsrWindow* g_win_ = nullptr;
@@ -42,7 +48,7 @@ LRESULT CALLBACK OsrWindow::s_getmessage_hook_proc(int code, WPARAM wParam, LPAR
   return ::CallNextHookEx(nullptr, code, wParam, lParam);
 }
 
-CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url, const OsrRendererSettings& settings) {
+CefRefPtr<OsrWindow> OsrWindow::Create(const OsrRendererSettings& settings) {
   WNDCLASSEX wcex = {0};
   LPCWSTR window_class = L"OSRWindowClass";
 
@@ -61,6 +67,7 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url, const OsrRenderer
   ::RegisterClassEx(&wcex);
 
   OsrWindow* window = new OsrWindow();
+  window->settings_ = settings;
   auto hwnd = ::CreateWindowExW(0, window_class, L"OSRWindow", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                                 CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
 
@@ -73,6 +80,14 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url, const OsrRenderer
   g_win_ = window;
   window->hook_ = ::SetWindowsHookEx(WH_GETMESSAGE, OsrWindow::s_getmessage_hook_proc, nullptr, ::GetCurrentThreadId());
 
+  return window;
+}
+
+void OsrWindow::Show() {
+  ShowWindow(hwnd_, SW_SHOW);
+}
+
+void OsrWindow::CreateBrowser(const std::string& url) {
   CefBrowserSettings browser_settings;
   browser_settings.image_loading = STATE_ENABLED;
   browser_settings.javascript = STATE_ENABLED;
@@ -80,20 +95,14 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const std::string& url, const OsrRenderer
   browser_settings.local_storage = STATE_ENABLED;
   browser_settings.remote_fonts = STATE_ENABLED;
   browser_settings.webgl = STATE_ENABLED;
-  browser_settings.windowless_frame_rate = settings.frame_rate;
-  browser_settings.background_color = settings.background_color;
+  browser_settings.windowless_frame_rate = settings_.frame_rate;
+  browser_settings.background_color = settings_.background_color;
 
   CefWindowInfo window_info;
-  window_info.shared_texture_enabled = settings.shared_texture_enabled;
-  window_info.SetAsWindowless(window->hwnd_);
+  window_info.shared_texture_enabled = settings_.shared_texture_enabled;
+  window_info.SetAsWindowless(hwnd_);
 
-  CefBrowserHost::CreateBrowser(window_info, window, url, browser_settings, nullptr, nullptr);
-
-  return window;
-}
-
-void OsrWindow::Show() {
-  ShowWindow(hwnd_, SW_SHOW);
+  CefBrowserHost::CreateBrowser(window_info, this, url, browser_settings, nullptr, nullptr);
 }
 
 LRESULT OsrWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -106,6 +115,7 @@ LRESULT OsrWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {WM_DPICHANGED, std::bind(&OsrWindow::OnDPIChanged, this, _1, _2, _3, _4)},
       {WM_CLOSE, std::bind(&OsrWindow::OnClose, this, _1, _2, _3, _4)},
       {WM_SETFOCUS, std::bind(&OsrWindow::OnFocusMessage, this, _1, _2, _3, _4)},
+      {WM_ASYNC_CALL_MESSAGE, std::bind(&OsrWindow::OnAsyncCallMessage, this, _1, _2, _3, _4)},
       {WM_MOVE, std::bind(&OsrWindow::OnMove, this, _1, _2, _3, _4)},
       {WM_MOVING, std::bind(&OsrWindow::OnMove, this, _1, _2, _3, _4)},
       {WM_KEYDOWN, std::bind(&OsrInputHandler::OnKeyMessage, input_handler_.get(), _1, _2, _3, _4)},
@@ -242,6 +252,14 @@ LRESULT OsrWindow::OnFocusMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& 
   return 0;
 }
 
+LRESULT OsrWindow::OnAsyncCallMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
+  handled = true;
+  auto fn = reinterpret_cast<std::function<void()>*>(wParam);
+  (*fn)();
+  delete fn;
+  return 0;
+}
+
 void OsrWindow::OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
                                     CefRefPtr<CefFrame> frame,
                                     CefRefPtr<CefContextMenuParams> params,
@@ -257,9 +275,19 @@ bool OsrWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                          CefProcessId source_process,
                                          CefRefPtr<CefProcessMessage> message) {
   if (message->GetName() == kLastFocusedIsEditableMessage && ime_handler_) {
-    ime_handler_->EnableIME();
+    if (IsOnMainThread()) {
+      ime_handler_->EnableIME();
+    } else {
+      AsyncCallFunction* fn = new AsyncCallFunction(std::bind(&OsrImeHandler::EnableIME, ime_handler_.get()));
+      ::PostMessage(hwnd_, WM_ASYNC_CALL_MESSAGE, reinterpret_cast<WPARAM>(fn), 0);
+    }
   } else if (message->GetName() == kLastFocusedIsNotEditableMessage && ime_handler_) {
-    ime_handler_->DisableIME();
+    if (IsOnMainThread()) {
+      ime_handler_->DisableIME();
+    } else {
+      AsyncCallFunction* fn = new AsyncCallFunction(std::bind(&OsrImeHandler::DisableIME, ime_handler_.get()));
+      ::PostMessage(hwnd_, WM_ASYNC_CALL_MESSAGE, reinterpret_cast<WPARAM>(fn), 0);
+    }
   }
 
   return true;
@@ -274,6 +302,9 @@ void OsrWindow::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   browser_ = nullptr;
   render_handler_.reset();
   CefQuitMessageLoop();
+  if (!IsOnMainThread()) {
+    ::PostThreadMessage(created_thread_id_, WM_QUIT, 0, 0);
+  }
 }
 
 void OsrWindow::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode) {
@@ -342,12 +373,37 @@ bool OsrWindow::GetScreenPoint(CefRefPtr<CefBrowser> browser, int viewX, int vie
   return true;
 }
 
+struct PerformanceTracker {
+  static int last_render_time_;
+  static int last_call_time_;
+  int now_time_;
+  PerformanceTracker(const char* tag) {
+    now_time_ = GetTickCount64();
+    if (last_call_time_ == 0) {
+      last_call_time_ = now_time_;
+    } else {
+      auto interval = now_time_ - last_call_time_;
+      // if (interval > 30) {
+        std::cout << "[" << tag << "]Interval between paints: " << interval
+                  << "ms, last render cost time: " << last_render_time_ << "\n";
+      // }
+      last_call_time_ = now_time_;
+    }
+  }
+
+  ~PerformanceTracker() { last_render_time_ = ::GetTickCount64() - now_time_; }
+};  // PerformanceTracker
+
+int PerformanceTracker::last_render_time_ = 0;
+int PerformanceTracker::last_call_time_ = 0;
+
 void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         PaintElementType type,
                         const RectList& dirtyRects,
                         const void* buffer,
                         int width,
                         int height) {
+  PerformanceTracker tracker("OnPaint");
   DCHECK(render_handler_);
   render_handler_->OnPaint(browser, type, dirtyRects, buffer, width, height);
   // HDC hdc = ::GetDC(hwnd_);
@@ -372,7 +428,7 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
 
   // ::AlphaBlend(hdc, 0, 0, width, height, mem_dc, 0, 0, width, height, blendFunc);
 
-  // // SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
+  // ::SetDIBitsToDevice(hdc, 0, 0, width, height, 0, 0, 0, height, buffer, &bmi, DIB_RGB_COLORS);
   // ::SelectObject(mem_dc, nullptr);
   // ::DeleteObject(bmp);
   // ::DeleteDC(mem_dc);
@@ -383,6 +439,7 @@ void OsrWindow::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
                                    PaintElementType type,
                                    const RectList& dirtyRects,
                                    const CefAcceleratedPaintInfo& info) {
+  PerformanceTracker tracker("OnAcceleratedPaint");
   DCHECK(render_handler_);
   render_handler_->OnAcceleratedPaint(browser, type, dirtyRects, info);
 }
@@ -402,6 +459,12 @@ void OsrWindow::OnImeCompositionRangeChanged(CefRefPtr<CefBrowser> browser,
                                              const CefRange& selected_range,
                                              const RectList& character_bounds) {
   if (ime_handler_) {
-    ime_handler_.get()->OnImeCompositionRangeChanged(selected_range, character_bounds);
+    if (IsOnMainThread()) {
+      ime_handler_.get()->OnImeCompositionRangeChanged(selected_range, character_bounds);
+    } else {
+      AsyncCallFunction* fn = new AsyncCallFunction(std::bind(&OsrImeHandler::OnImeCompositionRangeChanged,
+                                                              ime_handler_.get(), selected_range, character_bounds));
+      ::PostMessage(hwnd_, WM_ASYNC_CALL_MESSAGE, reinterpret_cast<WPARAM>(fn), 0);
+    }
   }
 }

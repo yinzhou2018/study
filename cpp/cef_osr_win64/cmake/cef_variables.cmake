@@ -434,6 +434,10 @@ if(OS_WINDOWS)
   list(APPEND CEF_LINKER_FLAGS_DEBUG
     /DEBUG        # Generate debug information
     )
+  list(APPEND CEF_LINKER_FLAGS_RELEASE
+    /DEBUG        # Generate debug information
+    )
+  
   list(APPEND CEF_EXE_LINKER_FLAGS
     /MANIFEST:NO        # No default manifest (see ADD_WINDOWS_MANIFEST macro usage)
     /LARGEADDRESSAWARE  # Allow 32-bit processes to access 3GB of RAM
