@@ -101,7 +101,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   command_line->InitFromString(::GetCommandLineW());
 
   auto single_thread_mode = command_line->HasSwitch("single-thread-mode");
-  // auto single_thread_mode = true;
+
+  // 重定向标准输出来打印日志
+  auto open_console = command_line->HasSwitch("open-console");
+  if (open_console) {
+    if (::AllocConsole()) {
+      ::freopen("CONOUT$", "w", stdout);
+      ::freopen("CONOUT$", "w", stderr);
+    }
+  }
 
 #if defined(ARCH_CPU_32_BITS)
   // Run the main thread on 32-bit Windows using a fiber with the preferred 4MiB
@@ -162,6 +170,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   renderer_settings.frame_rate = command_line->GetSwitchValue("frame-rate").empty()
                                      ? 60
                                      : atoi(std::string(command_line->GetSwitchValue("frame-rate")).c_str());
+  renderer_settings.log_render_cost_threshold =
+      command_line->GetSwitchValue("log-render-cost-threshold").empty()
+          ? 16
+          : atoi(std::string(command_line->GetSwitchValue("log-render-cost-threshold")).c_str());
+  renderer_settings.log_render_interval_threshold =
+      command_line->GetSwitchValue("log-render-interval-threshold").empty()
+          ? 30
+          : atoi(std::string(command_line->GetSwitchValue("log_render_interval_threshold")).c_str());
   renderer_settings.shared_texture_enabled = command_line->HasSwitch("shared-texture-enabled");
   renderer_settings.composition_enabled = !command_line->HasSwitch("composition-disabled");
 

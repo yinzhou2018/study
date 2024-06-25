@@ -26,6 +26,9 @@ struct OsrRendererSettings {
 
   int frame_rate = 60;
 
+  int log_render_cost_threshold = 16;
+  int log_render_interval_threshold = 30;
+
   RHIType rhi_type = RHIType::RT_D3D11;
 
   // Client implements a BeginFrame timer by calling

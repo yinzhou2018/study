@@ -11,7 +11,9 @@
 #include "include/wrapper/cef_closure_task.h"
 
 #include <windowsx.h>
+#include <chrono>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 
 #pragma comment(lib, "Msimg32.lib")
@@ -68,8 +70,13 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const OsrRendererSettings& settings) {
 
   OsrWindow* window = new OsrWindow();
   window->settings_ = settings;
-  auto hwnd = ::CreateWindowExW(0, window_class, L"OSRWindow", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                                CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
+  std::wstringstream window_title;
+  window_title << L"OSRWindow(frame-rate: " << settings.frame_rate << L", shared-teture-enabled: "
+               << settings.shared_texture_enabled << L", composition-enabled: " << settings.composition_enabled
+               << L", log-interval-threshold: " << settings.log_render_interval_threshold << L"ms, log-cost-threshold: "
+               << settings.log_render_cost_threshold << L"ms)";
+  auto hwnd = ::CreateWindowExW(0, window_class, window_title.str().c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
+                                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
 
   if (RHIType::RT_D3D11 == settings.rhi_type) {
     window->render_handler_ = std::make_unique<OsrRenderHandlerD3D11>(settings, hwnd);
@@ -374,28 +381,39 @@ bool OsrWindow::GetScreenPoint(CefRefPtr<CefBrowser> browser, int viewX, int vie
 }
 
 struct PerformanceTracker {
-  static int last_render_time_;
-  static int last_call_time_;
-  int now_time_;
-  PerformanceTracker(const char* tag) {
-    now_time_ = GetTickCount64();
-    if (last_call_time_ == 0) {
-      last_call_time_ = now_time_;
+  static uint64_t last_render_time_;
+  static uint64_t last_enter_time_;
+  uint64_t current_enter_time_;
+  PerformanceTracker(const char* tag, int interval_threshold, int render_cost_threshold) {
+    auto now = std::chrono::system_clock::now();
+    current_enter_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    if (last_enter_time_ == 0) {
+      last_enter_time_ = current_enter_time_;
     } else {
-      auto interval = now_time_ - last_call_time_;
-      // if (interval > 30) {
-        std::cout << "[" << tag << "]Interval between paints: " << interval
-                  << "ms, last render cost time: " << last_render_time_ << "\n";
-      // }
-      last_call_time_ = now_time_;
+      auto interval = current_enter_time_ - last_enter_time_;
+
+      if (interval >= interval_threshold || last_render_time_ >= render_cost_threshold) {
+        std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+        std::tm* now_tm = std::localtime(&now_time);
+        auto now_ms = current_enter_time_ % 1000;
+
+        std::cout << "[" << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << "." << std::setw(3) << std::setfill('0')
+                  << now_ms << "]" << "[" << tag << "]Interval between paints: " << interval
+                  << "ms, last render cost time: " << last_render_time_ << "ms\n";
+      }
+      last_enter_time_ = current_enter_time_;
     }
   }
 
-  ~PerformanceTracker() { last_render_time_ = ::GetTickCount64() - now_time_; }
+  ~PerformanceTracker() {
+    auto now = std::chrono::system_clock::now();
+    auto leave_time = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    last_render_time_ = leave_time - current_enter_time_;
+  }
 };  // PerformanceTracker
 
-int PerformanceTracker::last_render_time_ = 0;
-int PerformanceTracker::last_call_time_ = 0;
+uint64_t PerformanceTracker::last_render_time_ = 0;
+uint64_t PerformanceTracker::last_enter_time_ = 0;
 
 void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         PaintElementType type,
@@ -403,7 +421,7 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         const void* buffer,
                         int width,
                         int height) {
-  PerformanceTracker tracker("OnPaint");
+  PerformanceTracker tracker("OnPaint", settings_.log_render_interval_threshold, settings_.log_render_cost_threshold);
   DCHECK(render_handler_);
   render_handler_->OnPaint(browser, type, dirtyRects, buffer, width, height);
   // HDC hdc = ::GetDC(hwnd_);
@@ -439,7 +457,8 @@ void OsrWindow::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
                                    PaintElementType type,
                                    const RectList& dirtyRects,
                                    const CefAcceleratedPaintInfo& info) {
-  PerformanceTracker tracker("OnAcceleratedPaint");
+  PerformanceTracker tracker("OnAcceleratedPaint", settings_.log_render_interval_threshold,
+                             settings_.log_render_cost_threshold);
   DCHECK(render_handler_);
   render_handler_->OnAcceleratedPaint(browser, type, dirtyRects, info);
 }
