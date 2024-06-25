@@ -13,6 +13,18 @@
 
 - CEF 事先创建了一个共享纹理池，每次网页渲染，从池子里获取一个可用共享纹理作为 gpu 渲染目标，如果应用打开`shared_texture_enabled`设置，则渲染结束直接将此共享纹理跨进程传递到应用上屏，否则创建一个设备无关位图(DIB)，将纹理拷贝填充此位图，然后将位图数据传递给应用呈现上屏；
 - 基于上面的分析，共享纹理理论上是最高效的传送方式，实测不明显，两种方式性能数据相当，且时不时出现花屏现象，基于位图传递没有此问题；
-- 保持`windowless_frame_rate`默认设置`30`，上屏结果会有迟钝感，帧率不够；
-- 提升帧率到`60`(可设置的最大值)，有提升，但局部仍有明显的顿感，数据上看不少两帧间的回调(`OnAcceleratedPaint`或`OnPaint`)间隔超过 30ms，应该是造成顿感的主要因素，初步看起来 cef 内部离屏渲染实现可能有性能问题；
+- 保持`windowless_frame_rate`默认设置`30`，与`60`差异不大，应该大部分动画帧率 `30` 就足够；
+- 会有固定时间段帧率下降到不到 `15`，会有顿挫感，即使把应用层的渲染去掉也一样，初步看起来 cef 内部离屏渲染实现可能有性能问题；
 - 直接渲染到窗口与采用 DirectComposition 在窗口上叠加一层混合渲染没有任何性能差异；
+
+### 命令行参数
+- `--url=xxxxx`: 支持传入URL地址;
+- `--single-thread-mode`: 启用单线程模式，默认开启独立CEF UI线程运行，避免窗口操作阻塞；
+- `--frame-rate`：离屏渲染帧率，默认`30`,最大不能超过`60`;
+- `--open-console`: 打开控制台实时输出渲染性能数据，默认不打开;
+- `--shared-texture-disabled`: 禁用共享纹理方式传递数据，默认启用;
+- `--composition-disabled`: 禁用基于[DirectComposition](https://learn.microsoft.com/en-us/windows/win32/directcomp/directcomposition-portal)合成渲染，默认启用;
+- `--paint-disabled`: 禁用渲染上屏，只接收离屏数据，用于性能调试；
+- `--log-render-cost-threshold`：渲染上屏耗时输出性能日志的阈值，单位:`ms`，默认值：`50`，用于性能调试;
+- `--log-render-interval-threshold`: 两次离屏数据回调间隔输出性能日志的阈值，单位：`ms`，默认值：`50`，用于性能调试；
+

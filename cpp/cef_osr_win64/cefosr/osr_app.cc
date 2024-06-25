@@ -168,18 +168,19 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
   std::string url = command_line->GetSwitchValue("url");
   OsrRendererSettings renderer_settings;
   renderer_settings.frame_rate = command_line->GetSwitchValue("frame-rate").empty()
-                                     ? 60
+                                     ? 30
                                      : atoi(std::string(command_line->GetSwitchValue("frame-rate")).c_str());
   renderer_settings.log_render_cost_threshold =
       command_line->GetSwitchValue("log-render-cost-threshold").empty()
-          ? 16
+          ? 50
           : atoi(std::string(command_line->GetSwitchValue("log-render-cost-threshold")).c_str());
   renderer_settings.log_render_interval_threshold =
       command_line->GetSwitchValue("log-render-interval-threshold").empty()
-          ? 30
-          : atoi(std::string(command_line->GetSwitchValue("log_render_interval_threshold")).c_str());
-  renderer_settings.shared_texture_enabled = command_line->HasSwitch("shared-texture-enabled");
+          ? 50
+          : atoi(std::string(command_line->GetSwitchValue("log-render-interval-threshold")).c_str());
+  renderer_settings.shared_texture_enabled = !command_line->HasSwitch("shared-texture-disabled");
   renderer_settings.composition_enabled = !command_line->HasSwitch("composition-disabled");
+  renderer_settings.paint_enabled = !command_line->HasSwitch("paint-disabled");
 
   if (single_thread_mode) {
     InitializeAndRunCEF(main_args, settings, app.get(), sandbox_info, &url, &renderer_settings);

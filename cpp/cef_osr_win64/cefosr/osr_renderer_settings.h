@@ -19,15 +19,17 @@ struct OsrRendererSettings {
   cef_color_t background_color = 0;
 
   // Render using shared textures. Supported on Windows only via D3D11.
-  bool shared_texture_enabled = false;
+  bool shared_texture_enabled = true;
 
   // Composition with native window rendering.
-  bool composition_enabled = false;
+  bool composition_enabled = true;
 
-  int frame_rate = 60;
+  bool paint_enabled = true;
 
-  int log_render_cost_threshold = 16;
-  int log_render_interval_threshold = 30;
+  int frame_rate = 30;
+
+  int log_render_cost_threshold = 50;
+  int log_render_interval_threshold = 50;
 
   RHIType rhi_type = RHIType::RT_D3D11;
 

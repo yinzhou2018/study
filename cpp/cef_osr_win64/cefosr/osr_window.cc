@@ -71,9 +71,10 @@ CefRefPtr<OsrWindow> OsrWindow::Create(const OsrRendererSettings& settings) {
   OsrWindow* window = new OsrWindow();
   window->settings_ = settings;
   std::wstringstream window_title;
-  window_title << L"OSRWindow(frame-rate: " << settings.frame_rate << L", shared-teture-enabled: "
+  window_title << L"OSRWindow(frame-rate: " << settings.frame_rate << L", shared-texture-enabled: "
                << settings.shared_texture_enabled << L", composition-enabled: " << settings.composition_enabled
-               << L", log-interval-threshold: " << settings.log_render_interval_threshold << L"ms, log-cost-threshold: "
+               << L", paint-enabled: " << settings.paint_enabled << L", log-interval-threshold: "
+               << settings.log_render_interval_threshold << L"ms, log-cost-threshold: "
                << settings.log_render_cost_threshold << L"ms)";
   auto hwnd = ::CreateWindowExW(0, window_class, window_title.str().c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
                                 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, nullptr, window);
@@ -384,7 +385,7 @@ struct PerformanceTracker {
   static uint64_t last_render_time_;
   static uint64_t last_enter_time_;
   uint64_t current_enter_time_;
-  PerformanceTracker(const char* tag, int interval_threshold, int render_cost_threshold) {
+  PerformanceTracker(const char* tag, int interval_threshold, int render_cost_threshold, HWND hwnd) {
     auto now = std::chrono::system_clock::now();
     current_enter_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     if (last_enter_time_ == 0) {
@@ -393,13 +394,16 @@ struct PerformanceTracker {
       auto interval = current_enter_time_ - last_enter_time_;
 
       if (interval >= interval_threshold || last_render_time_ >= render_cost_threshold) {
-        std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-        std::tm* now_tm = std::localtime(&now_time);
-        auto now_ms = current_enter_time_ % 1000;
+        AsyncCallFunction* fn = new AsyncCallFunction([=]() {
+          std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+          std::tm* now_tm = std::localtime(&now_time);
+          auto now_ms = current_enter_time_ % 1000;
 
-        std::cout << "[" << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << "." << std::setw(3) << std::setfill('0')
-                  << now_ms << "]" << "[" << tag << "]Interval between paints: " << interval
-                  << "ms, last render cost time: " << last_render_time_ << "ms\n";
+          std::cout << "[" << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << "." << std::setw(3) << std::setfill('0')
+                    << now_ms << "]" << "[" << tag << "]Interval between paints: " << interval
+                    << "ms, last render cost time: " << last_render_time_ << "ms\n";
+        });
+        ::PostMessage(hwnd, WM_ASYNC_CALL_MESSAGE, reinterpret_cast<WPARAM>(fn), 0);
       }
       last_enter_time_ = current_enter_time_;
     }
@@ -421,9 +425,12 @@ void OsrWindow::OnPaint(CefRefPtr<CefBrowser> browser,
                         const void* buffer,
                         int width,
                         int height) {
-  PerformanceTracker tracker("OnPaint", settings_.log_render_interval_threshold, settings_.log_render_cost_threshold);
-  DCHECK(render_handler_);
-  render_handler_->OnPaint(browser, type, dirtyRects, buffer, width, height);
+  PerformanceTracker tracker("OnPaint", settings_.log_render_interval_threshold, settings_.log_render_cost_threshold,
+                             hwnd_);
+  if (settings_.paint_enabled) {
+    DCHECK(render_handler_);
+    render_handler_->OnPaint(browser, type, dirtyRects, buffer, width, height);
+  }
   // HDC hdc = ::GetDC(hwnd_);
 
   // BITMAPINFO bmi = {};
@@ -458,9 +465,11 @@ void OsrWindow::OnAcceleratedPaint(CefRefPtr<CefBrowser> browser,
                                    const RectList& dirtyRects,
                                    const CefAcceleratedPaintInfo& info) {
   PerformanceTracker tracker("OnAcceleratedPaint", settings_.log_render_interval_threshold,
-                             settings_.log_render_cost_threshold);
-  DCHECK(render_handler_);
-  render_handler_->OnAcceleratedPaint(browser, type, dirtyRects, info);
+                             settings_.log_render_cost_threshold, hwnd_);
+  if (settings_.paint_enabled) {
+    DCHECK(render_handler_);
+    render_handler_->OnAcceleratedPaint(browser, type, dirtyRects, info);
+  }
 }
 
 void OsrWindow::OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) {
