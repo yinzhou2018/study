@@ -1,4 +1,12 @@
+#include <WebView2.h>
 #include <Windows.h>
+#include <wrl/client.h>
+
+using namespace Microsoft::WRL;
+
+ComPtr<ICoreWebView2> s_webview;
+ComPtr<ICoreWebView2Controller2> s_controller;
+ComPtr<ICoreWebView2CompositionController> s_composition_controller;
 
 LRESULT CALLBACK window_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   if (message == WM_DESTROY) {
