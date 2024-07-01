@@ -5,6 +5,7 @@
 #include <windowsx.h>
 #include <wrl/event.h>
 #include <cassert>
+#include <sstream>
 
 using namespace Microsoft::WRL::Details;
 
@@ -140,9 +141,11 @@ HRESULT CompositionWindow::OnCreateCoreWebView2ControllerCompleted(
   assert(SUCCEEDED(hr));
   hr = webview_controller_->put_DefaultBackgroundColor({0, 0, 0, 0});  // Transparent background
   assert(SUCCEEDED(hr));
+
+  AddJSInterop(true /*before navigate*/);
   hr = webview_->Navigate(url_.c_str());
   assert(SUCCEEDED(hr));
-  AddJSInterop();
+  AddJSInterop(false /*after navigate*/);
 
   hr = ::DCompositionCreateDevice(nullptr, _uuidof(IDCompositionDevice), (void**)dcomp_device_.GetAddressOf());
   assert(SUCCEEDED(hr));
@@ -166,15 +169,91 @@ HRESULT CompositionWindow::OnCreateCoreWebView2ControllerCompleted(
   return S_OK;
 }
 
-void CompositionWindow::AddJSInterop() {
-  // 这里添加JS与Native互操作代码，演示支持的三种方式
-  // 方式一：添加native对象供JS调用
-  ComPtr<JSCallableObject> native_object = Make<JSCallableObject>();
-  VARIANT var;
-  var.vt = VT_DISPATCH;
-  var.pdispVal = native_object.Detach();
-  auto hr = webview_->AddHostObjectToScript(L"sampleObject", &var);
-  assert(SUCCEEDED(hr));
+// 这里添加JS与Native互操作代码，演示支持的三种方式
+void CompositionWindow::AddJSInterop(bool before_navigate) {
+  HRESULT hr = S_OK;
+
+  if (before_navigate) {
+    // 方式一：注入一段JS到Web页面, 注意：必须在`webview_->Navigate`调用之前，否则无效
+    // 注意：下面注入代码用到了通过`AddHostObjectToScript`注入的对象`sampleObject`，
+    // 注入的对象会挂接在`chrome.webview.hostObjects`对象上。
+    const wchar_t* js_code =
+        L"function postNativeMessage() {\n"
+        L"  chrome.webview.postMessage({name: 'hello', arg: 30});\n"
+        L"  chrome.webview.addEventListener('message', event => console.log(event.data));\n"
+        L"}\n"
+        L"async function nativeAdd(...args) {\n"
+        L"  let result = await chrome.webview.hostObjects.sampleObject.add(...args);\n"
+        L"  return result;\n"
+        L"}\n"
+        L"async function nativeSub(...args) {\n"
+        L"  let result = await chrome.webview.hostObjects.sampleObject.sub(...args);\n"
+        L"  return result;\n"
+        L"}\n"
+        L"function syncNativeAdd(...args) {\n"
+        L"  let result = chrome.webview.hostObjects.sync.sampleObject.add(...args);\n"
+        L"  return result;\n"
+        L"}\n"
+        L"function syncNativeSub(...args) {\n"
+        L"  let result = chrome.webview.hostObjects.sync.sampleObject.sub(...args);\n"
+        L"  return result;\n"
+        L"}\n";
+    hr = webview_->AddScriptToExecuteOnDocumentCreated(
+        js_code,
+        Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>([](HRESULT error, PCWSTR id) {
+          assert(SUCCEEDED(error));
+          return S_OK;
+        }).Get());
+    assert(SUCCEEDED(hr));
+
+    // 方式二：双向发送消息，任何时候都生效
+    // 在web端通过如下方法发送及接收消息:
+    // chrome.webview.postMessage(<obj>);
+    // chrome.webview.addEventListener("message", (event) => console.log(event.data));
+    hr = webview_->add_WebMessageReceived(
+        Callback<ICoreWebView2WebMessageReceivedEventHandler>([this](ICoreWebView2* sender,
+                                                                     ICoreWebView2WebMessageReceivedEventArgs* args) {
+          HRESULT hr = S_OK;
+          LPWSTR source = nullptr;
+          LPWSTR string_message = nullptr;
+          LPWSTR json_message = nullptr;
+
+          hr = args->get_Source(&source);
+          assert(SUCCEEDED(hr));
+          hr = args->get_WebMessageAsJson(&json_message);
+          if (FAILED(hr)) {
+            hr = args->TryGetWebMessageAsString(&string_message);
+            assert(SUCCEEDED(hr));
+          }
+
+          std::wstringstream ss;
+          ss << L"Source: " << source << L"\n" << L"Content: " << (json_message ? json_message : string_message);
+          ::MessageBoxW(hwnd_, ss.str().c_str(), L"WebMessage Received!", MB_ICONINFORMATION);
+
+          // echo回去
+          if (json_message) {
+            webview_->PostWebMessageAsJson(json_message);
+          } else {
+            webview_->PostWebMessageAsString(string_message);
+          }
+
+          ::CoTaskMemFree(source);
+          ::CoTaskMemFree(string_message);
+          ::CoTaskMemFree(json_message);
+
+          return S_OK;
+        }).Get(),
+        &webview_message_event_token_);
+    assert(SUCCEEDED(hr));
+  } else {
+    // 方式三：添加Native对象供JS调用，注意：必须在`webview_->Navigate`调用之后，否则无效
+    ComPtr<JSCallableObject> native_object = Make<JSCallableObject>();
+    VARIANT var;
+    var.vt = VT_DISPATCH;
+    var.pdispVal = native_object.Detach();
+    hr = webview_->AddHostObjectToScript(L"sampleObject", &var);
+    assert(SUCCEEDED(hr));
+  }
 }
 
 void CompositionWindow::ResizeWebView() {
@@ -215,6 +294,7 @@ LRESULT CompositionWindow::OnPaint(UINT msg, WPARAM wParam, LPARAM lParam, bool&
 
 LRESULT CompositionWindow::OnClose(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
   webview_composition_controller_->remove_CursorChanged(webview_cursor_changed_event_token_);
+  webview_->remove_WebMessageReceived(webview_message_event_token_);
   webview_controller_->Close();
   webview_.Reset();
   webview_controller_.Reset();
