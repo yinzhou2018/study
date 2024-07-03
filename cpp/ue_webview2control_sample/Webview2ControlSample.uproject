@@ -1,0 +1,22 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{CC11AA49-4FBF-C0B0-723A-E1B1AE2D699F}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "Webview2ControlSample",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		}
+	]
+}
