@@ -11,6 +11,12 @@
 #define WINDOW_HEIGHT 600
 #define WINDOW_TITLE "gl-playground"
 
+#ifdef __APPLE__
+#define RES_PATH(res_name) "../../../" res_name
+#else
+#define RES_PATH(res_name) res_name
+#endif  // __APPLE__
+
 void init();
 void draw_frame_with_core_mode();
 void on_input(GLFWwindow* window);
@@ -85,7 +91,7 @@ void init() {
 
   stbi_set_flip_vertically_on_load(true);
   int width, height, nrChannels;
-  unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
+  unsigned char* data = stbi_load(RES_PATH("container.jpg"), &width, &height, &nrChannels, 0);
 
   unsigned int texture0;
   glGenTextures(1, &texture0);
