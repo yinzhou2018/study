@@ -16,7 +16,7 @@ LRESULT CALLBACK CompositionWindow::s_window_proc(HWND hwnd, UINT msg, WPARAM wP
 
 void CompositionWindow::Initialize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url) {
   POINT pt = {composition_screen_rect.left, composition_screen_rect.top};
-  ::ScreenToClient(hwnd_, &pt);
+  ::ScreenToClient(target_window, &pt);
   webview_rect_ = {pt.x, pt.y, pt.x + composition_screen_rect.right - composition_screen_rect.left,
                    pt.y + composition_screen_rect.bottom - composition_screen_rect.top};
   InitializeImpl(target_window, url);
