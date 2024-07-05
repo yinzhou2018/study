@@ -25,6 +25,10 @@ public class Webview2Control : ModuleRules
       var LoaderDllPath = Path.Combine(Webview2SDKPath, "x64/WebView2Loader.dll");
       RuntimeDependencies.Add(LoaderDllPath);
       string BinariesDir = Path.Combine(ModuleDirectory, "../../Binaries/Win64");
+      if (!Target.bBuildEditor)
+      {
+        BinariesDir = Path.Combine(ModuleDirectory, "../../../../Binaries/Win64");
+      }
       if (!Directory.Exists(BinariesDir))
       {
         Directory.CreateDirectory(BinariesDir);

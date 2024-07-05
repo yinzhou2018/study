@@ -11,11 +11,14 @@ class FWebview2ControlModule : public IModuleInterface {
   virtual void ShutdownModule() override;
 
  private:
+ #if WITH_EDITOR
   void OnBeginPlay(bool simulating);
   void OnEndPlay(bool simulating);
+  void OnViewportResized(FViewport* Viewport, uint32);
+#endif  // WITH_EDITOR
+
   void CreateCompositionWindow();
   void DestroyCompositionWindow();
-  void OnViewportResized(FViewport* Viewport, uint32);
 
   std::unique_ptr<CompositionWindow> composition_window_;
 };

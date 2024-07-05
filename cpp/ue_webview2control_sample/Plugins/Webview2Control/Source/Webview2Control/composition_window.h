@@ -17,7 +17,8 @@ using namespace Microsoft::WRL;
 class CompositionWindow {
  public:
   CompositionWindow() = default;
-  void Initalize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url);
+  void Initialize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url);
+  void Initialize(HWND target_window, const std::wstring& url);
   void Shutdown();
   void ReiszeCompositionRect(const RECT& composition_screen_rect);
 
@@ -27,10 +28,12 @@ class CompositionWindow {
   LRESULT OnCaptureChanged(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnSetCursorChanged(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnMove(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
+  LRESULT OnSized(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
   LRESULT OnMouseMessage(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled);
 
   static LRESULT CALLBACK s_window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+  void InitializeImpl(HWND target_window, const std::wstring& url);
   void CreateWebView();
   HRESULT OnCreateCoreWebView2ControllerCompleted(HRESULT result,
                                                   ICoreWebView2CompositionController* compositionController);
@@ -38,6 +41,7 @@ class CompositionWindow {
   void ResizeWebView();
   void Cleanup();
 
+  bool use_client_area_rect_ = false;
   bool mouse_tracking_ = false;
   bool mouse_capturing_ = false;
   HWND hwnd_ = nullptr;

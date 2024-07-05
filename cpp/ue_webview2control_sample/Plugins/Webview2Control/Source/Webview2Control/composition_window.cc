@@ -14,13 +14,27 @@ LRESULT CALLBACK CompositionWindow::s_window_proc(HWND hwnd, UINT msg, WPARAM wP
   return window ? window->WindowProc(hwnd, msg, wParam, lParam) : ::DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void CompositionWindow::Initalize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url) {
-  url_ = url;
-  hwnd_ = target_window;
+void CompositionWindow::Initialize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url) {
   POINT pt = {composition_screen_rect.left, composition_screen_rect.top};
   ::ScreenToClient(hwnd_, &pt);
   webview_rect_ = {pt.x, pt.y, pt.x + composition_screen_rect.right - composition_screen_rect.left,
                    pt.y + composition_screen_rect.bottom - composition_screen_rect.top};
+  InitializeImpl(target_window, url);
+}
+
+void CompositionWindow::Initialize(HWND target_window, const std::wstring& url) {
+  use_client_area_rect_ = true;
+  ::GetClientRect(target_window, &webview_rect_);
+  InitializeImpl(target_window, url);
+}
+
+void CompositionWindow::Shutdown() {
+  Cleanup();
+}
+
+void CompositionWindow::InitializeImpl(HWND target_window, const std::wstring& url) {
+  url_ = url;
+  hwnd_ = target_window;
 
   // 没有`CS_DBLCLKS`标志无法发出DBCLICK消息
   auto class_style = ::GetClassLongPtrW(hwnd_, GCL_STYLE);
@@ -31,10 +45,6 @@ void CompositionWindow::Initalize(HWND target_window, const RECT& composition_sc
       ::SetWindowLongPtrW(hwnd_, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(s_window_proc)));
 
   CreateWebView();
-}
-
-void CompositionWindow::Shutdown() {
-  Cleanup();
 }
 
 void CompositionWindow::ReiszeCompositionRect(const RECT& composition_screen_rect) {
@@ -53,6 +63,7 @@ LRESULT CompositionWindow::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
       {WM_CAPTURECHANGED, &CompositionWindow::OnCaptureChanged},
       {WM_SETCURSOR, &CompositionWindow::OnSetCursorChanged},
       {WM_MOVE, &CompositionWindow::OnMove},
+      {WM_SIZE, &CompositionWindow::OnSized},
   };  // s_msg_handlers
 
   auto iter = std::find_if(std::begin(s_msg_handlers), std::end(s_msg_handlers),
@@ -283,6 +294,14 @@ void CompositionWindow::Cleanup() {
 LRESULT CompositionWindow::OnMove(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
   if (webview_controller_) {
     webview_controller_->NotifyParentWindowPositionChanged();
+  }
+  return 0;
+}
+
+LRESULT CompositionWindow::OnSized(UINT msg, WPARAM wParam, LPARAM lParam, bool& handled) {
+  if (use_client_area_rect_) {
+    ::GetClientRect(hwnd_, &webview_rect_);
+    ResizeWebView();
   }
   return 0;
 }
