@@ -23,7 +23,7 @@ void FWebview2ControlModule::OnEndPlay(bool simulating) {
 
 void FWebview2ControlModule::OnViewportResized(FViewport* viewport, uint32) {
   if (GEngine->GameViewport && GEngine->GameViewport->Viewport == viewport) {
-    composition_window_->ReiszeCompositionRect(CalcGameViewportScreenRect(GEngine->GameViewport));
+    composition_window_->ResizeCompositionRect(CalcGameViewportScreenRect(GEngine->GameViewport));
   }
 }
 

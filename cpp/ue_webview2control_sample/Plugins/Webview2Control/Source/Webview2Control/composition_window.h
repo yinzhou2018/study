@@ -20,7 +20,7 @@ class CompositionWindow {
   void Initialize(HWND target_window, const RECT& composition_screen_rect, const std::wstring& url);
   void Initialize(HWND target_window, const std::wstring& url);
   void Shutdown();
-  void ReiszeCompositionRect(const RECT& composition_screen_rect);
+  void ResizeCompositionRect(const RECT& composition_screen_rect);
 
  private:
   LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

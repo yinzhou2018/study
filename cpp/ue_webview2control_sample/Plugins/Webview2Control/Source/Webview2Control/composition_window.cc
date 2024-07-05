@@ -47,7 +47,7 @@ void CompositionWindow::InitializeImpl(HWND target_window, const std::wstring& u
   CreateWebView();
 }
 
-void CompositionWindow::ReiszeCompositionRect(const RECT& composition_screen_rect) {
+void CompositionWindow::ResizeCompositionRect(const RECT& composition_screen_rect) {
   POINT pt = {composition_screen_rect.left, composition_screen_rect.top};
   ::ScreenToClient(hwnd_, &pt);
   webview_rect_ = {pt.x, pt.y, pt.x + composition_screen_rect.right - composition_screen_rect.left,
