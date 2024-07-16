@@ -75,24 +75,8 @@ constexpr int sum(int n) {
   return result;
 }
 
-volatile int cnt = 0;
-
-void f() {
-  for (int n = 0; n < 1000; ++n)
-    cnt++;
-}
-
-void sync_study() {
-  std::vector<std::thread> v;
-  for (int n = 0; n < 10; ++n)
-    v.emplace_back(f);
-  for (auto& t : v)
-    t.join();
-  std::cout << "Final counter value is " << cnt << '\n';
-}
 
 void advanced_feature_study() {
   constexpr auto val = sum(10);
   std::cout << val << std::endl;
-  sync_study();
 }

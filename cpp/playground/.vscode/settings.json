@@ -70,7 +70,10 @@
     "array": "cpp",
     "ranges": "cpp",
     "cassert": "cpp",
-    "__config": "cpp"
+    "__config": "cpp",
+    "map": "cpp",
+    "xstddef": "cpp",
+    "xtree": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
