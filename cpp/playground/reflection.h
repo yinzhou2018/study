@@ -1,11 +1,22 @@
 #pragma once
-#include <algorithm>
+#include <cassert>
 #include <functional>
-#include <iostream>
 #include <map>
+#include <memory>
+#include <span>
 #include <string>
+#include <vector>
 
-// C++反射实现
+// 如下为简单C++反射实现的基础设施, 基本原理：
+// 1. 所有可反射类型都需要继承自`Object`, 并可选实现`get_type`, `set_property`, `get_property`,
+// `invoke_method`方便动态创建及调用
+// 2. 利用一些核心数据结构(`Type`, `Property`, `Method`)来记录类型元信息，方便运行时查询
+// 3.基于类静态变量方式定义元信息示例并注册到全局类型表，利用了C++里类静态变量初始化先与main入口特性，保证了类型注册的时机
+// 4.借助一些宏来自动实现上面的过程，最大化减少一些机械式的重复劳动，宏定义见`reflection_macros.inl`
+// 局限性：
+// 1.完全基于C++宏的方式定义反射类型相对有些晦涩，不利于阅读，同时也带来了下面的问题，更好的方式可能是扩展C++语法
+// 2.反射类型只能单继承`Object`或`Object`的子类，多继承不支持
+// 3.反射类型的属性及方法参数类型必须是`Object`的子类，不支持原生类型，实际使用中会有额外的装箱/拆箱操作，带来额外的性能问题
 namespace reflection {
 
 struct Type;
@@ -33,9 +44,21 @@ using PFCreateInstance = std::function<ObjectPtr()>;
 struct Object {
   virtual ~Object() = default;
   virtual const Type* get_type() const { return s_type_; }
-  virtual bool set_property(const std::string& name, ObjectPtr value) { return false; }
-  virtual ObjectPtr get_property(const std::string& name) const { return nullptr; }
-  virtual ObjectPtr invoke_method(const std::string& name, const ObjectPtrList& args) { return nullptr; }
+  virtual bool set_property(const std::string& name, ObjectPtr value) {
+    assert(false);
+    return false;
+  }
+  virtual ObjectPtr get_property(const std::string& name) const {
+    assert(false);
+    return nullptr;
+  }
+  virtual ObjectPtr invoke_method(const std::string& name, const ObjectPtrList& args) {
+    assert(false);
+    return nullptr;
+  }
+
+  virtual void set_new_value(ObjectPtr new_value) { assert(false); }
+
   static Type* s_type_;
 };  // Object
 
@@ -54,92 +77,35 @@ Type* register_type(const std::string& type_name,
                     MethodMap* methods);
 Type* get_register_type(const std::string& type_name);
 const TypeMap& get_all_register_types();
+bool is_subclass_of(const Type* child, const Type* parent);
+bool is_ancestor_of(const Type* ancestor, const Type* child);
 ObjectPtr create_object(const std::string& type_name);
+bool types_match(const std::span<Type*>& expected, const std::span<const ObjectPtr>& inputs);
 
 template <typename TObject>
 inline TObject* dynamic_cast_object(Object* object) {
   if (object->get_type() == TObject::s_type_) {
     return static_cast<TObject*>(object);
   }
+  assert(false);
   return nullptr;
 }
 
-#ifndef RELECTION_TYPE_IMPL
-#define BEGINE_REFLECTION_TYPE(type_name, parent_type_name)                                                       \
-  class type_name : public parent_type_name {                                                                     \
-   public:                                                                                                        \
-    type_name() = default;                                                                                        \
-    ~type_name() override = default;                                                                              \
-    const Type* get_type() const override {                                                                       \
-      return s_type_;                                                                                             \
-    }                                                                                                             \
-    bool set_property(const std::string& name, reflection::ObjectPtr value) override;                             \
-    reflection::ObjectPtr get_property(const std::string& name) const override;                                   \
-    reflection::ObjectPtr invoke_method(const std::string& name, const reflection::ObjectPtrList& args) override; \
-    static Type* s_type_;                                                                                         \
-    static PropertyMap s_properties_;                                                                             \
-    static MethodMap s_methods_;                                                                                  \
-    using PFSetProp = void (type_name::*)(const reflection::ObjectPtr);                                           \
-    using PFGetProp = reflection::ObjectPtr (type_name::*)() const;                                               \
-    using PFMethod = reflection::ObjectPtr (type_name::*)(const reflection::ObjectPtrList&);
-
-#define BEGIN_REFLECTION_PROPERTY(type_name)
-#define REFLECTION_PROPERTY(type_name, name, type)     \
-  reflection::ObjectPtr name##_;                       \
-  void set_##name(const reflection::ObjectPtr value) { \
-    name##_ = value;                                   \
-  }                                                    \
-  reflection::ObjectPtr get_##name() const {           \
-    return name##_;                                    \
-  }
-#define END_REFLECTION_PROPERTY()
-
-#define BEGIN_REFLECTION_METHOD(type_name)
-#define REFLECTION_METHOD(type_name, name, return_type) \
-  reflection::ObjectPtr name(const reflection::ObjectPtrList& args);
-#define REFLECTION_METHOD_1(type_name, name, return_type, arg_type_1) \
-  reflection::ObjectPtr name(const reflection::ObjectPtrList& args);
-#define REFLECTION_METHOD_2(type_name, name, return_type, arg_type_1, arg_type_2) \
-  reflection::ObjectPtr name(const reflection::ObjectPtrList& args);
-#define REFLECTION_METHOD_3(type_name, name, return_type, arg_type_1, arg_type_2, arg_type_3) \
-  reflection::ObjectPtr name(const reflection::ObjectPtrList& args);
-
-#define END_REFLECTION_METHOD()
-
-#define END_REFLECTION_TYPE() \
-  }                           \
-  ;
-#else
-#define BEGINE_REFLECTION_TYPE(type_name, parent_type_name)         \
-  Type* type_name::s_type_ = reflection::register_type(             \
-      #type_name, reflection::get_register_type(#parent_type_name), \
-      []() { return reflection::ObjectPtr(new type_name) }, &type_name::s_properties_, &type_name::s_methods_);
-
-#define BEGIN_REFLECTION_PROPERTY(type_name) PropertyMap type_name::s_properties_ = {
-#define REFLECTION_PROPERTY(type_name, name, type) \
-  {#name, {type::s_type_, &type_name::set_##name, &type_name::get_##name}},
-#define END_REFLECTION_PROPERTY() \
-  }                               \
-  ;
-
-#define BEGIN_REFLECTION_METHOD(type_name) MethodMap type_name::s_methods_ = {
-#define REFLECTION_METHOD(type_name, name, return_type) {#name, {return_type::s_type_, {}, &type_name::name}},
-#define REFLECTION_METHOD_1(type_name, name, return_type, arg_type_1) \
-  {#name, {return_type::s_type_, {arg_type_1::s_type_}, &type_name::name}},
-#define REFLECTION_METHOD_2(type_name, name, return_type, arg_type_1, arg_type_2) \
-  {#name, {return_type::s_type_, {arg_type_1::s_type_, arg_type_2::s_type_}, &type_name::name}},
-#define REFLECTION_METHOD_3(type_name, name, return_type, arg_type_1, arg_type_2, arg_type_3) \
-  {#name, {return_type::s_type_, {arg_type_1::s_type_, arg_type_2::s_type_, arg_type_3::s_type_}, &type_name::name}},
-#define END_REFLECTION_METHOD() \
-  }                             \
-  ;
-
-#endif  // RELECTION_TYPE_IMPL
+template <typename TObject>
+inline TObject* dynamic_cast_object(ObjectPtr object) {
+  return dynamic_cast_object<TObject>(object.get());
+}
 
 class IntObject : public Object {
  public:
+  IntObject() = default;
+  explicit IntObject(int value) : value_(value) {}
   ~IntObject() override = default;
   const Type* get_type() const override { return s_type_; }
+  void set_new_value(ObjectPtr new_value) override {
+    auto* new_value_int = dynamic_cast_object<IntObject>(new_value);
+    value_ = new_value_int->value_;
+  }
 
   int value_ = 0;
   static Type* s_type_;
@@ -154,8 +120,14 @@ class VoidObject : public Object {
 
 class StringObject : public Object {
  public:
+  StringObject() = default;
+  explicit StringObject(const std::string_view& value) : value_(value) {}
   ~StringObject() override = default;
   const Type* get_type() const override { return s_type_; }
+  void set_new_value(ObjectPtr new_value) override {
+    auto* new_value_string = dynamic_cast_object<StringObject>(new_value);
+    value_ = new_value_string->value_;
+  }
 
   std::string value_;
   static Type* s_type_;
