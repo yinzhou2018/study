@@ -128,6 +128,7 @@ bool FrameQueue::Initialize(const char* DebugName,
 
   mNextFrameFence = 1;
   mNextFrameIndex = 0;
+  mBackBufferIndex = 0;
 
   mDebugName = DebugName;
   mDevice = Device;
@@ -211,13 +212,17 @@ void FrameQueue::BeginFrame(FrameContext** OutFrame) {
   Frame->mFrameFenceId = FrameFence;
 
   // Associate the frame with the swap chain backbuffer & RTV.
-  UINT BackBufferIndex = mSwapChain->GetCurrentBackBufferIndex();
+  // UINT BackBufferIndex = mSwapChain->GetCurrentBackBufferIndex();
+  UINT BackBufferIndex = mBackBufferIndex;
   auto& Resources = mBackBuffers[BackBufferIndex];
   Frame->mBackBufferIndex = BackBufferIndex;
   Frame->mBackBuffer = Resources.mBuffer.Get();
   Frame->mWrapped11BackBuffer = Resources.mWrapped11Buffer.Get();
   Frame->mD2DRenderTarget = Resources.mD2DRenderTarget.Get();
   Frame->mBackBufferRTV = mRenderTargetViews[BackBufferIndex].CpuHandle;
+
+   mBackBufferIndex++;
+   mBackBufferIndex %= mBackBuffers.size();
 
   // Reset the command allocator and list
   ThrowIfFailed(Frame->mCommandAllocator->Reset());

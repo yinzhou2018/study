@@ -22,6 +22,7 @@ static wsi::ScreenMode mode;
 static unsigned max_fps;
 static float current_fps, current_fps_cpu, current_fps_gpu,  current_fps_cpu_full, current_fps_gpu_full;
 static float current_frametime_cpu, current_frametime_gpu, current_frametime_cpu_full, current_frametime_gpu_full;
+static float current_chain_wait_time, current_frame_wait_time, current_present_wait_time;
 static bool caption_changed;
 static bool running;
 static float paused_fractional_ticks;
@@ -61,7 +62,11 @@ static void rebuild_hud_string(game_data *game)
 		"     GPU fps = %.2f (%.2fms)" NEWLINE
 		"     CPU fps = %.2f (%.2fms)" NEWLINE
  		"     GPU Full fps = %.2f (%.2fms)" NEWLINE
-		"     CPU Full fps = %.2f (%.2fms)" NEWLINE,
+		"     CPU Full fps = %.2f (%.2fms)" NEWLINE
+ 		"     Chain wait time = %.2fms" NEWLINE
+ 		"     Frame wait time = %.2fms" NEWLINE
+ 		"     Present wait time = %.2fms" NEWLINE,
+
 		game->paused,
 		screen.prefs.windowed==0,
 		screen.prefs.vsync,
@@ -77,7 +82,8 @@ static void rebuild_hud_string(game_data *game)
 		current_fps_gpu, 1000*current_frametime_gpu,
 		current_fps_cpu, 1000*current_frametime_cpu,
     current_fps_gpu_full, 1000*current_frametime_gpu_full,
-    current_fps_cpu_full, 1000*current_frametime_cpu_full
+    current_fps_cpu_full, 1000*current_frametime_cpu_full,
+    current_chain_wait_time, current_frame_wait_time, current_present_wait_time
 		);
 }
 
@@ -313,6 +319,9 @@ static void run_game()
 				current_frametime_gpu = (1 - alpha)*current_frametime_gpu + alpha*stats.gpu_frame_time;
         current_frametime_cpu_full = (1 - alpha)*current_frametime_cpu_full + alpha*stats.cpu_frame_time_full;
 				current_frametime_gpu_full = (1 - alpha)*current_frametime_gpu_full + alpha*stats.gpu_frame_time_full;
+        current_chain_wait_time = (1 - alpha)*current_chain_wait_time + alpha*stats.chain_wait_time;
+        current_frame_wait_time = (1 - alpha)*current_frame_wait_time + alpha*stats.frame_wait_time;
+        current_present_wait_time = (1 - alpha)*current_present_wait_time + alpha*stats.present_wait_time;
 			}
 		}
 

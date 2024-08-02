@@ -81,7 +81,7 @@ namespace wsi
 		bool windowed;
 		bool top;
 		bool clip_cursor;
-		bool vsync;
+		int vsync;
 		WINDOWPLACEMENT placement;
 	};
 

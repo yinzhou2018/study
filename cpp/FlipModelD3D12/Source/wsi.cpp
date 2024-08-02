@@ -350,7 +350,8 @@ static void toggle_grab_mode_GUI(
 
 static void toggle_vsync_GUI()
 {
-	current_state.prefs.vsync = !current_state.prefs.vsync;
+	current_state.prefs.vsync++;
+  current_state.prefs.vsync %= 5;
 	sync_state();
 }
 

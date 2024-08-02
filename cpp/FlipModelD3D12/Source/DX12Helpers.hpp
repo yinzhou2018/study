@@ -256,6 +256,7 @@ private:
 
 	std::vector<BackBufferResources> mBackBuffers;
 	DescriptorArrayT<D3D12_DESCRIPTOR_HEAP_TYPE_RTV> mRenderTargetViews;
+  UINT mBackBufferIndex;
 };
 
 struct TimestampQueryHeap

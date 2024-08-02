@@ -653,11 +653,8 @@ static void present_dx12(frame_data* frame, UINT64 FrameBeginTime, int vsync, dx
   auto present_call = eviz->Start(EventViz::kCpuQueue, &event_types[EVENT_TYPE_PRESENT_CALL]);
   chain->Present(SyncInterval, 0);
   eviz->End(present_call);
-  static uint64_t s_last_tick = 0;
-  if (present_call->End - s_last_tick >= g_QpcFreq) {
-    std::cout << "Presented tick count: " << (1000 * (float)(present_call->End - present_call->Start)) / g_QpcFreq
-              << "ms" << std::endl;
-    s_last_tick = present_call->End;
+  if (present_call) {
+    out_stats->present_wait_time = (1000 * (float)(present_call->End - present_call->Start)) / g_QpcFreq;
   }
 
   UINT color_index = frame->backbuffer_index % NUM_FRAME_COLORS;
@@ -751,6 +748,10 @@ static bool resize_dx12_internal(void* pHWND, void* pCoreWindow, float x_dips, f
     if (swap_chain_desc.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT) {
       CheckHresult(dx12->swap_chain->SetMaximumFrameLatency(std::max(1, swapchain_opts.create_time.max_frame_latency)));
       dx12->swap_event = dx12->swap_chain->GetFrameLatencyWaitableObject();
+    } else {
+      ComPtr<IDXGIDevice1> dev1;
+      dx12->device11.As(&dev1);
+      CheckHresult(dev1->SetMaximumFrameLatency(swapchain_opts.create_time.max_frame_latency));
     }
 
     dx12->frame_q.SetSwapChain(dx12->swap_chain.Get(), swap_chain_desc.Format, dpi, dpi);
@@ -1254,6 +1255,11 @@ void render_game_dx12(wchar_t* hud_text,
     auto chain_wait_event = eviz->Start(EventViz::kCpuQueue, &event_types[EVENT_TYPE_SWAPCHAIN_WAIT]);
     wait_for_swap_chain(dx12->swap_event.Get(), "layer 0");
     eviz->End(chain_wait_event);
+    if (chain_wait_event) {
+      stats->chain_wait_time = (1000 * (float)(chain_wait_event->End - chain_wait_event->Start)) / g_QpcFreq;
+    }
+  } else {
+    stats->chain_wait_time = 0.0f;
   }
 
   eviz->TrimToLastNVsyncs(256);
@@ -1264,6 +1270,9 @@ void render_game_dx12(wchar_t* hud_text,
     auto frame_wait_event = eviz->Start(EventViz::kCpuQueue, &event_types[EVENT_TYPE_FRAME_WAIT]);
     dx12->frame_q.BeginFrame(&ctx);
     eviz->End(frame_wait_event);
+    if (frame_wait_event) {
+      stats->frame_wait_time = (1000 * (float)(frame_wait_event->End - frame_wait_event->Start)) / g_QpcFreq;
+    }
   }
 
   auto CpuFrameStart = QpcNow();
@@ -1340,7 +1349,7 @@ void render_game_dx12(wchar_t* hud_text,
   dx12->frame_q.EndFrame(ctx);
 
   present_dx12(frame, CpuFrameStart, vsync_interval, stats);
-  auto CpuFrameEndFull = CpuFrameEnd;
+  auto CpuFrameEndFull = QpcNow();
   if (stats) {
     stats->cpu_frame_time = float(double(CpuFrameEnd - CpuFrameStart) / g_QpcFreq);
     stats->gpu_frame_time =
