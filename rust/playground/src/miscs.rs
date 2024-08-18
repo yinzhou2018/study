@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, pin::Pin};
+use std::{borrow::Borrow, cell::RefCell, fmt::Display, marker::PhantomData, num::NonZeroI8, ops::Add, pin::Pin};
 
 trait Callable {
   fn call(&self) -> &dyn Callable;
@@ -226,10 +226,70 @@ impl<'a> Wrapper<'a> {
   }
 }
 
+struct Data {
+  s: String,
+}
+
+impl Data {
+  pub fn new() -> Self {
+    Self { s: String::from("hello") }
+  }
+
+  pub fn get_s(&self) -> &str {
+    &self.s
+  }
+
+  pub fn take(self) -> Self {
+    self
+  }
+}
+
+#[derive(Clone, Copy)]
+struct MyNonZeroI8(i8);
+
+impl Add for MyNonZeroI8 {
+  type Output = Self;
+  fn add(self, other: Self) -> Self::Output {
+    Self(self.0 + other.0)
+  }
+}
+
+pub trait MyTrait {
+  fn foo(&self);
+}
+
+impl<T:Display> MyTrait for T {
+  fn foo(&self) {
+    println!("{}", self);
+  }
+}
+
+// impl MyTrait for i32 {
+//   fn foo(&self) {
+//     println!("{}", self);
+//   }
+// }
+
 pub fn miscs_study() {
+  let v = [1, 2, 3];
+  let slice = unsafe { v.get_unchecked(1..2) };
+  println!("{:?}", slice);
+
   lifetime_study();
   types_vals_size_study();
   move_semantic_study();
   unsafe_study();
   trait_study();
+
+  let non_zero = MyNonZeroI8(10i8);
+  println!("{}", non_zero.0);
+  let non_zero_2 = non_zero + non_zero;
+  println!("{}", non_zero_2.0);
+
+  let ref_cell = RefCell::new(10);
+  let mut ref_cell_mut = ref_cell.borrow_mut();
+  *ref_cell_mut += 1;
+  println!("{}", ref_cell.borrow());
+
+  let i = 10;
 }
