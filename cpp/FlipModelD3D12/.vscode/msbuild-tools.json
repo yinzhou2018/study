@@ -1,0 +1,17 @@
+{
+  "solution": "${workspaceRoot}/FlipModelD3D12.sln",
+  "variables": {
+    "MSBUILD": "C:/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/MSBuild.exe",
+    "DEVENV": "C:/Program Files/Microsoft Visual Studio/2022/Professional/Common7/IDE/devenv.com"
+  },
+  "buildConfigurations": ["Debug", "Release"],
+  "platformConfigurations": ["x64"],
+  "debugConfigurations": [
+    {
+      "name": "test",
+      "cwd": "${workspaceRoot}",
+      "program": "${workspaceRoot}/x64/FlipModelD3D12/Debug/FlipModelD3D12.exe",
+      "args": ["https://www.baidu.com"]
+    }
+  ]
+}
