@@ -1,34 +1,41 @@
 /* 计算器的最简版本*/
 %{
 #include <stdio.h>
-int yylex(void);
-int yyerror(char *s);
+#include <stdlib.h>
+#include "../fb.h"
 %}
 
-/* declare tokens */
-%token NUMBER
-%token ADD SUB MUL DIV ABS
-%token OP CP
+%union {
+  struct ast *a; 
+  double d;
+}
+%token <d> NUMBER 
 %token EOL
+%type <a> exp factor term
 
 %%
 calclist: /* 空规则*/
-| calclist exp EOL { printf(" = %d\n", $2); }
+| calclist exp EOL {
+    printf(" = %4.4g\n", eval($2));
+    treefree($2);
+    printf("> ");
+  }
+| calclist EOL { printf("> "); }
 ;
 
-exp: exp ADD factor { $$ = $1 + $3; }
-| exp SUB factor { $$ = $1 - $3; }
-| factor {$$ = $1;}
+exp: exp '+' factor { $$ = newast('+', $1, $3); }
+| exp '-' factor { $$ = newast('-', $1, $3); }
+| factor
 ;
 
-factor: term {$$ = $1;}
-| factor MUL term { $$ = $1 * $3; }
-| factor DIV term { $$ = $1 / $3;} 
+factor: term
+| factor '*' term { $$ = newast('*', $1, $3); }
+| factor '/' term { $$ = newast('/', $1, $3);} 
 ;
 
-term: NUMBER  {$$ = $1;}
-| ABS term { $$ = $2 >= 0 ? $2 : -$2; }
-| ADD term { $$ = $2; }
-| SUB term { $$ = -$2; }
-| OP exp CP { $$ = $2; };
+term: NUMBER  {$$ = newnum($1);}
+| '|' term { $$ = newast('|', $2, NULL); }
+| '+' term { $$ = newast('P', $2, NULL); }
+| '-' term { $$ = newast('M', $2, NULL); }
+| '(' exp ')' { $$ = $2; };
 %%
