@@ -24,12 +24,19 @@ void core_foundation_study() {
 }
 #endif  // __APPLE__
 
+struct DemoStruct {
+  DemoStruct() { std::cout << "DemoStruct" << std::endl; }
+  ~DemoStruct() { std::cout << "~DemoStruct" << std::endl; }
+};
+
 int main(int, char**) {
   // advanced_feature_study();
   // preload_file(R"(E:\virtual_human_code\ue\virtual_human_ue51\Saved\1.0.1\Windows\VirtualHumanUE51\Content\Paks\base.pak)");
   // multithread_study();
   // shared_ptr_study();
   // core_foundation_study();
-  test_reflection_sample();
+  // test_reflection_sample();
+  std::vector<DemoStruct> demo_structs;
+  std::cout << "size: " << demo_structs.size() << std::endl;
   return 0;
 }

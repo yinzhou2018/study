@@ -1,5 +1,5 @@
 #include <iostream>
 
 int main(int, char**) {
-  std::cout << "Hello, from console-demo!\n";
+  std::cout << "Hello world, from console-demo!\n";
 }
