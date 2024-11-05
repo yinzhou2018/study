@@ -34,12 +34,16 @@ cmake --build .
 # 定义目标设备路径和应用名称
 DEST_PATH="/data/local/tmp"
 CONSOLE_APP="console-demo"
+UTILS_LIB="libutils.so"
 
 # 将应用拷贝到设备并设置执行权限，然后运行
-echo "-- Copy $CONSOLE_APP to device path: $DEST_PATH ..."
+echo "-- Copy $CONSOLE_APP and $UTILS_LIB to device path: $DEST_PATH ..."
 adb push "./$CONSOLE_APP" "$DEST_PATH"
+adb push "./$UTILS_LIB" "$DEST_PATH"
 adb shell chmod 777 "$DEST_PATH/$CONSOLE_APP"
 echo "-- Run $CONSOLE_APP on device ..."
-adb shell "$DEST_PATH/$CONSOLE_APP"
+
+# android平台不支持原生linux构建的rpath设置，手动设置LD_LIBRARY_PATH环境变量来支持动态库的加载
+adb shell export LD_LIBRARY_PATH=/data/local/tmp:$LD_LIBRARY_PATH; "$DEST_PATH/$CONSOLE_APP"
 
 cd ..
