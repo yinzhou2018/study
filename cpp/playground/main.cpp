@@ -7,6 +7,8 @@
 #include "reflection_sample.h"
 #include "shared_ptr_study.h"
 
+#include "lib/utils.h"
+
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 void core_foundation_study() {
@@ -29,6 +31,8 @@ struct DemoStruct {
   ~DemoStruct() { std::cout << "~DemoStruct" << std::endl; }
 };
 
+constexpr int mul(int a, int b) { return a * b; }
+
 int main(int, char**) {
   // advanced_feature_study();
   // preload_file(R"(E:\virtual_human_code\ue\virtual_human_ue51\Saved\1.0.1\Windows\VirtualHumanUE51\Content\Paks\base.pak)");
@@ -38,5 +42,6 @@ int main(int, char**) {
   // test_reflection_sample();
   std::vector<DemoStruct> demo_structs;
   std::cout << "size: " << demo_structs.size() << std::endl;
+  std::cout << "result: " << add(1, 2) << std::endl;
   return 0;
 }
