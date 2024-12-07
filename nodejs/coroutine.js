@@ -1,17 +1,25 @@
-async function hello1() {
-  console.log("hello1");
+
+async function produce() {
+  console.log("produce");
   return 10;
 }
 
-async function hello2() {
-  console.log("hello2");
-  return hello1();
+async function consume() {
+  const value = await produce();
+  console.log("consume", value);
+  return value;
 }
 
 async function main() {
-  value = await hello2();
   console.log(value);
 }
+
+function* gen(){
+  yield 1;
+  yield 2;
+  return 3;
+} 
+
 
 main();
 console.log("finsihed.");

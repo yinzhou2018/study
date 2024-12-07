@@ -1,4 +1,5 @@
 use std::ptr::{self};
+use super::algos;
 
 struct Node<T: Copy> {
   value: T,
@@ -86,6 +87,10 @@ impl<T: Copy> LinkedList<T> {
       }
     }
   }
+}
+
+fn hello() {
+  algos::algos_study();
 }
 
 #[cfg(test)]
