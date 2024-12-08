@@ -1,10 +1,9 @@
-mod sort;
 mod ipv4_generator;
 mod math_expr_parser;
-use sort::*;
+mod sort;
 use ipv4_generator::*;
 use math_expr_parser::*;
-
+use sort::*;
 
 pub fn algos_study() {
   {
@@ -22,6 +21,9 @@ pub fn algos_study() {
   println!("ip_ary: {:?}", ip_ary);
 
   let expr = "1+22*3";
+  let result = parse_math_expr_without_parentheses(expr);
+  println!("{} = {}", expr, result);
+  let expr = "(1+2)*(3*(6+4))";
   let result = parse_math_expr(expr);
-  println!("expr: {}, result: {}", expr, result);
+  println!("{} = {}", expr, result);
 }
