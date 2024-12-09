@@ -75,6 +75,10 @@ constexpr int sum(int n) {
   return result;
 }
 
+struct A {
+  int a;
+  int b;
+};
 
 void advanced_feature_study() {
   constexpr auto val = sum(10);
