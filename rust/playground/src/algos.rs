@@ -53,6 +53,11 @@ pub fn algos_study() {
     heap_sort_v2(&mut ary);
     println!("heap sort v2: {:?}", ary);
   }
+  {
+    let mut ary = [1, 3, 2, 10, 5, 6, 3, 4, 7, 11, 7, 8];
+    merge_sort(&mut ary);
+    println!("merge sort: {:?}", ary);
+  }
   let ip_ary = generate_ipv4("1221221221");
   println!("ip_ary: {:?}", ip_ary);
 

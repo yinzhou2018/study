@@ -217,3 +217,44 @@ pub fn quick_sort_v2(ary: &mut [i32]) {
   quick_sort_v2(&mut ary[0..left]);
   quick_sort_v2(&mut ary[left + 1..len]);
 }
+
+pub fn merge_sort(ary: &mut [i32]) {
+  if ary.len() < 2 {
+    return;
+  }
+
+  let mid = ary.len() / 2;
+  merge_sort(&mut ary[0..mid]);
+  merge_sort(&mut ary[mid..]);
+  
+  let mut temp_ary: Vec<i32> = vec![];
+  let mut left = 0;
+  let mut right = mid;
+  while left < mid && right < ary.len() {
+    if ary[left] == ary[right] {
+      temp_ary.push(ary[left]);
+      temp_ary.push(ary[right]);
+      left = left + 1;
+      right = right + 1;
+    } else if ary[left] < ary[right] {
+      temp_ary.push(ary[left]);
+      left = left + 1;
+    } else {
+      temp_ary.push(ary[right]);
+      right = right + 1;
+    }
+  }
+  while left < mid {
+    temp_ary.push(ary[left]);
+    left = left + 1;
+  }
+  while right < ary.len() {
+    temp_ary.push(ary[right]);
+    right = right + 1;
+  }
+  let mut i = 0;
+  temp_ary.iter().for_each(|e| {
+    ary[i] = *e;
+    i = i + 1;
+  })
+}
