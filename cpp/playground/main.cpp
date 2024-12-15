@@ -34,7 +34,7 @@ struct DemoStruct {
 constexpr int mul(int a, int b) { return a * b; }
 
 int main(int, char**) {
-  // advanced_feature_study();
+  advanced_feature_study();
   // preload_file(R"(E:\virtual_human_code\ue\virtual_human_ue51\Saved\1.0.1\Windows\VirtualHumanUE51\Content\Paks\base.pak)");
   // multithread_study();
   // shared_ptr_study();

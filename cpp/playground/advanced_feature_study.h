@@ -75,12 +75,55 @@ constexpr int sum(int n) {
   return result;
 }
 
-struct A {
-  int a;
-  int b;
-};
+void foo(int& i) {
+  std::cout << "foo" << i << std::endl;
+}
+
+void foo(int&& i) {
+  std::cout << "rvalue reference foo" << i << std::endl;
+}
+
+void bar(int& i) {
+  std::cout << "bar" << i << std::endl;
+}
+
+void bar(int&& i) {
+  std::cout << "rvalue reference bar" << i << std::endl;
+}
+
+auto return_ref(int& i) {
+  return i;
+}
+
+decltype(auto) return_ref_2(int& i) {
+  return i;
+}
+
+template <typename T>
+auto add_with_type(T a, T b) {
+  if constexpr (std::is_integral_v<T>) {
+    return a + b;
+  } else {
+    return a - b;
+  }
+}
 
 void advanced_feature_study() {
-  constexpr auto val = sum(10);
-  std::cout << val << std::endl;
+  int k = 10;
+  auto k1 = return_ref(k);
+  auto k2 = return_ref_2(k);
+  decltype(auto) k3 = return_ref(k);
+  decltype(auto) k4 = return_ref_2(k);
+  auto&& i = 5;
+  i = 10;
+  int j = 10;
+  std::cout << typeid(j).name() << std::endl;
+  foo(i);
+  foo(5);
+  foo(std::forward<int>(i));
+
+  auto l = add_with_type(1, 2);
+  auto m = add_with_type(1.0, 2.0);
+  std::cout << l << std::endl;
+  std::cout << m << std::endl;
 }
