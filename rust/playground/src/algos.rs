@@ -1,11 +1,13 @@
 mod ipv4_generator;
 mod math_expr_parser;
 mod sort;
-mod linked_list;
+mod tree;
+// mod linked_list;
 use ipv4_generator::*;
 use math_expr_parser::*;
 use sort::*;
-use linked_list::*;
+use tree::*;
+// use linked_list::*;
 
 pub fn algos_study() {
   {
@@ -72,4 +74,13 @@ pub fn algos_study() {
   // list.push_front(1);
   // list.push_front(2);
   // list.push_front(3);
+
+  let tree_root = make_tree(&[1, 2, 3, 4, 5, 6, 7]);
+  bfs_tree(tree_root.as_ref().unwrap());
+  dfs_pre_tree(tree_root.as_ref().unwrap());
+  print!("\n");
+  dfs_mid_tree(tree_root.as_ref().unwrap());
+  print!("\n");
+  dfs_post_tree(tree_root.as_ref().unwrap());
+  print!("\n");
 }
