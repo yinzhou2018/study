@@ -14,7 +14,7 @@ impl Drop for TreeNode {
   }
 }
 
-// 构造二叉树采用层次遍历（广度优先遍历）类似的思想，借助一个队列：
+// 基于数组存储的完全二叉树构造链式存储二叉树,采用层次遍历（广度优先遍历）类似的思想，借助一个队列：
 // 1. 队列里存放的是当前已经接入树但孩子还没全部构造好的节点
 // 2. 每次从队头取节点做为父节点来挂载左右子节点, 然后将新挂载的节点入队列
 // 3. 如果当前父节点两个孩子都有了则弹出队列
@@ -40,6 +40,36 @@ pub fn make_tree(values: &[i32]) -> Option<Box<TreeNode>> {
     queue.push_back(node_pointer);
   });
   return tree_root;
+}
+
+// 输入前序及中序遍历构建二叉树，基于分治策略：
+// 1. 取出前序数组首元素为树根，在中序数组里找到树根位置
+// 2. 基于树根在中序数组里的位置则可以一分为二拆分出左子树前序+左子树中序以及右子树前序+右子树中序两个相同的子问题
+// 3. 递归调用左右子树
+pub fn make_tree_from_pre_mid_order(pre_order: &[i32], mid_order: &[i32]) -> Option<Box<TreeNode>> {
+  if pre_order.len() != mid_order.len() || pre_order.is_empty() {
+    return None;
+  }
+
+  let mut node = Box::new(TreeNode { value: pre_order[0], left_child: None, right_child: None });
+  if pre_order.len() == 1 {
+    return Some(node);
+  }
+
+  let mut index = 0;
+  for i in 0..mid_order.len() {
+    if mid_order[i] == pre_order[0] {
+      index = i;
+      break;
+    }
+  }
+  let pre_left_child = &pre_order[1..index + 1];
+  let mid_left_child = &mid_order[0..index];
+  let pre_right_child = &pre_order[index + 1..];
+  let mid_right_child = &mid_order[index + 1..];
+  node.left_child = make_tree_from_pre_mid_order(pre_left_child, mid_left_child);
+  node.right_child = make_tree_from_pre_mid_order(pre_right_child, mid_right_child);
+  return Some(node);
 }
 
 // 层次遍历：借助队列来拉直遍历节点，不断从对头取遍历节点，并当前当前遍历节点的左右子节点入队列，循环往复

@@ -91,4 +91,8 @@ pub fn algos_study() {
   print!("\n");
   dfs_post_tree_v2(tree_root.as_ref().unwrap());
   print!("\n");
+
+  let tree_root = make_tree_from_pre_mid_order(&[3, 9, 2, 1, 7], &[9, 3, 1, 2, 7]);
+  dfs_post_tree_v2(tree_root.as_ref().unwrap());
+  print!("\n");
 }
