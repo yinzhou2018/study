@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use async_std::stream::Scan;
-
 pub struct TreeNode {
   value: i32,
   left_child: Option<Box<TreeNode>>,

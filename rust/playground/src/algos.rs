@@ -1,15 +1,15 @@
+mod hanoi;
 mod ipv4_generator;
 mod math_expr_parser;
 mod sort;
 mod tree;
 // mod linked_list;
+use hanoi::*;
 use ipv4_generator::*;
 use math_expr_parser::*;
 use sort::*;
 use tree::*;
 // use linked_list::*;
-
-struct Data(i32);
 
 pub fn algos_study() {
   {
@@ -76,23 +76,26 @@ pub fn algos_study() {
   // list.push_front(1);
   // list.push_front(2);
   // list.push_front(3);
+  {
+    let tree_root = make_tree(&[1, 2, 3, 4, 5, 6, 7]);
+    bfs_tree(tree_root.as_ref().unwrap());
+    dfs_pre_tree(tree_root.as_ref().unwrap());
+    print!("\n");
+    dfs_pre_tree_v2(tree_root.as_ref().unwrap());
+    print!("\n");
+    dfs_mid_tree(tree_root.as_ref().unwrap());
+    print!("\n");
+    dfs_mid_tree_v2(tree_root.as_ref().unwrap());
+    print!("\n");
+    dfs_post_tree(tree_root.as_ref().unwrap());
+    print!("\n");
+    dfs_post_tree_v2(tree_root.as_ref().unwrap());
+    print!("\n");
 
-  let tree_root = make_tree(&[1, 2, 3, 4, 5, 6, 7]);
-  bfs_tree(tree_root.as_ref().unwrap());
-  dfs_pre_tree(tree_root.as_ref().unwrap());
-  print!("\n");
-  dfs_pre_tree_v2(tree_root.as_ref().unwrap());
-  print!("\n");
-  dfs_mid_tree(tree_root.as_ref().unwrap());
-  print!("\n");
-  dfs_mid_tree_v2(tree_root.as_ref().unwrap());
-  print!("\n");
-  dfs_post_tree(tree_root.as_ref().unwrap());
-  print!("\n");
-  dfs_post_tree_v2(tree_root.as_ref().unwrap());
-  print!("\n");
+    let tree_root = make_tree_from_pre_mid_order(&[3, 9, 2, 1, 7], &[9, 3, 1, 2, 7]);
+    dfs_post_tree_v2(tree_root.as_ref().unwrap());
+    print!("\n");
+  }
 
-  let tree_root = make_tree_from_pre_mid_order(&[3, 9, 2, 1, 7], &[9, 3, 1, 2, 7]);
-  dfs_post_tree_v2(tree_root.as_ref().unwrap());
-  print!("\n");
+  hanoi(5);
 }
