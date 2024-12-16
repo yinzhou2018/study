@@ -9,6 +9,8 @@ use sort::*;
 use tree::*;
 // use linked_list::*;
 
+struct Data(i32);
+
 pub fn algos_study() {
   {
     let mut ary = [1, 3, 2, 10, 5, 6, 3, 4, 7, 11, 7, 8];
@@ -79,8 +81,14 @@ pub fn algos_study() {
   bfs_tree(tree_root.as_ref().unwrap());
   dfs_pre_tree(tree_root.as_ref().unwrap());
   print!("\n");
+  dfs_pre_tree_v2(tree_root.as_ref().unwrap());
+  print!("\n");
   dfs_mid_tree(tree_root.as_ref().unwrap());
   print!("\n");
+  dfs_mid_tree_v2(tree_root.as_ref().unwrap());
+  print!("\n");
   dfs_post_tree(tree_root.as_ref().unwrap());
+  print!("\n");
+  dfs_post_tree_v2(tree_root.as_ref().unwrap());
   print!("\n");
 }

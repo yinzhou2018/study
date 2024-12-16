@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use async_std::stream::Scan;
+
 pub struct TreeNode {
   value: i32,
   left_child: Option<Box<TreeNode>>,
@@ -40,7 +42,7 @@ pub fn make_tree(values: &[i32]) -> Option<Box<TreeNode>> {
   return tree_root;
 }
 
-// 层次遍历
+// 层次遍历：借助队列来拉直遍历节点，不断从对头取遍历节点，并当前当前遍历节点的左右子节点入队列，循环往复
 pub fn bfs_tree(tree_root: &Box<TreeNode>) {
   let mut queue: VecDeque<*const TreeNode> = VecDeque::new();
   let r_root = &tree_root as &TreeNode;
@@ -63,7 +65,7 @@ pub fn bfs_tree(tree_root: &Box<TreeNode>) {
   print!("\n");
 }
 
-// 先序遍历
+// 递归先序遍历
 pub fn dfs_pre_tree(tree_root: &Box<TreeNode>) {
   print!("{}, ", tree_root.value);
   if !tree_root.left_child.is_none() {
@@ -71,6 +73,26 @@ pub fn dfs_pre_tree(tree_root: &Box<TreeNode>) {
   }
   if !tree_root.right_child.is_none() {
     dfs_pre_tree(tree_root.right_child.as_ref().unwrap());
+  }
+}
+
+// 非递归先序遍历：借助显性栈结构来模拟递归，递归隐形借助了函数调用栈结构
+pub fn dfs_pre_tree_v2(tree_root: &Box<TreeNode>) {
+  let mut stack: Vec<*const TreeNode> = Vec::new();
+  let node_ref = tree_root as &TreeNode;
+  stack.push(node_ref as *const TreeNode);
+  while !stack.is_empty() {
+    let node_pointer = stack.pop().unwrap();
+    let node_ref = unsafe { &*node_pointer };
+    print!("{}, ", node_ref.value);
+    if !node_ref.right_child.is_none() {
+      let node_ref = node_ref.right_child.as_ref().unwrap() as &TreeNode;
+      stack.push(node_ref as *const TreeNode);
+    }
+    if !node_ref.left_child.is_none() {
+      let node_ref = node_ref.left_child.as_ref().unwrap() as &TreeNode;
+      stack.push(node_ref as *const TreeNode);
+    }
   }
 }
 
@@ -85,6 +107,35 @@ pub fn dfs_mid_tree(tree_root: &Box<TreeNode>) {
   }
 }
 
+// 非递归中序遍历：类似非递归先序遍历思路，核心是需要一个状态变量来表示当前是处于递归下降过程还是递归回溯过程
+// 一开始处于递归下降过程时，从栈顶获取元素并不断获取左子节点入栈
+// 一旦下降到叶子节点，则将状态调整为递归回溯过程
+// 处于递归回溯过程时，弹出栈顶元素输出值，并取右子节点，若为空，则继续向上回溯，若有，则将其入栈并将状态切回递归下降过程
+pub fn dfs_mid_tree_v2(tree_root: &Box<TreeNode>) {
+  let mut stack: Vec<*const TreeNode> = Vec::new();
+  let node_ref = tree_root as &TreeNode;
+  stack.push(node_ref as *const TreeNode);
+  let mut backtracing = false;
+  while !stack.is_empty() {
+    let node_pointer = stack[stack.len() - 1];
+    let node_ref = unsafe { &*node_pointer };
+    if backtracing {
+      stack.pop();
+      print!("{}, ", node_ref.value);
+      if !node_ref.right_child.is_none() {
+        let node_ref = node_ref.right_child.as_ref().unwrap() as &TreeNode;
+        stack.push(node_ref as *const TreeNode);
+        backtracing = false;
+      }
+    } else if !node_ref.left_child.is_none() {
+      let node_ref = node_ref.left_child.as_ref().unwrap() as &TreeNode;
+      stack.push(node_ref as *const TreeNode);
+    } else {
+      backtracing = true;
+    }
+  }
+}
+
 // 后序遍历
 pub fn dfs_post_tree(tree_root: &Box<TreeNode>) {
   if !tree_root.left_child.is_none() {
@@ -94,4 +145,49 @@ pub fn dfs_post_tree(tree_root: &Box<TreeNode>) {
     dfs_post_tree(tree_root.right_child.as_ref().unwrap());
   }
   print!("{}, ", tree_root.value);
+}
+
+#[derive(Copy, Clone)]
+enum ScanState {
+  ScanLeft,
+  ScanRight,
+  ScanSelf,
+}
+
+// 非递归后序遍历：类似非递归先序遍历思路，核心是每个入栈的节点需要一个状态变量配对，来指示出栈后不同操作,
+// 每个入栈节点经历如下3个状态：
+// 最开始为ScanLeft，行动为向下扫描他的左子树，然后进入ScanRight状态
+// 处于ScanRight，行动为向下扫描他的又子树，然后进入ScanSelf状态
+// 处于ScanSelf，行动为输出自己，并出栈
+pub fn dfs_post_tree_v2(tree_root: &Box<TreeNode>) {
+  let mut stack: Vec<(*const TreeNode, ScanState)> = Vec::new();
+  let node_ref = tree_root as &TreeNode;
+  stack.push((node_ref as *const TreeNode, ScanState::ScanLeft));
+  while !stack.is_empty() {
+    let len = stack.len();
+    let (node_pointer, state) = stack[len - 1];
+    let node_ref = unsafe { &*node_pointer };
+    match state {
+      ScanState::ScanSelf => {
+        print!("{}, ", node_ref.value);
+        stack.pop();
+      }
+      ScanState::ScanLeft => {
+        if !node_ref.left_child.is_none() {
+          let node_ref = node_ref.left_child.as_ref().unwrap() as &TreeNode;
+          stack.push((node_ref as *const TreeNode, ScanState::ScanLeft));
+        }
+        let current_node = &mut stack[len - 1];
+        current_node.1 = ScanState::ScanRight;
+      }
+      ScanState::ScanRight => {
+        if !node_ref.right_child.is_none() {
+          let node_ref = node_ref.right_child.as_ref().unwrap() as &TreeNode;
+          stack.push((node_ref as *const TreeNode, ScanState::ScanLeft));
+        }
+        let current_node = &mut stack[len - 1];
+        current_node.1 = ScanState::ScanSelf;
+      }
+    }
+  }
 }
