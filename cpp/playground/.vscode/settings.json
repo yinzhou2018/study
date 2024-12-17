@@ -73,7 +73,9 @@
     "__config": "cpp",
     "map": "cpp",
     "xstddef": "cpp",
-    "xtree": "cpp"
+    "xtree": "cpp",
+    "queue": "cpp",
+    "deque": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
