@@ -7,19 +7,22 @@
 #include <map>
 #include <mutex>
 #include <queue>
-
+#include <ranges>
 struct CoroutineInfo {
   std::coroutine_handle<> handle;
-  std::thread::id run_thread_id;
+  std::thread::id last_run_thread;
 };  // CoroutineInfo
 
 struct Scheduler {
   virtual void resume(const CoroutineInfo& coroutine_info) = 0;
-};
+};  // Scheduler
 
 struct RunLoop {
   using Task = std::function<void(void)>;
   using TaskQueue = std::queue<Task>;
+
+  RunLoop();
+  ~RunLoop();
 
   template <class R, class... ArgTypes>
   std::future<R> post_task(std::packaged_task<R(ArgTypes...)>&& task, ArgTypes&&... args) {
@@ -30,20 +33,26 @@ struct RunLoop {
     return fut;
   }
 
+  template <class R, class... ArgTypes>
+  void post_task_ignore_result(const std::function<R(ArgTypes...)>& task, ArgTypes&&... args) {
+    auto fn = [=]() { task(args...); };
+    push_task(fn);
+  }
+
   void run() {
     while (true) {
-      TaskQueue queue_;
+      TaskQueue queue;
       {
         auto lk = std::unique_lock(task_lock_);
         if (task_queue_.empty()) {
           task_cond_variable_.wait(lk);
         }
-        queue_ = std::move(task_queue_);
+        queue = std::move(task_queue_);
       }
 
-      while (!queue_.empty()) {
-        auto task = queue_.front();
-        task_queue_.pop();
+      while (!queue.empty()) {
+        auto task = queue.front();
+        queue.pop();
         task();
         if (quit_) {
           return;
@@ -53,8 +62,8 @@ struct RunLoop {
   }
 
   void quit() {
-    std::packaged_task<void(void)> task([this]() { quit_ = true; });
-    post_task(std::move(task));
+    Task task = [this]() { quit_ = true; };
+    post_task_ignore_result(task);
   }
 
  private:
@@ -73,10 +82,10 @@ struct RunLoop {
 struct DefaultScheduler : public Scheduler {
   void resume(const CoroutineInfo& coroutine_info) override {
     std::lock_guard guard(run_loops_lock_);
-    auto iter = run_loops_.find(coroutine_info.run_thread_id);
+    auto iter = run_loops_.find(coroutine_info.last_run_thread);
     if (iter != run_loops_.end()) {
-      std::packaged_task<void(void)> task([=]() { coroutine_info.handle.resume(); });
-      iter->second->post_task(std::move(task));
+      RunLoop::Task task = [=]() { coroutine_info.handle.resume(); };
+      iter->second->post_task_ignore_result(task);
     }
   }
 
@@ -101,46 +110,112 @@ struct DefaultScheduler : public Scheduler {
 };  // DefaultScheduler
 static DefaultScheduler g_def_scheduler_;
 
+RunLoop::RunLoop() {
+  g_def_scheduler_.register_run_loop(this);
+}
+RunLoop::~RunLoop() {
+  g_def_scheduler_.unregister_run_loop(this);
+}
+
 template <class T>
 struct Awaiter {
   bool await_ready() { return false; }
   void await_suspend(std::coroutine_handle<> h) {
     auto info = CoroutineInfo{h, std::this_thread::get_id()};
-    auto th = std::thread(
-        [this](auto info) {
-          future_.wait();
-          scheduler_->resume(info);
-        },
-        info);
-    th.detach();
+    future_void_ = std::async(
+                       std::launch::async,
+                       [this](const auto& info) {
+                         future_.wait();
+                         scheduler_->resume(info);
+                       },
+                       info)
+                       .share();
   }
-  T await_resume() { return future_.get(); }
+  T await_resume() {
+    if constexpr (std::is_void_v<T>) {
+      future_.get();
+    } else {
+      return future_.get();
+    }
+  }
 
-  std::shared_future<T> future_;
   Scheduler* scheduler_ = nullptr;
+  std::shared_future<T> future_;
+  std::shared_future<void> future_void_;
+};  // Awaiter
+
+template <class T, class... ArgTypes>
+struct std::coroutine_traits<std::future<T>, ArgTypes...> {
+  struct promise_type {
+    ~promise_type() { std::cout << "~promise_type" << std::endl; }
+    std::future<T> get_return_object() { return promise_.get_future(); }
+    std::suspend_never initial_suspend() { return {}; }
+    std::suspend_never final_suspend() noexcept { return {}; }
+    void return_value(const T& value) { promise_.set_value(value); }
+    void unhandled_exception() { std::abort(); }
+
+    std::promise<T> promise_;
+  };
+};
+
+template <class... ArgTypes>
+struct std::coroutine_traits<std::future<void>, ArgTypes...> {
+  struct promise_type {
+    ~promise_type() { std::cout << "~promise_type" << std::endl; }
+    std::future<void> get_return_object() { return promise_.get_future(); }
+    std::suspend_never initial_suspend() { return {}; }
+    std::suspend_never final_suspend() noexcept { return {}; }
+    void return_void() { promise_.set_value(); }
+    void unhandled_exception() { std::abort(); }
+
+    std::promise<void> promise_;
+  };
 };
 
 template <class T>
-Awaiter<T> operator co_await(std::future<T> future) {
-  return Awaiter{future.share(), &g_def_scheduler_};
+Awaiter<T> operator co_await(std::future<T>&& future) {
+  return Awaiter{&g_def_scheduler_, future.share()};
 }
 
-void print_i(int& i) {
-  std::cout << "lvalue: " << i << std::endl;
+std::future<int> async_calc() {
+  return std::async(std::launch::async, []() {
+    for (auto _ : std::ranges::iota_view{0, 5}) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::cout << "async_calc finished" << std::endl;
+    return 100;
+  });
 }
 
-// void print_i(int i) {
-//   std::cout << "no reference: " << i << std::endl;
-// }
-
-void print_i(int&& i) {
-  std::cout << "rvalue: " << i << std::endl;
+std::future<int> coroutine_one() {
+  auto result = co_await async_calc();
+  std::cout << "coroutine_one result: " << result << std::endl;
+  co_return result + 100;
 }
 
-template <class R, class... ArgTypes>
-void call_task(std::packaged_task<R(ArgTypes...)>&& task, ArgTypes&&... args) {}
+std::future<void> coroutine_two() {
+  auto result = co_await async_calc();
+  std::cout << "coroutine_two result: " << result << std::endl;
+}
+
+std::future<void> coroutine_main(RunLoop* run_loop) {
+  auto fut_one = coroutine_one();
+  auto fut_two = coroutine_two();
+  std::cout << "get future" << std::endl;
+  auto result = co_await std::move(fut_one);
+  std::cout << "result: " << result << std::endl;
+  co_await std::move(fut_two);
+  run_loop->quit();
+}
+
+void async_await_main(RunLoop* run_loop) {
+  coroutine_main(run_loop);
+}
 
 void async_await_study() {
-  print_i(10);
-  std::packaged_task<int(const int&, const int&)> task([](const int a, const int b) { return a + b; });
+  auto run_loop = RunLoop{};
+  std::function<void(RunLoop*)> task(async_await_main);
+  run_loop.post_task_ignore_result(task, &run_loop);
+  run_loop.run();
+  std::cout << "run loop finished" << std::endl;
 }
