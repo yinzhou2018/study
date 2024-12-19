@@ -13,65 +13,33 @@ struct CoroutineInfo {
   std::thread::id last_run_thread;
 };  // CoroutineInfo
 
-struct Scheduler {
-  virtual void resume(const CoroutineInfo& coroutine_info) = 0;
-};  // Scheduler
+struct RunLoop;
+struct CoroutineScheduler {
+  static CoroutineScheduler* get();
+  void resume(const CoroutineInfo& coroutine_info);
+  void register_run_loop(RunLoop* run_loop);
+  void unregister_run_loop(RunLoop* run_loop);
+
+ private:
+  using RunLoopMap = std::map<std::thread::id, RunLoop*>;
+  RunLoopMap run_loops_;
+  std::mutex run_loops_lock_;
+};  // CoroutineScheduler
 
 struct RunLoop {
+  template <class R, class... ArgTypes>
+  std::future<R> post_task(std::packaged_task<R(ArgTypes...)>&& task, ArgTypes&&... args);
+  template <class R, class... ArgTypes>
+  void post_task_ignore_result(const std::function<R(ArgTypes...)>& task, ArgTypes&&... args);
+
+  void run();
+  void quit();
+
+ private:
   using Task = std::function<void(void)>;
   using TaskQueue = std::queue<Task>;
 
-  RunLoop();
-  ~RunLoop();
-
-  template <class R, class... ArgTypes>
-  std::future<R> post_task(std::packaged_task<R(ArgTypes...)>&& task, ArgTypes&&... args) {
-    auto fut = task.get_future();
-    auto task_pointer = std::make_shared<std::packaged_task<R(ArgTypes...)>>(std::move(task));
-    auto fn = [=]() { (*task_pointer)(args...); };
-    push_task(fn);
-    return fut;
-  }
-
-  template <class R, class... ArgTypes>
-  void post_task_ignore_result(const std::function<R(ArgTypes...)>& task, ArgTypes&&... args) {
-    auto fn = [=]() { task(args...); };
-    push_task(fn);
-  }
-
-  void run() {
-    while (true) {
-      TaskQueue queue;
-      {
-        auto lk = std::unique_lock(task_lock_);
-        if (task_queue_.empty()) {
-          task_cond_variable_.wait(lk);
-        }
-        queue = std::move(task_queue_);
-      }
-
-      while (!queue.empty()) {
-        auto task = queue.front();
-        queue.pop();
-        task();
-        if (quit_) {
-          return;
-        }
-      }
-    }
-  }
-
-  void quit() {
-    Task task = [this]() { quit_ = true; };
-    post_task_ignore_result(task);
-  }
-
- private:
-  void push_task(const Task& task) {
-    std::lock_guard guard(task_lock_);
-    task_queue_.push(task);
-    task_cond_variable_.notify_one();
-  }
+  void push_task(const Task& task);
 
   TaskQueue task_queue_;
   std::mutex task_lock_;
@@ -79,42 +47,80 @@ struct RunLoop {
   bool quit_{false};
 };  // RunLoop
 
-struct DefaultScheduler : public Scheduler {
-  void resume(const CoroutineInfo& coroutine_info) override {
-    std::lock_guard guard(run_loops_lock_);
-    auto iter = run_loops_.find(coroutine_info.last_run_thread);
-    if (iter != run_loops_.end()) {
-      RunLoop::Task task = [=]() { coroutine_info.handle.resume(); };
-      iter->second->post_task_ignore_result(task);
-    }
-  }
-
-  void register_run_loop(RunLoop* run_loop) {
-    std::lock_guard guard(run_loops_lock_);
-    run_loops_.insert({std::this_thread::get_id(), run_loop});
-  }
-
-  void unregister_run_loop(RunLoop* run_loop) {
-    std::lock_guard guard(run_loops_lock_);
-    auto iter = run_loops_.find(std::this_thread::get_id());
-    if (iter != run_loops_.end()) {
-      assert(iter->second == run_loop);
-      run_loops_.erase(iter);
-    }
-  }
-
- private:
-  using RunLoopMap = std::map<std::thread::id, RunLoop*>;
-  RunLoopMap run_loops_;
-  std::mutex run_loops_lock_;
-};  // DefaultScheduler
-static DefaultScheduler g_def_scheduler_;
-
-RunLoop::RunLoop() {
-  g_def_scheduler_.register_run_loop(this);
+CoroutineScheduler* CoroutineScheduler::get() {
+  static CoroutineScheduler scheduler;
+  return &scheduler;
 }
-RunLoop::~RunLoop() {
-  g_def_scheduler_.unregister_run_loop(this);
+
+void CoroutineScheduler::resume(const CoroutineInfo& coroutine_info) {
+  std::lock_guard guard(run_loops_lock_);
+  auto iter = run_loops_.find(coroutine_info.last_run_thread);
+  if (iter != run_loops_.end()) {
+    std::function<void(void)> task = [=]() { coroutine_info.handle.resume(); };
+    iter->second->post_task_ignore_result(task);
+  }
+}
+
+void CoroutineScheduler::register_run_loop(RunLoop* run_loop) {
+  std::lock_guard guard(run_loops_lock_);
+  run_loops_.insert({std::this_thread::get_id(), run_loop});
+}
+
+void CoroutineScheduler::unregister_run_loop(RunLoop* run_loop) {
+  std::lock_guard guard(run_loops_lock_);
+  auto iter = run_loops_.find(std::this_thread::get_id());
+  if (iter != run_loops_.end()) {
+    assert(iter->second == run_loop);
+    run_loops_.erase(iter);
+  }
+}
+
+template <class R, class... ArgTypes>
+std::future<R> RunLoop::post_task(std::packaged_task<R(ArgTypes...)>&& task, ArgTypes&&... args) {
+  auto fut = task.get_future();
+  auto task_pointer = std::make_shared<std::packaged_task<R(ArgTypes...)>>(std::move(task));
+  auto fn = [=]() { (*task_pointer)(args...); };
+  push_task(fn);
+  return fut;
+}
+
+template <class R, class... ArgTypes>
+void RunLoop::post_task_ignore_result(const std::function<R(ArgTypes...)>& task, ArgTypes&&... args) {
+  auto fn = [=]() { task(args...); };
+  push_task(fn);
+}
+
+void RunLoop::run() {
+  while (true) {
+    TaskQueue queue;
+    {
+      auto lk = std::unique_lock(task_lock_);
+      if (task_queue_.empty()) {
+        task_cond_variable_.wait(lk);
+      }
+      queue = std::move(task_queue_);
+    }
+
+    while (!queue.empty()) {
+      auto task = queue.front();
+      queue.pop();
+      task();
+      if (quit_) {
+        return;
+      }
+    }
+  }
+}
+
+void RunLoop::quit() {
+  Task task = [this]() { quit_ = true; };
+  post_task_ignore_result(task);
+}
+
+void RunLoop::push_task(const Task& task) {
+  std::lock_guard guard(task_lock_);
+  task_queue_.push(task);
+  task_cond_variable_.notify_one();
 }
 
 template <class T>
@@ -126,7 +132,7 @@ struct Awaiter {
                        std::launch::async,
                        [this](const auto& info) {
                          future_.wait();
-                         scheduler_->resume(info);
+                         CoroutineScheduler::get()->resume(info);
                        },
                        info)
                        .share();
@@ -139,10 +145,14 @@ struct Awaiter {
     }
   }
 
-  Scheduler* scheduler_ = nullptr;
   std::shared_future<T> future_;
   std::shared_future<void> future_void_;
 };  // Awaiter
+
+template <class T>
+Awaiter<T> operator co_await(std::future<T>&& future) {
+  return Awaiter{future.share()};
+}
 
 template <class T, class... ArgTypes>
 struct std::coroutine_traits<std::future<T>, ArgTypes...> {
@@ -171,11 +181,6 @@ struct std::coroutine_traits<std::future<void>, ArgTypes...> {
     std::promise<void> promise_;
   };
 };
-
-template <class T>
-Awaiter<T> operator co_await(std::future<T>&& future) {
-  return Awaiter{&g_def_scheduler_, future.share()};
-}
 
 std::future<int> async_calc() {
   return std::async(std::launch::async, []() {
@@ -214,8 +219,10 @@ void async_await_main(RunLoop* run_loop) {
 
 void async_await_study() {
   auto run_loop = RunLoop{};
+  CoroutineScheduler::get()->register_run_loop(&run_loop);
   std::function<void(RunLoop*)> task(async_await_main);
   run_loop.post_task_ignore_result(task, &run_loop);
   run_loop.run();
+  CoroutineScheduler::get()->unregister_run_loop(&run_loop);
   std::cout << "run loop finished" << std::endl;
 }
