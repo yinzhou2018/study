@@ -1,11 +1,12 @@
+mod backtrace;
 mod hanoi;
-mod ipv4_generator;
 mod math_expr_parser;
 mod sort;
 mod tree;
+
 // mod linked_list;
+use backtrace::*;
 use hanoi::*;
-use ipv4_generator::*;
 use math_expr_parser::*;
 use sort::*;
 use tree::*;
@@ -62,8 +63,6 @@ pub fn algos_study() {
     merge_sort(&mut ary);
     println!("merge sort: {:?}", ary);
   }
-  let ip_ary = generate_ipv4("1221221221");
-  println!("ip_ary: {:?}", ip_ary);
 
   let expr = "1+22*3";
   let result = parse_math_expr_without_parentheses(expr);
@@ -98,4 +97,34 @@ pub fn algos_study() {
   }
 
   hanoi(5);
+
+  {
+    let ary = [1, 2, 3, 4, 5];
+    let result = all_sorts(&ary);
+    let mut i = 1;
+    result.iter().for_each(|path| {
+      println!("{}: {:?}", i, path);
+      i = i + 1;
+    });
+  }
+
+  {
+    let ary = [1, 1, 3, 4, 5];
+    let result = all_sorts_v2(&ary);
+    let mut i = 1;
+    result.iter().for_each(|path| {
+      println!("{}: {:?}", i, path);
+      i = i + 1;
+    });
+  }
+
+  {
+    let result = up_stairs_methods(4);
+    println!("result: {:?}", result);
+  }
+
+  {
+    let ip_ary = generate_ipv4("1221221221");
+    println!("ip_ary: {:?}", ip_ary);
+  }
 }
