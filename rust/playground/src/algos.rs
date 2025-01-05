@@ -1,16 +1,19 @@
 mod backtrace;
+mod dp;
 mod hanoi;
 mod math_expr_parser;
 mod sort;
 mod tree;
 
 // mod linked_list;
+// use linked_list::*;
+
 use backtrace::*;
+use dp::*;
 use hanoi::*;
 use math_expr_parser::*;
 use sort::*;
 use tree::*;
-// use linked_list::*;
 
 pub fn algos_study() {
   {
@@ -126,5 +129,17 @@ pub fn algos_study() {
   {
     let ip_ary = generate_ipv4("1221221221");
     println!("ip_ary: {:?}", ip_ary);
+  }
+
+  {
+    let weights_values = [(10, 50), (20, 120), (30, 150), (40, 210), (50, 240)];
+    let result = complete_bag_problem(&weights_values, 50);
+    println!("complete_bag_problem result: {}", result);
+  }
+
+  {
+    let weights_values = [(10, 50), (20, 120), (30, 150), (40, 210), (50, 240)];
+    let result = complete_bag_problem_v2(&weights_values, 50);
+    println!("complete_bag_problem_v2 result: {}", result);
   }
 }

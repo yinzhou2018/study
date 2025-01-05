@@ -89,12 +89,15 @@ void thread2Func() {
     while (random.integer() % 8 != 0) {
     }  // Random delay
 
-    while (Y != 1)
-      ;
-    std::atomic_thread_fence(std::memory_order_acquire);
+    // while (Y != 1)
+    //   ;
+    // std::atomic_thread_fence(std::memory_order_acquire);
 
-    if (X == 0) {
-      printf("X is 0!\n");
+    auto a = Y;
+    auto b = X;
+
+    if (a == 1 && b == 0) {
+      printf("reorder occurs!\n");
     }
 
     endSema.release();  // Notify transaction complete
