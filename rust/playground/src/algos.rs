@@ -142,4 +142,11 @@ pub fn algos_study() {
     let result = complete_bag_problem_v2(&weights_values, 50);
     println!("complete_bag_problem_v2 result: {}", result);
   }
+
+  {
+    let s = "acdgf";
+    let t = "adf";
+    let result = min_edit_distance(s, t);
+    println!("min_edit_distance: {}", result);
+  }
 }
