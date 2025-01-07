@@ -27,8 +27,16 @@ void core_foundation_study() {
 }
 #endif  // __APPLE__
 
+class CA {
+ public:
+  CA() { std::cout << "CA()" << std::endl; }
+  ~CA() { std::cout << "~CA()" << std::endl; }
+};
+
 int main(int, char**) {
   // async_await_study();
-  multithread_study();
+  // multithread_study();
+  auto a = std::make_shared<CA[]>(5);
+  std::cout << "a.use_count() = " << a.use_count() << std::endl;
   return 0;
 }

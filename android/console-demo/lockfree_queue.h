@@ -196,9 +196,9 @@ class LockFreeQueue {
  private:
   static constexpr std::size_t hardware_destructive_interference_size = 64;
 
-  // sequence取值说明：
-  // 1. 当前位置非空时：取值为当前位置的下一个位置
-  // 2. 当前位置为空时：取值为下一次插入位置
+  // sequence用来判断当前位置是否为空，取值说明：
+  // 1. 当前位置非空时：取值为之前插入值时enqueue_pos_的值加1
+  // 2. 当前位置为空时：取值为下一次要在这里插入值时的enqueue_pos_值
   struct alignas(hardware_destructive_interference_size) Element {
     std::atomic<size_t> sequence;
     T data;
@@ -215,7 +215,7 @@ class LockFreeQueue {
 
   std::atomic<int> count_;
 
-  // 当没有多线程访问时：
+  // enqueue_pos_与dequeue_pos_会持续增长，通过与capacity_取模运算来获取队列操作位置
   // enqueue_pos_ == dequeue_pos_ => 空队列
   // enqueue_pos_ - dequeue_pos_ == capacity_ => 队列满
 
