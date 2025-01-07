@@ -241,7 +241,6 @@ void lockfree_queue_test(int index) {
   }
 
   std::atomic<int> has_read_count{0};
-  std::atomic<size_t> has_read_sum{0};
   trpc::LockFreeQueue<int> lf_queue;
   lf_queue.Init(queue_size);
   std::vector<std::thread> write_threads;
@@ -269,7 +268,6 @@ void lockfree_queue_test(int index) {
       do {
         int val = -1;
         if (trpc::LockFreeQueue<int>::RT_OK == lf_queue.Dequeue(val)) {
-          has_read_sum.fetch_add(val, std::memory_order_relaxed);
           read_flags[val] = 1;
           has_read_count.fetch_add(1, std::memory_order_relaxed);
         }
