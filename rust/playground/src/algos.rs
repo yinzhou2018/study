@@ -133,20 +133,34 @@ pub fn algos_study() {
 
   {
     let weights_values = [(10, 50), (20, 120), (30, 150), (40, 210), (50, 240)];
-    let result = complete_bag_problem(&weights_values, 50);
+    let result = knapsack_with_repetition(&weights_values, 50);
     println!("complete_bag_problem result: {}", result);
   }
 
   {
     let weights_values = [(10, 50), (20, 120), (30, 150), (40, 210), (50, 240)];
-    let result = complete_bag_problem_v2(&weights_values, 50);
+    let result = knapsack_with_repetition_v2(&weights_values, 50);
     println!("complete_bag_problem_v2 result: {}", result);
   }
 
   {
     let s = "acdgf";
     let t = "adf";
-    let result = min_edit_distance(s, t);
+    let result = calculate_min_edit_distance(s, t);
     println!("min_edit_distance: {}", result);
+  }
+
+  {
+    let s = "ABCBDAB";
+    let t = "BDCAB";
+    let result = find_longest_common_subsequence(s, t);
+    println!("longest_common_subsequence of {} and {}: {}", s, t, result);
+  }
+
+  {
+    let s = "ABCBDAB";
+    let t = "AGCBDAG";
+    let result = find_longest_common_substring(s, t);
+    println!("longest_common_substring of {} and {}: {}", s, t, result);
   }
 }
