@@ -6,15 +6,29 @@ enable_testing()
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_library(utils SHARED lib/utils.cc)
-aux_source_directory(. DIR_SRCS)
-add_executable(playground ${DIR_SRCS})
-target_link_libraries(playground utils)
+# Statically link the C/C++ runtime libraries
+if (MSVC)
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+elseif (MINGW)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static-libgcc -static-libstdc++")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
+endif()
 
-set_target_properties(playground PROPERTIES
-    INSTALL_RPATH "@executable_path; @loader_path"
-    BUILD_WITH_INSTALL_RPATH TRUE
-)
+aux_source_directory(. DIR_SRCS)
+if (NOT MINGW)
+  add_executable(playground ${DIR_SRCS})
+else()
+  add_executable(playground main.cpp)
+endif()
+
+
+if (NOT WIN32)
+add_library(utils SHARED lib/utils.cc)
+target_link_libraries(playground utils)
+endif()
 
 # 判断MAC平台
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
