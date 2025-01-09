@@ -24,6 +24,9 @@ else()
   add_executable(playground main.cpp)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(playground pthread)
+endif()
 
 if (NOT WIN32)
 add_library(utils SHARED lib/utils.cc)

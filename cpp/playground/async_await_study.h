@@ -8,6 +8,8 @@
 #include <mutex>
 #include <queue>
 #include <ranges>
+#include <thread>
+
 struct CoroutineInfo {
   std::coroutine_handle<> handle;
   std::thread::id last_run_thread;

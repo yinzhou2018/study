@@ -6,9 +6,7 @@
 // #include "preload_file.h"
 // #include "reflection_sample.h"
 // #include "shared_ptr_study.h"
-
-// #include "lib/utils.h"
-// #include "async_await_study.h"
+#include "async_await_study.h"
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -28,8 +26,9 @@ void core_foundation_study() {
 #endif  // __APPLE__
 
 int main(int, char**) {
-  // async_await_study();
+  async_await_study();
   // multithread_study();
+
   std::cout << "Hello, World!" << std::endl;
   return 0;
 }

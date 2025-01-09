@@ -76,7 +76,10 @@
     "xtree": "cpp",
     "queue": "cpp",
     "deque": "cpp",
-    "semaphore": "cpp"
+    "semaphore": "cpp",
+    "string_view": "cpp",
+    "*.tcc": "cpp",
+    "text_encoding": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
