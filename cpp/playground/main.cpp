@@ -1,4 +1,5 @@
 #include <iostream>
+
 // #include "advanced_feature_study.h"
 // #include "coroutine_study.h"
 // #include "exception_study.h"
@@ -6,7 +7,8 @@
 // #include "preload_file.h"
 // #include "reflection_sample.h"
 // #include "shared_ptr_study.h"
-#include "async_await_study.h"
+// #include "async_await_study.h"
+#include "ranges_study.h"
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -26,9 +28,7 @@ void core_foundation_study() {
 #endif  // __APPLE__
 
 int main(int, char**) {
-  async_await_study();
-  // multithread_study();
-
-  std::cout << "Hello, World!" << std::endl;
+  std::cout << "Hello, Welcome to cpp playground!" << std::endl;
+  ranges_study();
   return 0;
 }
