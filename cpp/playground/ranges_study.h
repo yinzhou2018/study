@@ -198,28 +198,54 @@ void print_calender_for_year(int year) {
   // 1. (12, 8, 20)转置为(8, 12, 20)
   // 2. 将第二维按3个一组分组升到3维(8, 4, 3, 20)
   // 3. 再次转置为(4, 8, 3, 20)
-  auto calendar_8_12_20 = views::iota(0, rows_per_month) | views::transform([&](auto j) {
-                            auto view_12_20 = views::iota(0, months_per_year) | views::transform([&](auto i) {
-                                                return calendar[i][j];
-                                              });
-                            return view_12_20;
-                          });
-  auto calender_8_4_3_20 = calendar_8_12_20 | views::transform([&](auto&& view) { return group_view(view, 3); });
-  auto calender_4_8_3_20 = views::iota(0, 4) | views::transform([&](auto j) {
-                             auto view_8_3_20 = views::iota(0, 8) | views::transform([&](auto i) {
-                                                  auto view_4_3_20 = calender_8_4_3_20[i];
-                                                  auto view_3_20 = view_4_3_20[j];
-                                                  return view_3_20;
-                                                });
-                             return view_8_3_20;
-                           });
-  // auto val2 = calender_8_4_3_20[0][0];
-  // auto&& val3 = val2[0];
-  // val3;
+  auto calendar_8_12_20 =
+      views::iota(0, rows_per_month) | views::transform([&](auto j) {
+        auto view_12_20 = views::iota(0, months_per_year) | views::transform([&](auto&& i) { return calendar[i][j]; });
+        return view_12_20;
+      });
+  auto calender_8_4_3_20 = group_view(calendar_8_12_20, 2);
+  // auto calender_8_4_3_20 = calendar_8_12_20 | views::transform([&](auto&& view) { return group_view(view, 3); });
+  // auto calender_4_8_3_20 = views::iota(0, 4) | views::transform([&](auto j) {
+  //                            auto view_8_3_20 =
+  //                                views::iota(0, 8) | views::transform([&](auto i) { return calender_8_4_3_20[i][j];
+  //                                });
+  //                            return view_8_3_20;
+  //  });
+  auto index = 1;
+  ranges::for_each(calendar_8_12_20, [&](auto&& calender_12_20) {
+    ranges::for_each(calender_12_20, [&](auto&& calender_20) {
+      std::cout << index++ << ". ";
+      ranges::for_each(calender_20, [](auto&& cell) { std::cout << cell; });
+      std::cout << std::endl;
+    });
+  });
 
-  auto val = calender_4_8_3_20[0][0];
-  auto&& val1 = val[0];
-  val1;
+  auto index_2 = 1;
+  ranges::for_each(calender_8_4_3_20, [&](auto&& calender_4_3_20) {
+    ranges::for_each(calender_4_3_20, [&](auto&& calender_3_20) {
+      std::cout << index_2++ << ". ";
+      ranges::for_each(calender_3_20, [&](auto&& calender_20) {
+        ranges::for_each(calender_20, [](auto&& cell) { std::cout << cell; });
+        std::cout << std::endl;
+      });
+      // std::cout << std::endl;
+    });
+  });
+  // auto v7 = calender_4_8_3_20[3][1];
+  // auto v8 = calender_4_8_3_20[3][1];
+  // auto v9 = calender_4_8_3_20[3][1];
+  // auto v10 = calender_8_4_3_20[3][1];
+  // auto v11 = calender_8_4_3_20[3][1];
+  // auto v12 = calender_8_4_3_20[3][1];
+
+  // auto&& v1 = calender_4_8_3_20[3][1][0];
+  // auto&& v2 = calender_4_8_3_20[3][1][1];
+  // auto&& v3 = calender_4_8_3_20[3][1][2];
+
+  // auto&& v4 = calender_8_4_3_20[3][1][0];
+  // auto&& v5 = calender_8_4_3_20[3][1][1];
+  // auto&& v6 = calender_8_4_3_20[3][1][2];
+
   // ranges::for_each(calender_4_8_3_20, [](auto&& calender_8_3_20) {
   //   ranges::for_each(calender_8_3_20, [](auto&& calender_3_20) {
   //     ranges::for_each(calender_3_20, [](auto&& calender_20) {
@@ -232,5 +258,17 @@ void print_calender_for_year(int year) {
 }
 
 void ranges_study() {
-  print_calender_for_year(2024);
+  // print_calender_for_year(2024);
+  auto v_2_4_2 =
+      std::vector{std::vector{std::vector{1, 2}, std::vector{3, 4}, std::vector{5, 6}, std::vector{7, 8}},
+                  std::vector{std::vector{9, 10}, std::vector{11, 12}, std::vector{13, 14}, std::vector{15, 16}}};
+  auto v_2_2_2_2 = v_2_4_2 | views::transform([&](auto&& view) { return group_view(view, 2); });
+  ranges::for_each(v_2_2_2_2, [](auto&& v_2_2_2) {
+    ranges::for_each(v_2_2_2, [](auto&& v_2_2) {
+      ranges::for_each(v_2_2, [](auto&& v_2) {
+        ranges::for_each(v_2, [](auto&& v) { std::cout << v << " "; });
+      });
+      std::cout << std::endl;
+    });
+  });
 }
