@@ -14,53 +14,6 @@ namespace chrono = std::chrono;
 
 template <ranges::input_range V>
   requires ranges::view<V>
-class stride_view : public ranges::view_interface<stride_view<V>> {
- private:
-  V base_;
-  ranges::range_difference_t<V> stride_;
-
- public:
-  class iterator {
-   private:
-    ranges::iterator_t<V> current_;
-    ranges::range_difference_t<V> stride_;
-
-   public:
-    using iterator_category = std::input_iterator_tag;
-    using value_type = ranges::range_value_t<V>;
-    using difference_type = ranges::range_difference_t<V>;
-
-    iterator() = default;
-    iterator(ranges::iterator_t<V> current, ranges::range_difference_t<V> stride)
-        : current_(current), stride_(stride) {}
-
-    iterator& operator++() {
-      ranges::advance(current_, stride_);
-      return *this;
-    }
-
-    iterator operator++(int) {
-      iterator temp = *this;
-      ++(*this);
-      return temp;
-    }
-
-    decltype(auto) operator*() const { return *current_; }
-    bool operator==(const iterator& other) const { return current_ == other.current_ && stride_ == other.stride_; }
-    bool operator!=(const iterator& other) const { return !(*this == other); }
-  };  // iterator
-
-  stride_view() = default;
-  stride_view(V base, ranges::range_difference_t<V> stride) : base_(std::move(base)), stride_(stride) {}
-  iterator begin() { return iterator(ranges::begin(base_), stride_); }
-  iterator end() { return iterator(ranges::end(base_), stride_); }
-};  // stride_view
-
-template <ranges::viewable_range R>
-stride_view(R&&, ranges::range_difference_t<R>) -> stride_view<views::all_t<R>>;
-
-template <ranges::input_range V>
-  requires ranges::view<V>
 class group_view : public std::ranges::view_interface<group_view<V>> {
  public:
   class iterator {
@@ -105,6 +58,11 @@ class group_view : public std::ranges::view_interface<group_view<V>> {
 
   auto begin() { return iterator(ranges::begin(base_), group_size_); }
   auto end() { return iterator(ranges::end(base_), group_size_); }
+  decltype(auto) operator[](ranges::range_difference_t<V> group_size) {
+    auto iter = begin();
+    ranges::advance(iter, group_size);
+    return *iter;
+  }
 
  private:
   V base_;
@@ -113,60 +71,6 @@ class group_view : public std::ranges::view_interface<group_view<V>> {
 
 template <typename Range>
 group_view(Range&&, ranges::range_difference_t<Range>) -> group_view<views::all_t<Range>>;
-
-#include <iostream>
-#include <iterator>
-#include <tuple>
-#include <utility>
-#include <vector>
-
-template <typename... Ranges>
-class zip_view {
- public:
-  zip_view(Ranges... ranges) : ranges_(ranges...) {}
-
-  class iterator {
-   public:
-    using iterator_category = std::input_iterator_tag;
-    using value_type =
-        std::tuple<typename std::iterator_traits<decltype(std::begin(std::declval<Ranges>()))>::value_type...>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = void;
-    using reference = value_type;
-
-    iterator(std::tuple<decltype(std::begin(std::declval<Ranges>()))...> iters) : iters_(iters) {}
-
-    iterator& operator++() {
-      std::apply([](auto&... iters) { (++iters, ...); }, iters_);
-      return *this;
-    }
-
-    value_type operator*() const {
-      return std::apply([](auto&... iters) { return std::make_tuple(*iters...); }, iters_);
-    }
-
-    bool operator!=(const iterator& other) const { return iters_ != other.iters_; }
-
-   private:
-    std::tuple<decltype(std::begin(std::declval<Ranges>()))...> iters_;
-  };
-
-  iterator begin() {
-    return iterator(std::apply([](auto&... ranges) { return std::make_tuple(std::begin(ranges)...); }, ranges_));
-  }
-
-  iterator end() {
-    return iterator(std::apply([](auto&... ranges) { return std::make_tuple(std::end(ranges)...); }, ranges_));
-  }
-
- private:
-  std::tuple<Ranges...> ranges_;
-};
-
-template <typename... Ranges>
-zip_view<Ranges...> make_zip_view(Ranges&&... ranges) {
-  return zip_view<Ranges...>(std::forward<Ranges>(ranges)...);
-}
 
 template <ranges::range R>
 void print_range(R&& r, int depth = 0) {
@@ -217,11 +121,12 @@ constexpr auto operator""_sv(const char* str, size_t len) {
   return std::string_view(str, len);
 }
 
+constexpr auto months_per_year = 12;
+constexpr auto rows_per_month = 8;
+constexpr auto cols_per_row = 20;
+
 auto calc_calendar_for_year(int year) {
-  constexpr auto months_per_year = 12;
-  constexpr auto rows_per_month = 8;
-  constexpr auto cols_per_row = 20;
-  auto calendar = std::vector(months_per_year, std::vector(rows_per_month, std::vector<char>(cols_per_row, ' ')));
+  auto calendar = std::vector(months_per_year, std::vector(rows_per_month, std::vector(cols_per_row, ' ')));
 
   auto month_names = {"January"_sv, "February"_sv, "March"_sv,     "April"_sv,   "May"_sv,      "June"_sv,
                       "July"_sv,    "August"_sv,   "September"_sv, "October"_sv, "November"_sv, "December"_sv};
@@ -279,6 +184,7 @@ void print_groups(const std::tuple<Types...>& t) {
 
 void print_calender_for_year(int year) {
   auto calendar = calc_calendar_for_year(year);
+
   constexpr auto month_group_count = 3;
   constexpr auto per_margin_width = 3;
   constexpr auto total_margin_width = (month_group_count - 1) * per_margin_width;
@@ -289,23 +195,40 @@ void print_calender_for_year(int year) {
   std::cout << std::setw(year_width) << std::setfill(' ') << year_str << "\n\n";
 
   // 进行一系列view变换到可直接逐行输出为止：
-  // 1. 3维(12, 8, 20)降到2维(12 * 8, col)
-  // 2. 再次升到3维(8, 12, 20)，类似做了一个转置操作
-  // 3. 再将3维(8, 12, 20)的第2维按3个一组分组升到4维(8, 4, 3, 20)
-  // 4. 基于zip操作实现转置变成4维(4, 8, 3, 20)，然后就可以逐组逐行输出了
-  auto flatten_calendar = calendar | views::join;
-  auto month_name_group_view = group_view(stride_view(flatten_calendar, 8), 3);
-  auto weekday_name_group_view = group_view(stride_view(flatten_calendar | views::drop(1), 8), 3);
-  auto day_group_view_1 = group_view(stride_view(flatten_calendar | views::drop(2), 8), 3);
-  auto day_group_view_2 = group_view(stride_view(flatten_calendar | views::drop(3), 8), 3);
-  auto day_group_view_3 = group_view(stride_view(flatten_calendar | views::drop(4), 8), 3);
-  auto day_group_view_4 = group_view(stride_view(flatten_calendar | views::drop(5), 8), 3);
-  auto day_group_view_5 = group_view(stride_view(flatten_calendar | views::drop(6), 8), 3);
-  auto day_group_view_6 = group_view(stride_view(flatten_calendar | views::drop(7), 8), 3);
-  auto zip_group_view =
-      make_zip_view(month_name_group_view, weekday_name_group_view, day_group_view_1, day_group_view_2,
-                    day_group_view_3, day_group_view_4, day_group_view_5, day_group_view_6);
-  std::for_each(zip_group_view.begin(), zip_group_view.end(), [](auto&& groups) { print_groups(groups); });
+  // 1. (12, 8, 20)转置为(8, 12, 20)
+  // 2. 将第二维按3个一组分组升到3维(8, 4, 3, 20)
+  // 3. 再次转置为(4, 8, 3, 20)
+  auto calendar_8_12_20 = views::iota(0, rows_per_month) | views::transform([&](auto j) {
+                            auto view_12_20 = views::iota(0, months_per_year) | views::transform([&](auto i) {
+                                                return calendar[i][j];
+                                              });
+                            return view_12_20;
+                          });
+  auto calender_8_4_3_20 = calendar_8_12_20 | views::transform([&](auto&& view) { return group_view(view, 3); });
+  auto calender_4_8_3_20 = views::iota(0, 4) | views::transform([&](auto j) {
+                             auto view_8_3_20 = views::iota(0, 8) | views::transform([&](auto i) {
+                                                  auto view_4_3_20 = calender_8_4_3_20[i];
+                                                  auto view_3_20 = view_4_3_20[j];
+                                                  return view_3_20;
+                                                });
+                             return view_8_3_20;
+                           });
+  // auto val2 = calender_8_4_3_20[0][0];
+  // auto&& val3 = val2[0];
+  // val3;
+
+  auto val = calender_4_8_3_20[0][0];
+  auto&& val1 = val[0];
+  val1;
+  // ranges::for_each(calender_4_8_3_20, [](auto&& calender_8_3_20) {
+  //   ranges::for_each(calender_8_3_20, [](auto&& calender_3_20) {
+  //     ranges::for_each(calender_3_20, [](auto&& calender_20) {
+  //       ranges::for_each(calender_20, [](auto&& cell) { std::cout << cell; });
+  //       std::cout << "   ";
+  //     });
+  //     std::cout << std::endl;
+  //   });
+  // });
 }
 
 void ranges_study() {
