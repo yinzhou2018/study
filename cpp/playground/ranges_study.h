@@ -169,19 +169,6 @@ auto fill_calendar_for_year(int year) {
   return calendar;
 }
 
-template <std::size_t Index = 0, typename... Types>
-void print_groups(const std::tuple<Types...>& t) {
-  if constexpr (Index < sizeof...(Types)) {
-    auto&& group = std::get<Index>(t);
-    ranges::for_each(group, [](auto&& row) {
-      ranges::for_each(row, [](auto&& cell) { std::cout << cell; });
-      std::cout << "   ";
-    });
-    std::cout << std::endl;
-    print_groups<Index + 1>(t);
-  }
-}
-
 void print_calender_for_year(int year) {
   auto calendar = fill_calendar_for_year(year);
 
