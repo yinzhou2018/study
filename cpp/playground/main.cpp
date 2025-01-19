@@ -30,5 +30,6 @@ int main(int, char**) {
   // multithread_study();
 
   std::cout << "Hello, World!" << std::endl;
+  std::ranges::begin
   return 0;
 }

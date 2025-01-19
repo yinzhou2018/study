@@ -4,6 +4,7 @@ mod hanoi;
 mod math_expr_parser;
 mod sort;
 mod tree;
+mod calendar;
 
 // mod linked_list;
 // use linked_list::*;
@@ -14,6 +15,7 @@ use hanoi::*;
 use math_expr_parser::*;
 use sort::*;
 use tree::*;
+use calendar::*;
 
 pub fn algos_study() {
   {
@@ -163,4 +165,6 @@ pub fn algos_study() {
     let result = find_longest_common_substring(s, t);
     println!("longest_common_substring of {} and {}: {}", s, t, result);
   }
+
+  print_calendar_for_year(2025);
 }
