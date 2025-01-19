@@ -79,7 +79,16 @@
     "semaphore": "cpp",
     "string_view": "cpp",
     "*.tcc": "cpp",
-    "text_encoding": "cpp"
+    "text_encoding": "cpp",
+    "cwctype": "cpp",
+    "numbers": "cpp",
+    "numeric": "cpp",
+    "cstdarg": "cpp",
+    "chrono": "cpp",
+    "memory_resource": "cpp",
+    "random": "cpp",
+    "iomanip": "cpp",
+    "sstream": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
