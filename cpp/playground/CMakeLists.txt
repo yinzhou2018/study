@@ -28,17 +28,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(playground pthread)
 endif()
 
-if (NOT WIN32)
-add_library(utils SHARED lib/utils.cc)
-target_link_libraries(playground utils)
-endif()
-
-# 判断MAC平台
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
-  target_link_libraries(playground ${COREFOUNDATION_LIBRARY})
-endif()
-
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
