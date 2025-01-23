@@ -82,7 +82,7 @@ impl<T> LockFreeQueue<T> {
           Err(new_pos) => pos = new_pos,
         }
       } else if dif < 0 {
-        if pos - self.dequeue_pos.load(Ordering::Relaxed) == self.capacity {
+        if pos == self.capacity + self.dequeue_pos.load(Ordering::Relaxed) {
           return QueueResult::Full;
         }
         pos = self.enqueue_pos.load(Ordering::Relaxed);
@@ -119,7 +119,7 @@ impl<T> LockFreeQueue<T> {
           Err(new_pos) => pos = new_pos,
         }
       } else if dif < 0 {
-        if pos - self.enqueue_pos.load(Ordering::Relaxed) == 0 {
+        if pos == self.enqueue_pos.load(Ordering::Relaxed) {
           return QueueResult::Empty;
         }
         pos = self.dequeue_pos.load(Ordering::Relaxed);
