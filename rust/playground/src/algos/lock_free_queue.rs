@@ -12,11 +12,14 @@ pub enum QueueResult {
 // sequence用来判断当前位置是否为空，取值说明：
 // 1. 当前位置非空时：取值为之前插入值时enqueue_pos的值加1
 // 2. 当前位置为空时：取值为下一次要在这里插入值时的enqueue_pos值
-#[repr(align(64))]
+#[repr(align(128))]
 struct Element<T> {
   sequence: AtomicUsize,
   data: RefCell<Option<T>>,
 }
+
+#[repr(align(128))]
+struct QueuePosition(AtomicUsize);
 
 unsafe impl<T> Sync for Element<T> {}
 
@@ -28,8 +31,8 @@ pub struct LockFreeQueue<T> {
   mask: usize,
   elements: Vec<Element<T>>,
   count: AtomicIsize,
-  enqueue_pos: AtomicUsize,
-  dequeue_pos: AtomicUsize,
+  enqueue_pos: QueuePosition,
+  dequeue_pos: QueuePosition,
 }
 
 impl<T> LockFreeQueue<T> {
@@ -50,20 +53,18 @@ impl<T> LockFreeQueue<T> {
       })
       .collect();
 
-    println!("LockFreeQueue capacity = {}", size);
-
     Self {
       capacity: size,
       mask: size - 1,
       elements,
       count: AtomicIsize::new(0),
-      enqueue_pos: AtomicUsize::new(0),
-      dequeue_pos: AtomicUsize::new(0),
+      enqueue_pos: QueuePosition(AtomicUsize::new(0)),
+      dequeue_pos: QueuePosition(AtomicUsize::new(0)),
     }
   }
 
   pub fn enqueue(&self, val: T) -> QueueResult {
-    let mut pos = self.enqueue_pos.load(Ordering::Relaxed);
+    let mut pos = self.enqueue_pos.0.load(Ordering::Relaxed);
 
     loop {
       let elem = &self.elements[pos & self.mask];
@@ -76,18 +77,19 @@ impl<T> LockFreeQueue<T> {
       if dif == 0 {
         match self
           .enqueue_pos
+          .0
           .compare_exchange_weak(pos, pos + 1, Ordering::Relaxed, Ordering::Relaxed)
         {
           Ok(_) => break,
           Err(new_pos) => pos = new_pos,
         }
       } else if dif < 0 {
-        if pos == self.capacity + self.dequeue_pos.load(Ordering::Relaxed) {
+        if pos == self.capacity + self.dequeue_pos.0.load(Ordering::Relaxed) {
           return QueueResult::Full;
         }
-        pos = self.enqueue_pos.load(Ordering::Relaxed);
+        pos = self.enqueue_pos.0.load(Ordering::Relaxed);
       } else {
-        pos = self.enqueue_pos.load(Ordering::Relaxed);
+        pos = self.enqueue_pos.0.load(Ordering::Relaxed);
       }
     }
 
@@ -100,7 +102,7 @@ impl<T> LockFreeQueue<T> {
   }
 
   pub fn dequeue(&self, val: &mut Option<T>) -> QueueResult {
-    let mut pos = self.dequeue_pos.load(Ordering::Relaxed);
+    let mut pos = self.dequeue_pos.0.load(Ordering::Relaxed);
 
     loop {
       let elem = &self.elements[pos & self.mask];
@@ -113,18 +115,19 @@ impl<T> LockFreeQueue<T> {
       if dif == 0 {
         match self
           .dequeue_pos
+          .0
           .compare_exchange_weak(pos, pos + 1, Ordering::Relaxed, Ordering::Relaxed)
         {
           Ok(_) => break,
           Err(new_pos) => pos = new_pos,
         }
       } else if dif < 0 {
-        if pos == self.enqueue_pos.load(Ordering::Relaxed) {
+        if pos == self.enqueue_pos.0.load(Ordering::Relaxed) {
           return QueueResult::Empty;
         }
-        pos = self.dequeue_pos.load(Ordering::Relaxed);
+        pos = self.dequeue_pos.0.load(Ordering::Relaxed);
       } else {
-        pos = self.dequeue_pos.load(Ordering::Relaxed);
+        pos = self.dequeue_pos.0.load(Ordering::Relaxed);
       }
     }
 
@@ -149,8 +152,8 @@ impl<T> LockFreeQueue<T> {
 
 const WRITE_TOTAL_COUNT: usize = 1000 * 10000;
 const QUEUE_SIZE: usize = 4;
-const WRITE_THREAD_COUNT: usize = 4;
-const READ_THREAD_COUNT: usize = 4;
+const WRITE_THREAD_COUNT: usize = 1;
+const READ_THREAD_COUNT: usize = 1;
 const WRITE_COUNT_PER_THREAD: usize = WRITE_TOTAL_COUNT / WRITE_THREAD_COUNT;
 
 struct SafeVector {
@@ -211,13 +214,13 @@ pub fn lockfree_queue_test(epoch: usize) {
   let spend = end.duration_since(start).as_millis();
   let result = read_flags.data.iter().map(|x| *x.borrow()).fold(0, |acc, x| acc + x);
   println!(
-      "{}. [{} result: {}, total written count: {}, write threads: {}, read threads: {}] lockfree_queue_test spends: {}ms",
-      epoch,
-      if result == WRITE_TOTAL_COUNT { "OK" } else { "FAILED" },
-      result,
-      WRITE_TOTAL_COUNT,
-      WRITE_THREAD_COUNT,
-      READ_THREAD_COUNT,
-      spend
-    );
+    "{}. [LockFreeQueue][{} result: {}, total written count: {}, write threads: {}, read threads: {}] spends: {}ms",
+    epoch,
+    if result == WRITE_TOTAL_COUNT { "OK" } else { "FAILED" },
+    result,
+    WRITE_TOTAL_COUNT,
+    WRITE_THREAD_COUNT,
+    READ_THREAD_COUNT,
+    spend
+  );
 }

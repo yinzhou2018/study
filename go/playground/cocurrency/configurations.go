@@ -1,0 +1,9 @@
+package cocurrency
+
+const (
+	WRITE_TOTAL_COUNT      = 1000 * 10000
+	QUEUE_SIZE             = 4
+	WRITE_THREAD_COUNT     = 1
+	READ_THREAD_COUNT      = 1
+	WRITE_COUNT_PER_THREAD = WRITE_TOTAL_COUNT / WRITE_THREAD_COUNT
+)

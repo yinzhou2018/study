@@ -19,17 +19,6 @@ use math_expr_parser::*;
 use sort::*;
 use tree::*;
 
-#[derive(Debug)]
-struct A {
-  a: i32,
-  b: i32,
-}
-impl Drop for A {
-  fn drop(&mut self) {
-    println!("drop A");
-  }
-}
-
 pub fn algos_study() {
   {
     let mut ary = [1, 3, 2, 10, 5, 6, 3, 4, 7, 11, 7, 8];
@@ -180,9 +169,6 @@ pub fn algos_study() {
   }
 
   print_calendar_for_year(2025);
-
-  let data = A{a: 1, b: 2};
-  println!("data: {:?}", data);
 
   (1..).for_each(|i| lockfree_queue_test(i));
 }

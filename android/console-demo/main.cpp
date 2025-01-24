@@ -3,6 +3,10 @@
 
 #include "lockfree_queue.h"
 
+struct Wrapper {
+  alignas(8) int a;
+};
+
 int main(int, char**) {
   std::cout << "atomic<bool>::is_always_lock_free: " << std::atomic<bool>::is_always_lock_free << std::endl;
   std::cout << "atomic<int>::is_always_lock_free: " << std::atomic<int>::is_always_lock_free << std::endl;

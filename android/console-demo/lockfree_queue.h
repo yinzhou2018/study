@@ -62,7 +62,6 @@ class LockFreeQueue {
 
     mask_ = size - 1;
     capacity_ = size;
-    std::cout << "LockFreeQueue capacity_= " << capacity_ << std::endl;
 
     elements_ = std::make_unique<Element[]>(capacity_);
     for (size_t i = 0; i < size; ++i) {
@@ -194,7 +193,7 @@ class LockFreeQueue {
   LockFreeQueue& operator=(LockFreeQueue&& rhs) = delete;
 
  private:
-  static constexpr std::size_t hardware_destructive_interference_size = 64;
+  static constexpr std::size_t hardware_destructive_interference_size = 128;
 
   // sequence用来判断当前位置是否为空，取值说明：
   // 1. 当前位置非空时：取值为之前插入值时enqueue_pos_的值加1
@@ -231,8 +230,8 @@ class LockFreeQueue {
 void lockfree_queue_test(int index) {
   constexpr int write_total_count = 1000 * 10000;
   constexpr int queue_size = 4;
-  constexpr int write_thread_count = 4;
-  constexpr int read_thread_count = 4;
+  constexpr int write_thread_count = 1;
+  constexpr int read_thread_count = 1;
   constexpr int write_count_per_thread = 1000 * 10000 / write_thread_count;
 
   auto read_flags = std::make_unique<int[]>(write_total_count);
