@@ -1,8 +1,8 @@
 mod backtrace;
 mod calendar;
+mod cocurrency;
 mod dp;
 mod hanoi;
-mod lock_free_queue;
 mod math_expr_parser;
 mod sort;
 mod tree;
@@ -12,9 +12,11 @@ mod tree;
 
 use backtrace::*;
 use calendar::*;
+use cocurrency::crossbeam_channel::*;
+use cocurrency::crossbeam_queue::*;
+use cocurrency::lock_free_queue::*;
 use dp::*;
 use hanoi::*;
-use lock_free_queue::*;
 use math_expr_parser::*;
 use sort::*;
 use tree::*;
@@ -170,5 +172,9 @@ pub fn algos_study() {
 
   print_calendar_for_year(2025);
 
-  (1..).for_each(|i| lockfree_queue_test(i));
+  (1..).for_each(|i| {
+    lockfree_queue_test(i);
+    crossbeam_channel_test(i);
+    crossbeam_quque_test(i);
+  });
 }

@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicIsize, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
+use super::configurations::*;
+
 pub enum QueueResult {
   Ok = 0,
   Full = 1,
@@ -12,13 +14,13 @@ pub enum QueueResult {
 // sequence用来判断当前位置是否为空，取值说明：
 // 1. 当前位置非空时：取值为之前插入值时enqueue_pos的值加1
 // 2. 当前位置为空时：取值为下一次要在这里插入值时的enqueue_pos值
-#[repr(align(128))]
+#[repr(align(64))]
 struct Element<T> {
   sequence: AtomicUsize,
   data: RefCell<Option<T>>,
 }
 
-#[repr(align(128))]
+#[repr(align(64))]
 struct QueuePosition(AtomicUsize);
 
 unsafe impl<T> Sync for Element<T> {}
@@ -149,12 +151,6 @@ impl<T> LockFreeQueue<T> {
     self.capacity
   }
 }
-
-const WRITE_TOTAL_COUNT: usize = 1000 * 10000;
-const QUEUE_SIZE: usize = 4;
-const WRITE_THREAD_COUNT: usize = 1;
-const READ_THREAD_COUNT: usize = 1;
-const WRITE_COUNT_PER_THREAD: usize = WRITE_TOTAL_COUNT / WRITE_THREAD_COUNT;
 
 struct SafeVector {
   data: Vec<RefCell<usize>>,
