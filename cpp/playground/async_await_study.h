@@ -55,11 +55,17 @@ CoroutineScheduler* CoroutineScheduler::get() {
 }
 
 void CoroutineScheduler::resume(const CoroutineInfo& coroutine_info) {
-  std::lock_guard guard(run_loops_lock_);
-  auto iter = run_loops_.find(coroutine_info.last_run_thread);
-  if (iter != run_loops_.end()) {
-    std::function<void(void)> task = [=]() { coroutine_info.handle.resume(); };
-    iter->second->post_task_ignore_result(task);
+  if (coroutine_info.last_run_thread == std::this_thread::get_id()) {
+    std::cout << "resume coroutine directly." << std::endl;
+    coroutine_info.handle.resume();
+  } else {
+    std::cout << "resume coroutine with posting task." << std::endl;
+    std::lock_guard guard(run_loops_lock_);
+    auto iter = run_loops_.find(coroutine_info.last_run_thread);
+    if (iter != run_loops_.end()) {
+      std::function<void(void)> task = [=]() { coroutine_info.handle.resume(); };
+      iter->second->post_task_ignore_result(task);
+    }
   }
 }
 
@@ -156,37 +162,87 @@ Awaiter<T> operator co_await(std::future<T>&& future) {
   return Awaiter{future.share()};
 }
 
+template <typename T>
+struct InnerValue {
+  T value;
+};  // InnerValue
+template <>
+struct InnerValue<void> {};
+
+template <typename T>
+struct CoroutineReturnTypeImpl {
+  void set_value(const InnerValue<T>& value) {
+    this->value = value;
+    ready = true;
+    if (wait_coroutine.handle) {
+      CoroutineScheduler::get()->resume(wait_coroutine);
+    }
+  }
+
+  bool ready{false};
+  InnerValue<T> value;
+  CoroutineInfo wait_coroutine;
+
+  ~CoroutineReturnTypeImpl() { std::cout << "CoroutineReturnTypeImpl destructor..." << std::endl; }
+};  // CoroutineReturnTypeImpl
+
+template <typename T>
+using CoroutineReturnTypeImplPtr = std::shared_ptr<CoroutineReturnTypeImpl<T>>;
+
+template <typename T>
+struct CoroutineReturnType {
+  bool await_ready() { return impl_->ready; }
+  void await_suspend(std::coroutine_handle<> h) {
+    impl_->wait_coroutine = CoroutineInfo{h, std::this_thread::get_id()};
+  }
+  T await_resume() {
+    if constexpr (!std::is_void_v<T>) {
+      return impl_->value.value;
+    }
+  }
+
+  CoroutineReturnTypeImplPtr<T> impl_;
+};  // CoroutineReturnType
+
 template <class T, class... ArgTypes>
-struct std::coroutine_traits<std::future<T>, ArgTypes...> {
+struct std::coroutine_traits<CoroutineReturnType<T>, ArgTypes...> {
   struct promise_type {
-    ~promise_type() { std::cout << "~promise_type" << std::endl; }
-    std::future<T> get_return_object() { return promise_.get_future(); }
+    promise_type() {
+      std::cout << "promise_type constuctor..." << std::endl;
+      return_value_ = std::make_shared<CoroutineReturnTypeImpl<T>>();
+    }
+    ~promise_type() { std::cout << "promise_type destructor..." << std::endl; }
+    CoroutineReturnType<T> get_return_object() { return CoroutineReturnType{return_value_}; }
     std::suspend_never initial_suspend() { return {}; }
     std::suspend_never final_suspend() noexcept { return {}; }
-    void return_value(const T& value) { promise_.set_value(value); }
+    void return_value(const T& value) { return_value_->set_value(InnerValue<T>{value}); }
     void unhandled_exception() { std::abort(); }
 
-    std::promise<T> promise_;
+    CoroutineReturnTypeImplPtr<T> return_value_;
   };
 };
 
 template <class... ArgTypes>
-struct std::coroutine_traits<std::future<void>, ArgTypes...> {
+struct std::coroutine_traits<CoroutineReturnType<void>, ArgTypes...> {
   struct promise_type {
-    ~promise_type() { std::cout << "~promise_type" << std::endl; }
-    std::future<void> get_return_object() { return promise_.get_future(); }
+    promise_type() {
+      std::cout << "promise_type with void return type constructor..." << std::endl;
+      return_value_ = std::make_shared<CoroutineReturnTypeImpl<void>>();
+    }
+    ~promise_type() { std::cout << "promise_type destructor..." << std::endl; }
+    CoroutineReturnType<void> get_return_object() { return CoroutineReturnType{return_value_}; }
     std::suspend_never initial_suspend() { return {}; }
     std::suspend_never final_suspend() noexcept { return {}; }
-    void return_void() { promise_.set_value(); }
+    void return_void() { return_value_->set_value(InnerValue<void>{}); }
     void unhandled_exception() { std::abort(); }
 
-    std::promise<void> promise_;
+    CoroutineReturnTypeImplPtr<void> return_value_;
   };
 };
 
 std::future<int> async_calc() {
   return std::async(std::launch::async, []() {
-    for (auto _ : std::ranges::iota_view{0, 5}) {
+    for (auto _ : std::ranges::iota_view{0, 2}) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::cout << "async_calc finished" << std::endl;
@@ -194,24 +250,20 @@ std::future<int> async_calc() {
   });
 }
 
-std::future<int> coroutine_one() {
+CoroutineReturnType<int> coroutine_one() {
   auto result = co_await async_calc();
   std::cout << "coroutine_one result: " << result << std::endl;
   co_return result + 100;
 }
 
-std::future<void> coroutine_two() {
-  auto result = co_await async_calc();
+CoroutineReturnType<void> coroutine_two() {
+  auto result = co_await coroutine_one();
   std::cout << "coroutine_two result: " << result << std::endl;
 }
 
-std::future<void> coroutine_main(RunLoop* run_loop) {
-  auto fut_one = coroutine_one();
-  auto fut_two = coroutine_two();
-  std::cout << "get future" << std::endl;
-  auto result = co_await std::move(fut_one);
-  std::cout << "result: " << result << std::endl;
-  co_await std::move(fut_two);
+CoroutineReturnType<void> coroutine_main(RunLoop* run_loop) {
+  co_await coroutine_two();
+  std::cout << "coroutine_main finished" << std::endl;
   run_loop->quit();
 }
 
