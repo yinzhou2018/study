@@ -1,10 +1,10 @@
 use futures::future::*;
-use futures::task::Poll::*;
 use futures::task::*;
 
 use std::pin::*;
 use std::sync::mpsc::*;
 use std::sync::*;
+use std::thread;
 use std::time::Duration;
 
 /// Task executor that receives tasks off of a channel and runs them.
@@ -28,6 +28,62 @@ struct Task {
   /// so we need to use the `Mutex` to prove thread-safety. A production
   /// executor would not need this, and could use `UnsafeCell` instead.
   future: Mutex<Option<BoxFuture<'static, ()>>>,
+
+  /// Handle to place the task itself back onto the task queue.
+  task_sender: SyncSender<Arc<Task>>,
+}
+
+impl Drop for Task {
+  fn drop(&mut self) {
+    println!("Drop Task.");
+  }
+}
+
+impl ArcWake for Task {
+  fn wake_by_ref(arc_self: &Arc<Self>) {
+    arc_self.task_sender.send(arc_self.clone()).expect("too many tasks queued");
+  }
+}
+
+impl Executor {
+  fn run(&self) {
+    while let Ok(task) = self.ready_queue.recv() {
+      // Take the future, and if it has not yet completed (is still Some),
+      // poll it in an attempt to complete it.
+      let mut future_slot = task.future.lock().unwrap();
+      if let Some(mut future) = future_slot.take() {
+        // let waker_pointer = &task as *const Arc<Task> as *const ();
+        // println!("waker_pointer: {}", waker_pointer as usize);
+        // let waker = unsafe { Waker::from_raw(RawWaker::new(waker_pointer, &S_RAW_WAKER_VTABLE)) };
+
+        // Create a `LocalWaker` from the task itself
+        let waker = waker_ref(&task);
+
+        let context = &mut Context::from_waker(&waker);
+
+        // `BoxFuture<T>` is a type alias for
+        // `Pin<Box<dyn Future<Output = T> + Send + 'static>>`.
+        // We can get a `Pin<&mut dyn Future + Send + 'static>`
+        // from it by calling the `Pin::as_mut` method.
+        if future.as_mut().poll(context).is_pending() {
+          // We're not done processing the future, so put it
+          // back in its task to be run again in the future.
+          *future_slot = Some(future);
+        }
+      }
+    }
+  }
+}
+
+impl Spawner {
+  fn spawn(&self, future: impl Future<Output = ()> + 'static + Send) {
+    let future = future.boxed();
+    let task = Arc::new(Task {
+      future: Mutex::new(Some(future)),
+      task_sender: self.task_sender.clone(),
+    });
+    self.task_sender.send(task).expect("too many tasks queued");
+  }
 }
 
 fn new_executor_and_spawner() -> (Executor, Spawner) {
@@ -39,52 +95,48 @@ fn new_executor_and_spawner() -> (Executor, Spawner) {
   (Executor { ready_queue }, Spawner { task_sender })
 }
 
-struct TinyWaker {
-  task: Arc<Task>,
-  /// Handle to place the task itself back onto the task queue.
-  task_sender: SyncSender<Arc<Task>>,
-}
+// unsafe fn clone(untyped_waker: *const ()) -> RawWaker {
+//   let weaker_pointer = untyped_waker as *const Arc<Task>;
+//   let waker_ref = weaker_pointer.as_ref().unwrap();
+//   let waker_cloned = Box::new(waker_ref.clone());
+//   let waker_cloned_pointer = Box::into_raw(waker_cloned) as *const Arc<Task> as *const ();
+//   println!("clone raw waker: {}", waker_cloned_pointer as usize);
+//   RawWaker::new(untyped_waker, &S_RAW_WAKER_VTABLE)
+// }
 
-unsafe fn clone(waker: *const ()) -> RawWaker {
-  println!("clone raw waker.");
-  RawWaker::new(waker, &S_RAW_WAKER_VTABLE)
-}
+// unsafe fn wake(untyped_waker: *const ()) {
+//   println!("wake raw waker.");
+//   wake_by_ref(untyped_waker);
+//   // let waker_pointer = untyped_waker as *mut Arc<Task>;
+//   // unsafe { let _ = Box::from_raw(waker_pointer); };
+// }
 
-unsafe fn wake(untyped_waker: *const ()) {
-  println!("wake raw waker.");
-  wake_by_ref(untyped_waker);
-}
+// unsafe fn wake_by_ref(untyped_waker: *const ()) {
+//   let waker_pointer = untyped_waker as *const Arc<Task>;
+//   let waker_ref = waker_pointer.as_ref().unwrap();
+//   let weaker_cloned = waker_ref.clone();
+//   println!(
+//     "wake raw waker by ref: {}, cloned: {}",
+//     untyped_waker as usize, &weaker_cloned as *const Arc<Task> as usize
+//   );
+//   waker_ref
+//     .task_sender
+//     .send(weaker_cloned)
+//     .expect("too many tasks queued");
+// }
 
-unsafe fn wake_by_ref(untyped_waker: *const ()) {
-  println!("wake raw waker by ref.");
-  // let waker_pointer = untyped_waker as *const TinyWaker;
-  // let waker_ref = waker_pointer.as_ref().unwrap();
-  // waker_ref.sender.send(waker_ref.id);
-}
+// unsafe fn drop(untyped_waker: *const ()) {
+//   let pointer = untyped_waker as usize;
+//   println!("Drop raw waker: {}", pointer);
+// }
 
-unsafe fn drop(_: *const ()) {
-  println!("Drop raw waker.");
-}
+// static S_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
 
-static S_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
-
-pub fn block_on(ft: impl Future<Output = ()>) {
-  let raw_waker = TinyWaker {};
-  let waker = unsafe {
-    Waker::from_raw(RawWaker::new(
-      &raw_waker as *const TinyWaker as *const (),
-      &S_RAW_WAKER_VTABLE,
-    ))
-  };
-
-  let mut cx = Context::from_waker(&waker);
-  let mut ft = Box::pin(ft);
-  loop {
-    match ft.as_mut().poll(&mut cx) {
-      Ready(x) => return x,
-      _ => {}
-    }
-  }
+pub fn block_on(ft: impl Future<Output = ()> + Send + 'static) {
+  let (executor, spawner) = new_executor_and_spawner();
+  spawner.spawn(ft);
+  drop(spawner);
+  executor.run();
 }
 
 pub struct TimerFuture {
