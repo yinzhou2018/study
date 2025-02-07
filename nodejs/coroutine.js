@@ -1,25 +1,24 @@
-
-async function produce() {
-  console.log("produce");
+async function async_fn_3() {
+  console.log('produasync_fn_2');
   return 10;
 }
 
-async function consume() {
-  const value = await produce();
-  console.log("consume", value);
-  return value;
+async function async_fn_2() {
+  console.log('produasync_fn_2');
+  const value = await async_fn_3();
+  console.log(`value: ${value}`);
+  return 10;
+}
+
+async function async_fn_1() {
+  console.log('async_fn_1');
+  const value = await async_fn_2();
+  console.log(`value: ${value}`);
 }
 
 async function main() {
-  console.log(value);
+  await async_fn_1();
 }
 
-function* gen(){
-  yield 1;
-  yield 2;
-  return 3;
-} 
-
-
 main();
-console.log("finsihed.");
+console.log('finsihed.');
