@@ -131,37 +131,6 @@ void RunLoop::push_task(const Task& task) {
   task_cond_variable_.notify_one();
 }
 
-template <class T>
-struct Awaiter {
-  bool await_ready() { return false; }
-  void await_suspend(std::coroutine_handle<> h) {
-    auto info = CoroutineInfo{h, std::this_thread::get_id()};
-    future_void_ = std::async(
-                       std::launch::async,
-                       [this](const auto& info) {
-                         future_.wait();
-                         CoroutineScheduler::get()->resume(info);
-                       },
-                       info)
-                       .share();
-  }
-  T await_resume() {
-    if constexpr (std::is_void_v<T>) {
-      future_.get();
-    } else {
-      return future_.get();
-    }
-  }
-
-  std::shared_future<T> future_;
-  std::shared_future<void> future_void_;
-};  // Awaiter
-
-template <class T>
-Awaiter<T> operator co_await(std::future<T>&& future) {
-  return Awaiter{future.share()};
-}
-
 template <typename T>
 struct InnerValue {
   T value;
@@ -240,18 +209,61 @@ struct std::coroutine_traits<CoroutineReturnType<void>, ArgTypes...> {
   };
 };
 
-std::future<int> async_calc() {
-  return std::async(std::launch::async, []() {
-    for (auto _ : std::ranges::iota_view{0, 2}) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+template <typename T>
+struct AsyncAwaiter {
+  AsyncAwaiter() { std::cout << "AsyncAwaiter constuctor..." << std::endl; }
+  ~AsyncAwaiter() { std::cout << "AsyncAwaiter destructor..." << std::endl; }
+
+  bool await_ready() { return ready; }
+
+  void await_suspend(std::coroutine_handle<> handle) {
+    wait_coroutine = CoroutineInfo{handle, std::this_thread::get_id()};
+  }
+
+  T await_resume() {
+    if constexpr (!std::is_void_v<T>) {
+      return value.value;
     }
-    std::cout << "async_calc finished" << std::endl;
-    return 100;
-  });
+  }
+
+  void set_value(const InnerValue<T>& value) {
+    this->value = value;
+    ready = true;
+    if (wait_coroutine.handle) {
+      CoroutineScheduler::get()->resume(wait_coroutine);
+    }
+  }
+
+  CoroutineInfo wait_coroutine;
+  bool ready = false;
+  InnerValue<T> value;
+};  // AsyncAwaiter
+
+template <typename T, typename... Args>
+struct BackgroundComputeAwaiter : public AsyncAwaiter<T> {
+  BackgroundComputeAwaiter(const std::function<T(Args...)>& func, Args&&... args) {
+    auto task = [=, this]() {
+      if constexpr (std::is_void_v<T>) {
+        func(args...);
+        this->set_value(InnerValue<void>{});
+      } else {
+        this->set_value(InnerValue<T>{func(args...)});
+      }
+    };
+    std::thread{std::move(task)}.detach();
+  }
+};  // BackgroundComputeAwaiter
+
+int async_calc(int a, int b) {
+  for (auto _ : std::ranges::iota_view{0, 2}) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  std::cout << "async_calc finished" << std::endl;
+  return a + b;
 }
 
 CoroutineReturnType<int> coroutine_one() {
-  auto result = co_await async_calc();
+  auto result = co_await BackgroundComputeAwaiter<int, int, int>{async_calc, 20, 30};
   std::cout << "coroutine_one result: " << result << std::endl;
   co_return result + 100;
 }
