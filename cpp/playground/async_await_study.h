@@ -184,7 +184,7 @@ struct std::coroutine_traits<CoroutineReturnType<T>, ArgTypes...> {
     CoroutineReturnType<T> get_return_object() { return CoroutineReturnType{return_value_}; }
     std::suspend_never initial_suspend() { return {}; }
     std::suspend_never final_suspend() noexcept { return {}; }
-    void return_value(const T& value) { return_value_->set_value(InnerValue<T>{value}); }
+    void return_value(const T& value) { return_value_->set_value(InnerValue{value}); }
     void unhandled_exception() { std::abort(); }
 
     CoroutineReturnTypeImplPtr<T> return_value_;
@@ -239,20 +239,28 @@ struct AsyncAwaiter {
   InnerValue<T> value;
 };  // AsyncAwaiter
 
-template <typename T, typename... Args>
-struct BackgroundComputeAwaiter : public AsyncAwaiter<T> {
-  BackgroundComputeAwaiter(const std::function<T(Args...)>& func, Args&&... args) {
+template <typename Functor, typename... Args>
+requires std::invocable<Functor, Args...>
+struct BackgroundComputeAwaiter : public AsyncAwaiter<std::invoke_result_t<Functor, Args...>> {
+  using T = std::invoke_result_t<Functor, Args...>;
+  BackgroundComputeAwaiter(const Functor& func, Args&&... args) {
     auto task = [=, this]() {
       if constexpr (std::is_void_v<T>) {
         func(args...);
         this->set_value(InnerValue<void>{});
       } else {
-        this->set_value(InnerValue<T>{func(args...)});
+        this->set_value(InnerValue{func(args...)});
       }
     };
     std::thread{std::move(task)}.detach();
   }
 };  // BackgroundComputeAwaiter
+
+// 指引类模板参数自动推导，两种场合：
+// 1. 推导出的模版参数不符合预期，指引转换成预期的类型；
+// 2. 实参类型与形参类型不一致，但能隐式转换为形参类型（比如通过形参构造函数），指引完成自动转换；
+// template <typename T, typename... Args>
+// BackgroundComputeAwaiter(T(*func)(Args...), Args&&... args) -> BackgroundComputeAwaiter<T, Args...>;
 
 int async_calc(int a, int b) {
   for (auto _ : std::ranges::iota_view{0, 2}) {
@@ -263,7 +271,7 @@ int async_calc(int a, int b) {
 }
 
 CoroutineReturnType<int> coroutine_one() {
-  auto result = co_await BackgroundComputeAwaiter<int, int, int>{async_calc, 20, 30};
+  auto result = co_await BackgroundComputeAwaiter(async_calc, 10, 20);
   std::cout << "coroutine_one result: " << result << std::endl;
   co_return result + 100;
 }
