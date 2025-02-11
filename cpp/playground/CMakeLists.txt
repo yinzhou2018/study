@@ -5,6 +5,7 @@ include(CTest)
 enable_testing()
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Statically link the C/C++ runtime libraries
 if (MSVC)
@@ -17,7 +18,8 @@ elseif (MINGW)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
-aux_source_directory(. DIR_SRCS)
+file(GLOB_RECURSE DIR_SRCS RELATIVE ${CMAKE_SOURCE_DIR} *.cpp *.c *.cc)
+list(FILTER DIR_SRCS EXCLUDE REGEX "^build/")
 if (NOT MINGW)
   add_executable(playground ${DIR_SRCS})
 else()
