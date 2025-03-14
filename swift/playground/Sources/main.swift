@@ -71,7 +71,8 @@ var p = 10 {
   }
 }
 print(p)
-p = 20
+ p = 20
 print(p)
 
 print("10 + 10 = \(add(a: 10, b: 10))")
+
