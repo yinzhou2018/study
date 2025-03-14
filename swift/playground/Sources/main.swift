@@ -1,77 +1,43 @@
 // The Swift Programming Language
 // https://docs.swift.org/swift-book
 
-protocol Printable {
-  func print_1()
+import Foundation
+
+func fetchData(from url: String) async throws -> Data {
+  guard let url = URL(string: url) else {
+    throw URLError(.badURL)
+  }
+  let data: Data
+  if #available(macOS 12.0, *) {
+    (data, _) = try await URLSession.shared.data(from: url)
+  } else {
+    data = try Data(contentsOf: url)
+  }
+  return data
 }
 
-struct Printer: Printable {
-  var name: String = "Printer"
-  func print_1() {
-    print("Hello, world: \(name)")
-  }
-
-  func print_2() {
-    print("Hello, world, printer: \(name)")
-  }
-}
-
-class Person: Printable {
-  var name = "John"
-  func print_1() {
-    print("Hello, world: \(name)")
-    name = "Jane"
-  }
-
-  var age: Int { 20 }
-}
-
-func print_2(_ p: any Printable) {
-  // 获取类型内存大小
-  print("Person size: \(MemoryLayout<Person>.size)")
-  print("Printable size: \(MemoryLayout<Printable>.size(ofValue: p))")
-  p.print_1()
-
-  if var p = p as? Printer {
-    p.print_2()
-    withUnsafePointer(to: &p) {
-      ptr in print("结构类型变量的内存地址: \(ptr)")
+func processData() async {
+  do {
+    let data = try await fetchData(from: "https://jsonplaceholder.typicode.com/todos/1")
+    if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
+      print("Fetched and processed data: \(json)")
     }
+  } catch {
+    print("Failed to fetch data: \(error)")
   }
 }
 
-func rename(_ p: Person) {
-  p.name = "Jane"
-}
-
-// var stepsize = 10
-// func increment(_ number: inout Int) {
-//   number += stepsize
-// }
-// increment(&stepsize)
-
-var printer = Printer()
-withUnsafePointer(to: &printer) {
-  ptr in print("结构类型变量的内存地址: \(ptr)")
-}
-// var any_printer: any Printable = printer
-print_2(printer)
-
-var person = Person()
-rename(person)
-print_2(person)
-print("Hello, world: \(person.name)")
-
-var p = 10 {
-  willSet {
-    print("willSet")
+print("Welcome to playground...")
+if #available(macOS 10.15, *) {
+  print("Main thread ID: \(pthread_mach_thread_np(pthread_self()))")
+  print("Ready to create async task...")
+  Task { @MainActor in
+    print("Before await, thread ID: \(pthread_mach_thread_np(pthread_self()))")
+    await processData()
+    print("After await, thread ID: \(pthread_mach_thread_np(pthread_self()))")
   }
-  didSet {
-    print("didSet")
-  }
+  print("Already to create async task...")
+  RunLoop.main.run()
+} else {
+  print("macOS 10.15 or newer is required to run this code.")
 }
-print(p)
-p = 20
-print(p)
-
-print("10 + 10 = \(add(a: 10, b: 10))")
