@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">豆包AI</string>
+    <string name="home">首页</string>
+    <string name="search">搜索</string>
+    <string name="profile">我的</string>
+    <string name="loading">加载中...</string>
+    <string name="error_network">网络错误，请重试</string>
+    <string name="error_unknown">未知错误，请重试</string>
+    <string name="retry">重试</string>
+    <string name="empty_content">暂无内容</string>
+    <string name="search_hint">搜索文章、用户</string>
+</resources>

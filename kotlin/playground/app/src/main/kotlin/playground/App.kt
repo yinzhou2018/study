@@ -1,16 +1,15 @@
 package playground
 
-import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 
 fun main() {
   println("start")
   // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
-    runBlocking {
-      withContext(Dispatchers.Default) { task1() }
-      launch { task2() }
-      println("called taskl and task2 from ${Thread.currentThread()}")
-    }
+  runBlocking {
+    withContext(Dispatchers.Default) { task1() }
+    launch { task2() }
+    println("called taskl and task2 from ${Thread.currentThread()}")
+  }
   // }
   println("done")
 }
@@ -34,4 +33,3 @@ suspend fun calcTime(): Int {
   println("start task3 in Thread ${Thread.currentThread ()}")
   return 1000
 }
-
