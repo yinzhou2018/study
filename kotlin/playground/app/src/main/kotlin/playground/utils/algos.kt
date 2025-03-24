@@ -2,7 +2,7 @@ package utils
 
 private var x = 10
 
-internal fun add(a: Int, b: Int) = a + b + x
+internal fun add(a: Int, b: Int) = a + b
 
 fun sub(a: Int, b: Int) = a - b
 
