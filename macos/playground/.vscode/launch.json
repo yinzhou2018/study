@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:playground}",
+      "name": "Debug MacGUIApp",
+      "program": "${workspaceFolder:playground}/.build/debug/MacGUIApp",
+      "preLaunchTask": "swift: Build Debug MacGUIApp"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:playground}",
+      "name": "Release MacGUIApp",
+      "program": "${workspaceFolder:playground}/.build/release/MacGUIApp",
+      "preLaunchTask": "swift: Build Release MacGUIApp"
+    }
+  ]
+}
