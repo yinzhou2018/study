@@ -3,6 +3,7 @@
 
 import Foundation
 
+@available(macOS 10.15.0, *)
 func fetchData(from url: String) async throws -> Data {
   guard let url = URL(string: url) else {
     throw URLError(.badURL)
@@ -16,6 +17,7 @@ func fetchData(from url: String) async throws -> Data {
   return data
 }
 
+@available(macOS 10.15.0, *)
 func processData() async {
   do {
     let data = try await fetchData(from: "https://jsonplaceholder.typicode.com/todos/1")
@@ -41,12 +43,3 @@ if #available(macOS 10.15, *) {
 } else {
   print("macOS 10.15 or newer is required to run this code.")
 }
-<<<<<<< HEAD
-=======
-print(p)
- p = 20
-print(p)
-
-print("10 + 10 = \(add(a: 10, b: 10))")
-
->>>>>>> ce865c0afe70976713ea5e85f614556f4a1d2cdf
