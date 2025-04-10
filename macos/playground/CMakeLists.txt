@@ -13,8 +13,8 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0")
 set(SOURCES
     src/main.cc
     src/SwiftBridge.mm
-    src/AppDelegate.swift
-    src/MainWindow.swift
+    src/swift/AppDelegate.swift
+    src/swift/MainWindow.swift
 )
 
 # 创建可执行文件

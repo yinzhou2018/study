@@ -14,7 +14,7 @@ let package = Package(
     .executableTarget(
       name: "MacGUIApp",
       dependencies: [],
-      path: "src"
+      path: "src/swift"
     )
   ]
 )
