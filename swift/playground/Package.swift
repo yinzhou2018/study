@@ -4,11 +4,31 @@
 import PackageDescription
 
 let package = Package(
-    name: "playground",
-    targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .executableTarget(
-            name: "playground"),
-    ]
+  name: "playground",
+  products: [
+    .executable(name: "cfamily_bin", targets: ["cfamily_bin"]),
+    .executable(name: "swift_bin", targets: ["swift_bin"]),
+    .library(name: "swift_lib", targets: ["swift_lib"]),
+    .library(name: "cfamily_lib", type: .dynamic, targets: ["cfamily_lib"]),
+  ],
+  targets: [
+    .executableTarget(
+      name: "swift_bin",
+      dependencies: ["swift_lib", "cfamily_lib"],
+    ),
+    .executableTarget(
+      name: "cfamily_bin",
+      dependencies: ["swift_lib", "cfamily_lib"],
+    ),
+    .target(
+      name: "swift_lib"
+    ),
+    .target(
+      name: "cfamily_lib",
+      publicHeadersPath: "./",
+      linkerSettings: [
+        .linkedFramework("Foundation")
+      ]
+    ),
+  ]
 )
