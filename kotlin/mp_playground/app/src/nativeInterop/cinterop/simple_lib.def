@@ -1,0 +1,5 @@
+headers = simple_lib.h
+headerFilter = simple_lib.h
+
+compilerOpts.mingw = -Ie:/study/kotlin/mp_playground/app/native
+linkerOpts.mingw = -Le:/study/kotlin/mp_playground/app/build/cmake/lib/Debug -lsimple_lib

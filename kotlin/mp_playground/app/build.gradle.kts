@@ -11,27 +11,71 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/public/p/kotlinx/maven")
 }
 
 kotlin {
-    macosArm64("native") {
+    macosArm64()
+    mingwX64()
+
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+        compilations.getByName("main") {
+            cinterops {
+              val simple_lib by creating
+            }
+        }
+
         binaries {
             executable {
-                entryPoint = "main"
+                entryPoint = "com.example.main"
+                baseName = "mp_playground"
+            }
+        }
+
+        binaries.all {
+            freeCompilerArgs += "-g"
+        }
+    }
+
+    sourceSets {
+        val nativeMain by creating {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-cinterop-core:1.9.20")
             }
         }
     }
+}
+
+// 重构 CMake 构建任务
+abstract class BuildCLibTask : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
     
-    // sourceSets {
-    //     val macosArm64Main by getting {
-    //         dependencies {
-    //             implementation(kotlin("stdlib"))
-    //         }
-    //     }
-    //     val macosArm64Test by getting {
-    //         dependencies {
-    //             implementation(kotlin("test"))
-    //         }
-    //     }
-    // }
+    private val cmakeDir = project.file("build/cmake")
+    
+    init {
+        inputs.files(project.fileTree("native"))
+        outputs.dir(cmakeDir)
+    }
+    
+    @TaskAction
+    fun build() {
+        cmakeDir.mkdirs()
+        
+        execOperations.exec {
+            workingDir = cmakeDir
+            commandLine("cmake", "../../native")
+        }
+        execOperations.exec {
+            workingDir = cmakeDir
+            commandLine("cmake", "--build", ".")
+        }
+    }
+}
+
+tasks.register<BuildCLibTask>("buildCLib")
+
+// 让Kotlin编译依赖于C库构建
+tasks.matching { it.name.contains("compile") }.configureEach {
+    dependsOn("buildCLib")
 }
