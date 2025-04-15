@@ -37,13 +37,13 @@ kotlin {
         }
     }
 
-    sourceSets {
-        val nativeMain by creating {
-            dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-cinterop-core:1.9.20")
-            }
-        }
-    }
+    // sourceSets {
+    //     val nativeMain by creating {
+    //         dependencies {
+    //             implementation("org.jetbrains.kotlinx:kotlinx-cinterop-core:1.9.20")
+    //         }
+    //     }
+    // }
 }
 
 // 重构 CMake 构建任务
