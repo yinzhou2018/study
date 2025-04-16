@@ -16,7 +16,9 @@ repositories {
 
 kotlin {
     macosArm64()
-    mingwX64 {
+    mingwX64()
+
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         compilations.getByName("main") {
             cinterops {
                 val generatedDefFile = project.layout.buildDirectory.file("generated/def/simple_lib.def")
@@ -24,8 +26,8 @@ kotlin {
                     headers = simple_lib.h
                     headerFilter = simple_lib.h
                     
-                    compilerOpts.mingw = "-I${project.projectDir}/native"
-                    linkerOpts.mingw = "-L${project.buildDir}/cmake/lib" -lsimple_lib
+                    compilerOpts = "-I${project.projectDir}/native"
+                    linkerOpts = "-L${project.buildDir}/cmake/lib" -lsimple_lib
                 """.trimIndent()
 
                 val defDir = project.layout.buildDirectory.dir("generated/def")
@@ -47,9 +49,7 @@ kotlin {
                 baseName = "mp_playground"
             }
         }
-    }
 
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         binaries.all {
             freeCompilerArgs += "-g"
         }
