@@ -5,24 +5,23 @@
  * For more details on building Java & JVM projects, please refer to https://docs.gradle.org/8.13/userguide/building_java_projects.html in the Gradle documentation.
  */
 
-plugins {
-    kotlin("multiplatform")
-}
+plugins { kotlin("multiplatform") }
 
 repositories {
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/kotlinx/maven")
+  mavenCentral()
+  maven("https://maven.pkg.jetbrains.space/public/p/kotlinx/maven")
 }
 
 kotlin {
-    macosArm64()
-    mingwX64()
+  macosArm64()
+  mingwX64()
 
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
-        compilations.getByName("main") {
-            cinterops {
-                val generatedDefFile = project.layout.buildDirectory.file("generated/def/simple_lib.def")
-                val defContent = """
+  targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+    compilations.getByName("main") {
+      cinterops {
+        val generatedDefFile = project.layout.buildDirectory.file("generated/def/simple_lib.def")
+        val defContent =
+                """
                     headers = simple_lib.h
                     headerFilter = simple_lib.h
                     
@@ -30,53 +29,50 @@ kotlin {
                     linkerOpts = "-L${project.buildDir}/cmake/lib" -lsimple_lib
                 """.trimIndent()
 
-                val defDir = project.layout.buildDirectory.dir("generated/def")
-                defDir.get().asFile.mkdirs()
-                generatedDefFile.get().asFile.writeText(defContent)
-                println("Generated def file: ${generatedDefFile.get().asFile.absolutePath}")
+        val defDir = project.layout.buildDirectory.dir("generated/def")
+        defDir.get().asFile.mkdirs()
+        generatedDefFile.get().asFile.writeText(defContent)
+        println("Generated def file: ${generatedDefFile.get().asFile.absolutePath}")
 
-                val simple_lib by creating {
-                    defFile(generatedDefFile)
-                    includeDirs("native")
-                    packageName("simple_lib")
-                }
-            }
+        val simple_lib by creating {
+          defFile(generatedDefFile)
+          includeDirs("native")
+          packageName("simple_lib")
         }
-
-        binaries {
-            executable {
-                entryPoint = "com.example.main"
-                baseName = "mp_playground"
-            }
-        }
-
-        binaries.all {
-            freeCompilerArgs += "-g"
-        }
+      }
     }
+
+    binaries {
+      executable {
+        entryPoint = "com.example.main"
+        baseName = "mp_playground"
+      }
+    }
+
+    binaries.all { freeCompilerArgs += "-g" }
+  }
 }
 
 // CMake 构建任务
 abstract class BuildCLibTask : DefaultTask() {
-    @get:Inject
-    abstract val execOperations: ExecOperations
-    
-    private val cmakeDir = project.file("build/cmake")
-    
-    init {
-        inputs.files(project.fileTree("native"))
-        outputs.dir(cmakeDir)
-    }
-    
-    @TaskAction
-    fun build() {
-        cmakeDir.mkdirs()
-        
-        execOperations.exec {
-            workingDir = cmakeDir
-            if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
-              println("Windows OS detected")
-              commandLine(
+  @get:Inject abstract val execOperations: ExecOperations
+
+  private val cmakeDir = project.file("build/cmake")
+
+  init {
+    inputs.files(project.fileTree("native"))
+    outputs.dir(cmakeDir)
+  }
+
+  @TaskAction
+  fun build() {
+    cmakeDir.mkdirs()
+
+    execOperations.exec {
+      workingDir = cmakeDir
+      if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+        println("Windows OS detected")
+        commandLine(
                 "cmake",
                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE",
                 "-DCMAKE_C_COMPILER=gcc.exe",
@@ -84,21 +80,19 @@ abstract class BuildCLibTask : DefaultTask() {
                 "-G",
                 "MinGW Makefiles",
                 "../../native"
-              )
-            } else {
-              commandLine("cmake", "../../native")
-            }
-        }
-        execOperations.exec {
-            workingDir = cmakeDir
-            commandLine("cmake", "--build", ".")
-        }
+        )
+      } else {
+        commandLine("cmake", "../../native")
+      }
     }
+    execOperations.exec {
+      workingDir = cmakeDir
+      commandLine("cmake", "--build", ".")
+    }
+  }
 }
 
 tasks.register<BuildCLibTask>("buildCLib")
 
 // 让Kotlin编译依赖于C库构建
-tasks.matching { it.name.contains("compile") }.configureEach {
-    dependsOn("buildCLib")
-}
+tasks.matching { it.name.contains("compile") }.configureEach { dependsOn("buildCLib") }

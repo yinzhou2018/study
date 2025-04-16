@@ -6,21 +6,18 @@
  */
 
 pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-    plugins {
-        kotlin("multiplatform") version "1.9.20"
-        id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
-    }
+  repositories {
+    gradlePluginPortal()
+    mavenCentral()
+  }
+  plugins {
+    kotlin("multiplatform") version "1.9.20"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+  }
 }
 
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-    }
-}
+dependencyResolutionManagement { repositories { mavenCentral() } }
 
 rootProject.name = "mp_playground"
+
 include(":app")
