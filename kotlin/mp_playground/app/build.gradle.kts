@@ -16,12 +16,14 @@ repositories {
 
 kotlin {
     macosArm64()
-    mingwX64()
-
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+    mingwX64 {
         compilations.getByName("main") {
             cinterops {
-              val simple_lib by creating
+                val simple_lib by creating {
+                    defFile(project.file("src/nativeInterop/cinterop/simple_lib.def"))
+                    includeDirs("native")
+                    packageName("simple_lib")
+                }
             }
         }
 
@@ -31,14 +33,16 @@ kotlin {
                 baseName = "mp_playground"
             }
         }
+    }
 
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         binaries.all {
             freeCompilerArgs += "-g"
         }
     }
 
     // sourceSets {
-    //     val nativeMain by creating {
+    //     val mingwX64Main by getting {
     //         dependencies {
     //             implementation("org.jetbrains.kotlinx:kotlinx-cinterop-core:1.9.20")
     //         }
