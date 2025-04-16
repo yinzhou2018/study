@@ -8,17 +8,17 @@ let package = Package(
   products: [
     .executable(name: "cfamily_bin", targets: ["cfamily_bin"]),
     .executable(name: "swift_bin", targets: ["swift_bin"]),
-    .library(name: "swift_lib", targets: ["swift_lib"]),
-    .library(name: "cfamily_lib", type: .dynamic, targets: ["cfamily_lib"]),
+    .library(name: "swift_lib", type: .static, targets: ["swift_lib"]),
+    .library(name: "cfamily_lib", type: .dynamic, targets: ["cfamily_lib"])
   ],
   targets: [
     .executableTarget(
       name: "swift_bin",
-      dependencies: ["swift_lib", "cfamily_lib"],
+      dependencies: ["swift_lib", "cfamily_lib"]
     ),
     .executableTarget(
       name: "cfamily_bin",
-      dependencies: ["swift_lib", "cfamily_lib"],
+      dependencies: ["swift_lib", "cfamily_lib"]
     ),
     .target(
       name: "swift_lib"
@@ -29,6 +29,6 @@ let package = Package(
       linkerSettings: [
         .linkedFramework("Foundation")
       ]
-    ),
+    )
   ]
 )
