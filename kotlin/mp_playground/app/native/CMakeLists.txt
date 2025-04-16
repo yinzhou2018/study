@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(simple_lib)
 
 # 设置构建类型为动态库
-add_library(simple_lib SHARED
+add_library(simple_lib STATIC
     simple_lib.c
 )
 

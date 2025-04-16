@@ -32,7 +32,8 @@
 - **构建目标(Target)**：定义了构建平台，各类配置，及源码集合等，平台可以设置多个不同配置的构建目标，一个构建目标里可以配置不同类型的构建产物（可执行程序，动态库等），系统提供了[`target presets`](https://book.kotlincn.net/text/multiplatform-dsl-reference.html#%E7%9B%AE%E6%A0%87)来支持不同平台的构建;
 - **源码集(Source sets)**：构成不同构建目标的代码集合（物理形态上就是项目里的源码目录），不同的源码集逻辑上会打上构建目标标签（可以多个），自动参与到相应的目标构建中，系统基于构建目标定义会预设好一些源码集，源码集之间可以基于`DependOn`声明形成依赖关系，系统预设的源码集不需要显式声明，自定义源码集合需要显式声明上下游依赖才能融入源码集的依赖树，从而才能正常参与目标构建，源码集里声明对第三方库的依赖，第三方库里至少有与源码集一致构建目标的源码集，其他不一致源码集不可见，构建系统默认预设的完整层次源码集如下图：
 ![full_hierarchy_template](full_hierarchy_template.png)
-- Kotlin Native调用C/OC/C++等外部语言接口处于实验阶段，所以创建外部库来扩展功能在生产环境要慎用，但Native发行版预制了一些针对操作系统的[平台库](https://book.kotlincn.net/text/native-platform-libs.html);
+- Kotlin Native调用C/OC/C++/Swift等外部语言接口处于实验阶段，与Swift基于类对象的互调需要基于OC中转，所以创建外部库来扩展功能在生产环境要慎用，但Native发行版预制了一些针对操作系统的[平台库](https://book.kotlincn.net/text/native-platform-libs.html)，在构建是会直接链接进来，可以直接import调用;
+- Kotlin Native在win平台基于mingw，而不是官方的msvc，这导致静态库构建链接都必须基于mingw;
 - KMP当前各平台稳定级别情况如下图，桌面端（包括跨平台UI）基于JVM是稳定的，如果没有极致的性能要求，可以尝试，ios端共享UI还处于Beta，生成环境还不可用，但可以采用Native UI，而共享逻辑，这个层面是稳定的;
 ![stability_level](stability_level.png)
 ![kcp_stability_level](kcp_stability_level.png)

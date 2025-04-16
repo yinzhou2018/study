@@ -19,8 +19,22 @@ kotlin {
     mingwX64 {
         compilations.getByName("main") {
             cinterops {
+                val generatedDefFile = project.layout.buildDirectory.file("generated/def/simple_lib.def")
+                val defContent = """
+                    headers = simple_lib.h
+                    headerFilter = simple_lib.h
+                    
+                    compilerOpts.mingw = "-I${project.projectDir}/native"
+                    linkerOpts.mingw = "-L${project.buildDir}/cmake/lib" -lsimple_lib
+                """.trimIndent()
+
+                val defDir = project.layout.buildDirectory.dir("generated/def")
+                defDir.get().asFile.mkdirs()
+                generatedDefFile.get().asFile.writeText(defContent)
+                println("Generated def file: ${generatedDefFile.get().asFile.absolutePath}")
+
                 val simple_lib by creating {
-                    defFile(project.file("src/nativeInterop/cinterop/simple_lib.def"))
+                    defFile(generatedDefFile)
                     includeDirs("native")
                     packageName("simple_lib")
                 }
@@ -40,17 +54,9 @@ kotlin {
             freeCompilerArgs += "-g"
         }
     }
-
-    // sourceSets {
-    //     val mingwX64Main by getting {
-    //         dependencies {
-    //             implementation("org.jetbrains.kotlinx:kotlinx-cinterop-core:1.9.20")
-    //         }
-    //     }
-    // }
 }
 
-// 重构 CMake 构建任务
+// CMake 构建任务
 abstract class BuildCLibTask : DefaultTask() {
     @get:Inject
     abstract val execOperations: ExecOperations
@@ -68,7 +74,20 @@ abstract class BuildCLibTask : DefaultTask() {
         
         execOperations.exec {
             workingDir = cmakeDir
-            commandLine("cmake", "../../native")
+            if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+              println("Windows OS detected")
+              commandLine(
+                "cmake",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE",
+                "-DCMAKE_C_COMPILER=gcc.exe",
+                "-DCMAKE_CXX_COMPILER=g++.exe",
+                "-G",
+                "MinGW Makefiles",
+                "../../native"
+              )
+            } else {
+              commandLine("cmake", "../../native")
+            }
         }
         execOperations.exec {
             workingDir = cmakeDir
