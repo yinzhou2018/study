@@ -1,7 +1,8 @@
 {
   "files.associations": {
     "*.kts": "kotlin",
-    "simple_lib.h": "c"
+    "simple_lib.h": "c",
+    "iostream": "cpp"
   },
   "trae.enableCodelens": {
     "enableInlineDocumentation": false,

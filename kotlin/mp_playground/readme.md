@@ -37,7 +37,7 @@
   - 与外部互调的底层原理C-ABI + OC-ABI(依赖OCRuntime)，与Swift互调基于OC-ABI，跟Swift与外部互调原理一样;
   - Win平台基于mingw, 而非官方的msvc, 导致静态库构建及链接都需要基于mingw，而不能用msvc;
   - 随Native发行版预制了一些针对操作系统的[平台库](https://book.kotlincn.net/text/native-platform-libs.html)，构建时会直接链接进来，可以直接import调用;
-  - 构建动态库或苹果框架供外部使用时，导出接口不需要像Swift/Rust使用特别语法（@objc, @_cdcel, extern "C"）来声明，Native编译器会自动生成接口头文件;
+  - 构建动态库或苹果框架供外部使用时，导出接口不需要像Swift/Rust使用特别语法（@objc, @_cdcel, extern "C"）来声明，可以导出任何语法结构（全局函数，类等），副作用就是调用相对复杂一些，Native编译器会自动生成接口头文件;
   - 链接外部库及框架时，需要包装一个库或框架的`def`文件（内容包括接口头文件以及需要链接的库等），逻辑上有点类似[`pkg-config`](https://zh.wikipedia.org/wiki/Pkg-config)，然后输入到`cinterops`工具构建出一个`klib`库充当链接时候的桥接作用，思路上类似Swift调用外部库的方式（包装一个`modulemap`文件），但Swift更轻量一些;
 - KMP当前各平台稳定级别情况如下图，桌面端（包括跨平台UI）基于JVM是稳定的，如果没有极致的性能要求，可以尝试，ios端共享UI还处于Beta，生成环境还不可用，但可以采用Native UI，而共享逻辑，这个层面是稳定的;
 ![stability_level](stability_level.png)

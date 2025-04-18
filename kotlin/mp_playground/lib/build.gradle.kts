@@ -49,3 +49,26 @@ tasks.register("buildDebugNativeApp") {
     }
   }
 }
+
+tasks.register("runDebugNativeApp") {
+  group = "run"
+  description = "Runs the native application."
+  
+  val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+
+  val targetDir = if (isWindows) {
+      project.file("build/bin/mingwX64/debugShared")
+    } else {
+      project.file("build/bin/macosArm64/debugShared")
+    }
+
+  dependsOn("buildDebugNativeApp")
+
+  doLast {
+    exec {
+      workingDir = targetDir
+      val executable = if (isWindows) "native_app.exe" else "native_app"
+      commandLine("${targetDir.absolutePath}/$executable")
+    }
+  } 
+}
