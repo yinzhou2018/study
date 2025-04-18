@@ -1,6 +1,10 @@
 #include <iostream>
 
+#ifdef WIN32
 #include <knative_api.h>
+#else
+#include <libknative_api.h>
+#endif  // WIN32
 
 extern "C" int increment_two(int x) {
   std::cout << "Incrementing " << x << " by 2" << std::endl;
@@ -9,7 +13,11 @@ extern "C" int increment_two(int x) {
 
 int main() {
   std::cout << "Hello World!" << std::endl;
+#ifdef WIN32
   auto lib = knative_symbols();
+#else
+  auto lib = libknative_symbols();
+#endif  // WIN32
 
   auto str = lib->kotlin.root.com.example.strings("China");
   std::cout << str << std::endl;
@@ -40,6 +48,6 @@ int main() {
   std::cout << "c_supplyFun result: " << r2 << std::endl;
   auto r3 = lib->kotlin.root.com.example.c_acceptFun(f);
   std::cout << "c_acceptFun result: " << r3 << std::endl;
-  
+
   return 0;
 }

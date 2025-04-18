@@ -9,7 +9,10 @@ kotlin {
   targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
     binaries { sharedLib { baseName = "knative" } }
 
-    binaries.all { freeCompilerArgs += "-g" }
+    binaries.all { 
+      freeCompilerArgs += "-g"
+      freeCompilerArgs += "-Xoverride-konan-properties=cxx_flang=-std=c++11"
+    }
   }
 }
 

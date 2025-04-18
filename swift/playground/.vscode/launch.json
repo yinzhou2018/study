@@ -93,7 +93,7 @@
       "preLaunchTask": "swift: Build Release cfamily"
     },
     {
-      "type": "lldb",
+      "type": "swift",
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:playground}",
@@ -102,7 +102,7 @@
       "preLaunchTask": "swift: Build Debug cfamily_bin"
     },
     {
-      "type": "lldb",
+      "type": "swift",
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:playground}",
@@ -111,7 +111,7 @@
       "preLaunchTask": "swift: Build Release cfamily_bin"
     },
     {
-      "type": "lldb",
+      "type": "swift",
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:playground}",
@@ -120,7 +120,7 @@
       "preLaunchTask": "swift: Build Debug swift_bin"
     },
     {
-      "type": "lldb",
+      "type": "swift",
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:playground}",

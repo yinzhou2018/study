@@ -11,7 +11,7 @@ pluginManagement {
     mavenCentral()
   }
   plugins {
-    kotlin("multiplatform") version "1.9.24"
+    kotlin("multiplatform") version "2.1.20"
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
   }
 }
