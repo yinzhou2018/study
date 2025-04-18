@@ -32,7 +32,6 @@ kotlin {
         val defDir = project.layout.buildDirectory.dir("generated/def")
         defDir.get().asFile.mkdirs()
         generatedDefFile.get().asFile.writeText(defContent)
-        println("Generated def file: ${generatedDefFile.get().asFile.absolutePath}")
 
         val simple_lib by creating {
           defFile(generatedDefFile)
@@ -71,7 +70,6 @@ abstract class BuildCLibTask : DefaultTask() {
     execOperations.exec {
       workingDir = cmakeDir
       if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
-        println("Windows OS detected")
         commandLine(
                 "cmake",
                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE",
