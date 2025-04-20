@@ -31,6 +31,9 @@ int main() {
   auto clazz = lib->kotlin.root.com.example.Clazz.Clazz();
   auto member = lib->kotlin.root.com.example.Clazz.member(clazz, 1);
   std::cout << "Clazz member value: " << lib->getNonNullValueOfULong(member) << std::endl;
+  if (lib->IsInstance(clazz.pinned, lib->kotlin.root.com.example.Interface._type())) {
+    lib->kotlin.root.com.example.Interface.iMember(libknative_kref_com_example_Interface{clazz.pinned});
+  }
   lib->DisposeStablePointer(member.pinned);
   lib->DisposeStablePointer(clazz.pinned);
 
@@ -48,6 +51,13 @@ int main() {
   std::cout << "c_supplyFun result: " << r2 << std::endl;
   auto r3 = lib->kotlin.root.com.example.c_acceptFun(f);
   std::cout << "c_acceptFun result: " << r3 << std::endl;
+
+  lib->kotlin.root.com.example.forFloats(1.0f, lib->createNullableDouble(2.0));
+  lib->kotlin.root.com.example.forIntegers(1, 2, 3, lib->createNullableULong(4));
+  
+  auto dcs = lib->kotlin.root.com.example.DataClass.DataClass("Hello");
+  lib->kotlin.root.com.example.printDataClass(dcs);
+  lib->DisposeStablePointer(dcs.pinned);
 
   return 0;
 }

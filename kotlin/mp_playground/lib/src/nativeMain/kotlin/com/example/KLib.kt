@@ -7,15 +7,28 @@ object Object {
 }
 
 interface Interface {
-  fun iMember() {}
+  fun iMember() {
+    println(message = "Interface.iMember")
+  }
 }
+
+data class DataClass(val field: String)
 
 class Clazz : Interface {
   fun member(p: Int): ULong? = 42UL
 }
 
-fun forIntegers(b: Byte, s: UShort, i: Int, l: ULong?) { }
-fun forFloats(f: Float, d: Double?) { }
+fun printDataClass(data: DataClass) {
+  println(message = "DataClass: ${data.field}")
+}
+
+fun forIntegers(b: Byte, s: UShort, i: Int, l: ULong?) { 
+  println(message = "forIntegers: $b, $s, $i, $l")
+}
+
+fun forFloats(f: Float, d: Double?) {
+  println(message = "forFloats: $f, $d")
+ }
 
 fun strings(str: String?) : String {
   return "That is '$str' from C"

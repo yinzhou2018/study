@@ -1,5 +1,5 @@
 ### 几点结论
-- mac下动态库的运行时加载路径由动态库编译时install path设置决定，除非是一些通用基础库设置到系统公共库目录（比如：usr/lib），一般设置为以`@rpath`为根的相对目录，同时设置run path为`@executable_path`或`@loader_path`为根的相对目录，方便动态库统一放在可执行文件安装目录内，并能支持运行时正确加载。这一点与linux有所差别，linux不需要动态库自身编译做install path相关设置，只需链接该动态库的可执行程序构建时设置好run path；
+- mac下动态库的运行时加载路径由动态库编译时install path设置决定，因为mac的动态加载器（dyld）是基于完整路径来加载依赖库，而这个完整路径是从依赖库的install path链接到可执行程序的，install path是依赖库构建时设置的，除非是一些通用基础库设置到系统公共库目录（比如：usr/lib），一般设置为以`@rpath`为根的相对目录，方便动态库统一放在可执行文件安装目录内，并能支持运行时正确加载。这一点与linux有所差别，linux的动态加载器是基于固定搜索目录顺序来加载动态库；
 - mrc(manual reference counting)模式下，通常用autoreleasepool机制来实现非局部对象（比如一个函数里创建对象并返回）的自动释放（调用autorelease），否则程序员就需要在不再需要对象的地方显示调用release，门槛高，容易出现泄漏或重复释放的问题，但副作用就是对象释放可能偏晚；
 - arc(automatic reference counting)模式下，不需要autoreleasepool机制；
 - arc+mrc混合模式下（实际开发的常态，因为有遗留代码，比如cocoa框架），跨模块（静态库或动态库或框架）边界涉及接口调用（比如调用cocoa框架）返回对象时，仍然需要使用autoreleasepool，否则可能有内存泄漏发生，具体分析几种情况行为：
