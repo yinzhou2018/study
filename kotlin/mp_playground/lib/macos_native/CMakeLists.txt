@@ -33,4 +33,7 @@ target_link_options(macos_native_app PRIVATE
   "-framework" 
   "knative"
 )
+target_link_libraries(macos_native_app PRIVATE
+  "-framework Foundation"
+)
 set_target_properties(macos_native_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_dir})

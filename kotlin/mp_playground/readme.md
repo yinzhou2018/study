@@ -42,3 +42,12 @@
 - KMP当前各平台稳定级别情况如下图，桌面端（包括跨平台UI）基于JVM是稳定的，如果没有极致的性能要求，可以尝试，ios端共享UI还处于Beta，生成环境还不可用，但可以采用Native UI，而共享逻辑，这个层面是稳定的;
 ![stability_level](stability_level.png)
 ![kcp_stability_level](kcp_stability_level.png)
+### 主要目录
+```
+├── app: 构建多平台可执行产物的项目，包括输出Native可执行程序
+│   ├── native: app在native平台依赖的native库，导出C-ABI接口
+│   └── macos_native: app在macos平台依赖的框架，导出OC-ABI接口
+└── lib: 构建多平台库的项目，包括输出Native动态库及苹果框架
+    ├── native: 依赖lib构建为动态库导出C-ABI接口的可执行程序项目
+    └── macos_native: 依赖lib构建为苹果框架导出OC-ABI接口的苹果可执行程序项目
+```
