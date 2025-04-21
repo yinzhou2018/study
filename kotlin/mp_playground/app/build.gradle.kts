@@ -58,7 +58,7 @@ kotlin {
                   """.trimIndent()
           generatedMacDefFile.get().asFile.writeText(macDefContent)
 
-          val mac_lib by creating {
+          val macos_lib by creating {
             defFile(generatedMacDefFile)
             includeDirs("macos_native")
             packageName("macos_lib")
