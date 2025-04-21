@@ -1,6 +1,5 @@
 #import "algos_c.h"
-#import "../cfamily_lib/lib.h"
-
+#import <lib.h>
 #import <Foundation/Foundation.h>
 
 @interface CAlgo : NSObject

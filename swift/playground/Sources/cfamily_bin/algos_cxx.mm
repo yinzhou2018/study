@@ -1,6 +1,6 @@
 #import "algos_cxx.h"
-#import "../../.build/debug/swift_lib.build/swift_lib-Swift.h"
-#import "../cfamily_lib/lib.h"
+#import <swift_lib-Swift.h>
+#import <lib.h>
 #import <Foundation/Foundation.h>
 #import <iostream>
 

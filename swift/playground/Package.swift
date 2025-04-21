@@ -24,7 +24,8 @@ let package = Package(
       ],
       cxxSettings: [
         .define("OBJC_OLD_DISPATCH_PROTOTYPES", to: "0"),
-        .headerSearchPath("."),
+        .headerSearchPath("../cfamily_lib"),
+        .headerSearchPath("../../.build/debug/swift_lib.build"),
         .unsafeFlags(["-std=c++20"]),
         .unsafeFlags(["-x", "objective-c++"]),
       ]
