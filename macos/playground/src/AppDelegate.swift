@@ -1,7 +1,6 @@
 import Cocoa
 
-@objc(AppDelegate)
-public class AppDelegate: NSObject, NSApplicationDelegate {
+@objc public class AppDelegate: NSObject, NSApplicationDelegate {
   @objc public var window: NSWindow?
 
   @objc public override init() {
