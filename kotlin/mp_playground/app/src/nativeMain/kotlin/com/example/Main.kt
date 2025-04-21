@@ -4,6 +4,8 @@ import kotlinx.cinterop.*
 import platform.posix.*
 import simple_lib.*
 
+expect fun osMain()
+
 @OptIn(ExperimentalForeignApi::class)
 fun main() {
   println("Testing C library functions:")
@@ -32,4 +34,6 @@ fun main() {
     pthread_create(thread.ptr, null, threadFunc, null)
     pthread_join(thread.value, null)
   }
+
+  osMain()
 }

@@ -12,8 +12,15 @@ repositories {
   maven("https://maven.pkg.jetbrains.space/public/p/kotlinx/maven")
 }
 
+val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+val isX64 = System.getProperty("os.arch").matches(Regex("^(amd64|x86_64)$", RegexOption.IGNORE_CASE))
+val targetName =  if (isWindows) "MingwX64" else if (isX64) "MacosX64" else "MacosArm64"
+val folderName = if (isWindows) "mingwX64" else if (isX64) "macosX64" else "macosArm64"
+val targetDir = "${project.projectDir}/build/bin/$folderName/debugExecutable"
+
 kotlin {
   macosArm64()
+  macosX64()
   mingwX64()
 
   targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
@@ -26,7 +33,7 @@ kotlin {
                     headerFilter = simple_lib.h
                     
                     compilerOpts = "-I${project.projectDir}/native"
-                    linkerOpts = "-L${project.buildDir}/cmake/lib" -lsimple_lib
+                    linkerOpts = "-L${targetDir}" -lsimple_lib
                 """.trimIndent()
 
         val defDir = project.layout.buildDirectory.dir("generated/def")
@@ -38,6 +45,25 @@ kotlin {
           includeDirs("native")
           packageName("simple_lib")
         }
+
+        if (!isWindows) { 
+          val generatedMacDefFile = project.layout.buildDirectory.file("generated/def/macos_lib.def")
+          val macDefContent =
+                  """
+                      language = Objective-C
+                      headers = macos_lib.h
+                      headerFilter = macos_lib.h
+                      compilerOpts = "-I${project.projectDir}/macos_native"
+                      linkerOpts = "-F${targetDir}" -framework macos_lib
+                  """.trimIndent()
+          generatedMacDefFile.get().asFile.writeText(macDefContent)
+
+          val mac_lib by creating {
+            defFile(generatedMacDefFile)
+            includeDirs("macos_native")
+            packageName("macos_lib")
+          }
+        }
       }
     }
 
@@ -48,49 +74,61 @@ kotlin {
       }
     }
 
-    binaries.all { freeCompilerArgs += "-g" }
+    binaries.all { 
+      freeCompilerArgs += "-g" 
+      if (!isWindows) {
+        linkerOpts("-Wl,-rpath,@executable_path")
+      }
+    }
   }
 }
 
-// CMake 构建任务
-abstract class BuildCLibTask : DefaultTask() {
-  @get:Inject abstract val execOperations: ExecOperations
+tasks.register("buildNativeLibrary") {
+  group = "build"
+  description = "Builds the native Library."
+  
+  val cmakeDir = project.file("build/cmake")
+  cmakeDir.mkdirs()
 
-  private val cmakeDir = project.file("build/cmake")
-
-  init {
-    inputs.files(project.fileTree("native"))
-    outputs.dir(cmakeDir)
-  }
-
-  @TaskAction
-  fun build() {
-    cmakeDir.mkdirs()
-
-    execOperations.exec {
+  doFirst {
+    exec {
       workingDir = cmakeDir
-      if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+      if (isWindows) {
         commandLine(
                 "cmake",
                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE",
                 "-DCMAKE_C_COMPILER=gcc.exe",
                 "-DCMAKE_CXX_COMPILER=g++.exe",
+                "-DOUTPUT_DIR=${targetDir}",
                 "-G",
                 "MinGW Makefiles",
                 "../../native"
         )
       } else {
-        commandLine("cmake", "../../native")
+        commandLine("cmake", "-DOUTPUT_DIR=${targetDir}", "../../native")
       }
     }
-    execOperations.exec {
+    exec {
       workingDir = cmakeDir
       commandLine("cmake", "--build", ".")
     }
   }
+
+  if (!isWindows) {
+    val cmakeDir = project.file("build/macos_cmake")
+    cmakeDir.mkdirs()
+    doLast {
+      exec {
+        workingDir = cmakeDir
+        commandLine("cmake", "-DOUTPUT_DIR=${targetDir}", "../../macos_native")
+      }
+      exec {
+        workingDir = cmakeDir
+        commandLine("cmake", "--build", ".")
+      }
+    }
+  }
 }
 
-tasks.register<BuildCLibTask>("buildCLib")
-
 // 让Kotlin编译依赖于C库构建
-tasks.matching { it.name.contains("compile") }.configureEach { dependsOn("buildCLib") }
+tasks.matching { it.name.contains("compile") }.configureEach { dependsOn("buildNativeLibrary") }
