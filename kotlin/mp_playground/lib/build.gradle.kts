@@ -7,6 +7,10 @@ kotlin {
     binaries { framework { baseName = "knative" } }
   }
 
+  macosX64() {
+    binaries { framework { baseName = "knative" } }
+  }
+
   mingwX64()
 
   targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
@@ -20,18 +24,16 @@ kotlin {
 }
 
 val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+val isX64 = System.getProperty("os.arch").matches(Regex("^(amd64|x86_64)$", RegexOption.IGNORE_CASE))
+val targetName =  if (isWindows) "MingwX64" else if (isX64) "MacosX64" else "MacosArm64"
+val folderName = if (isWindows) "mingwX64" else if (isX64) "macosX64" else "macosArm64"
 
 tasks.register("buildDebugNativeApp") {
   group = "build"
   description = "Builds the native application."
   
-  val targetDir = if (isWindows) {
-      dependsOn("linkDebugSharedMingwX64")
-      project.file("build/bin/mingwX64/debugShared")
-    } else {
-      dependsOn("linkDebugSharedMacosArm64")
-      project.file("build/bin/macosArm64/debugShared")
-    }
+  dependsOn("linkDebugShared$targetName")
+  val targetDir = project.file("build/bin/$folderName/debugShared")
   val cmakeDir = project.file("build/cmake")
   cmakeDir.mkdirs()
 
@@ -60,18 +62,11 @@ tasks.register("runDebugNativeApp") {
   group = "run"
   description = "Runs the native application."
   
-  val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
-
-  val targetDir = if (isWindows) {
-      project.file("build/bin/mingwX64/debugShared")
-    } else {
-      project.file("build/bin/macosArm64/debugShared")
-    }
-
   dependsOn("buildDebugNativeApp")
 
   doLast {
     exec {
+      val targetDir = project.file("build/bin/$folderName/debugShared")
       workingDir = targetDir
       val executable = if (isWindows) "native_app.exe" else "native_app"
       commandLine("${targetDir.absolutePath}/$executable")
@@ -80,12 +75,12 @@ tasks.register("runDebugNativeApp") {
 }
 
 if (!isWindows) {
-  val targetDir = project.file("build/bin/macosArm64/debugFramework")
+  val targetDir = project.file("build/bin/$folderName/debugFramework")
   tasks.register("buildDebugMacosNativeApp") {
     group = "build"
     description = "Builds the macos native application."
     
-    dependsOn("linkDebugFrameworkMacosArm64")
+    dependsOn("linkDebugFramework$targetName")
 
     val cmakeDir = project.file("build/macos_cmake")
     cmakeDir.mkdirs()
