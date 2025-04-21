@@ -85,7 +85,7 @@ if (!isWindows) {
     val cmakeDir = project.file("build/macos_cmake")
     cmakeDir.mkdirs()
   
-    doLast {
+    doFirst {
       exec {
         workingDir = cmakeDir
         commandLine("cmake", "-DOUTPUT_DIR=${targetDir.absolutePath}", "../../macos_native")
@@ -94,6 +94,13 @@ if (!isWindows) {
         workingDir = cmakeDir
         commandLine("cmake", "--build", ".")
       }
+    }
+
+    // copy compile-commands.json to workspace root directory for Code inteligense
+    val srcCompileCommandsFile = project.file("${cmakeDir.absolutePath}/compile_commands.json")
+    val dstCompileCommandsFile = project.file("${project.rootDir}/compile_commands.json")
+    doLast {
+      srcCompileCommandsFile.copyTo(dstCompileCommandsFile, true)
     }
   }
   
