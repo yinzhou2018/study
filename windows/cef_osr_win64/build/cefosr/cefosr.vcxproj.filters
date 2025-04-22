@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_app.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_d3d11.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_ime_handler.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_input_handler.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler_d3d11.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler_gl.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_renderer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_utils.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\study\cpp\cef_osr_win64\cefosr\osr_window.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_app.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_d3d11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_ime_handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_input_handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler_d3d11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_render_handler_gl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_renderer_settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\osr_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="E:\study\cpp\cef_osr_win64\cefosr\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="E:\study\cpp\cef_osr_win64\cefosr\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="E:\study\cpp\cef_osr_win64\cefosr\cefosr.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{DF969A73-A341-39CC-98D4-18F81B112D2E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{9BAFEB7A-2B91-35F0-8755-19261F566FE1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,634 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"build" : "libcef_dll_wrapper",
+					"jsonFile" : "directory-libcef_dll_wrapper-Debug-4910029496331da51ac0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "libcef_dll",
+					"targetIndexes" : 
+					[
+						7
+					]
+				},
+				{
+					"build" : "tests/cefsimple",
+					"jsonFile" : "directory-tests.cefsimple-Debug-bebd4577911a45ac77e0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefsimple",
+					"targetIndexes" : 
+					[
+						5
+					]
+				},
+				{
+					"build" : "tests/gtest",
+					"jsonFile" : "directory-tests.gtest-Debug-63679ce35f0d64f64fd2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/gtest",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "tests/ceftests",
+					"jsonFile" : "directory-tests.ceftests-Debug-eac460a6dac6e2447a90.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/ceftests",
+					"targetIndexes" : 
+					[
+						6
+					]
+				},
+				{
+					"build" : "tests/cefclient",
+					"jsonFile" : "directory-tests.cefclient-Debug-6602b982e7b0d946de80.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefclient",
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"build" : "cefosr",
+					"jsonFile" : "directory-cefosr-Debug-d19253dca020c8882548.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "cefosr",
+					"targetIndexes" : 
+					[
+						4
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"name" : "cef",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ALL_BUILD::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ALL_BUILD-Debug-4753873fbefcf58290c3.json",
+					"name" : "ALL_BUILD",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ZERO_CHECK-Debug-62073681db7ac8fdb9e2.json",
+					"name" : "ZERO_CHECK",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "cef_gtest::@a55dd99806186840b5c2",
+					"jsonFile" : "target-cef_gtest-Debug-bb094fbc5d8f12143b02.json",
+					"name" : "cef_gtest",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "cefclient::@f8df86fe77e672134cf0",
+					"jsonFile" : "target-cefclient-Debug-14fe31ba8c647ddd7efd.json",
+					"name" : "cefclient",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "cefosr::@005dca125d2e5eac193f",
+					"jsonFile" : "target-cefosr-Debug-af6867c26e90c8a746cf.json",
+					"name" : "cefosr",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "cefsimple::@3147a34b096639532921",
+					"jsonFile" : "target-cefsimple-Debug-90a082b279448a4dd74f.json",
+					"name" : "cefsimple",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "ceftests::@9e0f856d3a10496ea8e6",
+					"jsonFile" : "target-ceftests-Debug-930537beee2c76a9f3fe.json",
+					"name" : "ceftests",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "libcef_dll_wrapper::@cd58661fdb9d7a5f9ad1",
+					"jsonFile" : "target-libcef_dll_wrapper-Debug-24ba2b523b3a34c93a12.json",
+					"name" : "libcef_dll_wrapper",
+					"projectIndex" : 0
+				}
+			]
+		},
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"jsonFile" : "directory-.-Release-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"build" : "libcef_dll_wrapper",
+					"jsonFile" : "directory-libcef_dll_wrapper-Release-4910029496331da51ac0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "libcef_dll",
+					"targetIndexes" : 
+					[
+						7
+					]
+				},
+				{
+					"build" : "tests/cefsimple",
+					"jsonFile" : "directory-tests.cefsimple-Release-bebd4577911a45ac77e0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefsimple",
+					"targetIndexes" : 
+					[
+						5
+					]
+				},
+				{
+					"build" : "tests/gtest",
+					"jsonFile" : "directory-tests.gtest-Release-63679ce35f0d64f64fd2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/gtest",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "tests/ceftests",
+					"jsonFile" : "directory-tests.ceftests-Release-eac460a6dac6e2447a90.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/ceftests",
+					"targetIndexes" : 
+					[
+						6
+					]
+				},
+				{
+					"build" : "tests/cefclient",
+					"jsonFile" : "directory-tests.cefclient-Release-6602b982e7b0d946de80.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefclient",
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"build" : "cefosr",
+					"jsonFile" : "directory-cefosr-Release-d19253dca020c8882548.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "cefosr",
+					"targetIndexes" : 
+					[
+						4
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"name" : "cef",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ALL_BUILD::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ALL_BUILD-Release-4753873fbefcf58290c3.json",
+					"name" : "ALL_BUILD",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ZERO_CHECK-Release-62073681db7ac8fdb9e2.json",
+					"name" : "ZERO_CHECK",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "cef_gtest::@a55dd99806186840b5c2",
+					"jsonFile" : "target-cef_gtest-Release-539e91a8cc6dbc610dac.json",
+					"name" : "cef_gtest",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "cefclient::@f8df86fe77e672134cf0",
+					"jsonFile" : "target-cefclient-Release-c632b8b7a8ce9584f824.json",
+					"name" : "cefclient",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "cefosr::@005dca125d2e5eac193f",
+					"jsonFile" : "target-cefosr-Release-2776a839351f94a8196e.json",
+					"name" : "cefosr",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "cefsimple::@3147a34b096639532921",
+					"jsonFile" : "target-cefsimple-Release-11e5025acd3d1ed4aa94.json",
+					"name" : "cefsimple",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "ceftests::@9e0f856d3a10496ea8e6",
+					"jsonFile" : "target-ceftests-Release-991d9e3e836279a85bf3.json",
+					"name" : "ceftests",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "libcef_dll_wrapper::@cd58661fdb9d7a5f9ad1",
+					"jsonFile" : "target-libcef_dll_wrapper-Release-faa65de0306fececfea3.json",
+					"name" : "libcef_dll_wrapper",
+					"projectIndex" : 0
+				}
+			]
+		},
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"jsonFile" : "directory-.-RelWithDebInfo-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"build" : "libcef_dll_wrapper",
+					"jsonFile" : "directory-libcef_dll_wrapper-RelWithDebInfo-4910029496331da51ac0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "libcef_dll",
+					"targetIndexes" : 
+					[
+						7
+					]
+				},
+				{
+					"build" : "tests/cefsimple",
+					"jsonFile" : "directory-tests.cefsimple-RelWithDebInfo-bebd4577911a45ac77e0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefsimple",
+					"targetIndexes" : 
+					[
+						5
+					]
+				},
+				{
+					"build" : "tests/gtest",
+					"jsonFile" : "directory-tests.gtest-RelWithDebInfo-63679ce35f0d64f64fd2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/gtest",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "tests/ceftests",
+					"jsonFile" : "directory-tests.ceftests-RelWithDebInfo-eac460a6dac6e2447a90.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/ceftests",
+					"targetIndexes" : 
+					[
+						6
+					]
+				},
+				{
+					"build" : "tests/cefclient",
+					"jsonFile" : "directory-tests.cefclient-RelWithDebInfo-6602b982e7b0d946de80.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "tests/cefclient",
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"build" : "cefosr",
+					"jsonFile" : "directory-cefosr-RelWithDebInfo-d19253dca020c8882548.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "cefosr",
+					"targetIndexes" : 
+					[
+						4
+					]
+				}
+			],
+			"name" : "RelWithDebInfo",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"name" : "cef",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ALL_BUILD::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ALL_BUILD-RelWithDebInfo-4753873fbefcf58290c3.json",
+					"name" : "ALL_BUILD",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ZERO_CHECK-RelWithDebInfo-62073681db7ac8fdb9e2.json",
+					"name" : "ZERO_CHECK",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "cef_gtest::@a55dd99806186840b5c2",
+					"jsonFile" : "target-cef_gtest-RelWithDebInfo-916e35152eb45c8165c5.json",
+					"name" : "cef_gtest",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "cefclient::@f8df86fe77e672134cf0",
+					"jsonFile" : "target-cefclient-RelWithDebInfo-68bb40e675c4e6e73713.json",
+					"name" : "cefclient",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "cefosr::@005dca125d2e5eac193f",
+					"jsonFile" : "target-cefosr-RelWithDebInfo-353060d493e8e136c4e1.json",
+					"name" : "cefosr",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "cefsimple::@3147a34b096639532921",
+					"jsonFile" : "target-cefsimple-RelWithDebInfo-05c1595146896e8c3558.json",
+					"name" : "cefsimple",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "ceftests::@9e0f856d3a10496ea8e6",
+					"jsonFile" : "target-ceftests-RelWithDebInfo-298fc68de84bd4d4f5cb.json",
+					"name" : "ceftests",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "libcef_dll_wrapper::@cd58661fdb9d7a5f9ad1",
+					"jsonFile" : "target-libcef_dll_wrapper-RelWithDebInfo-e3fb6b6251ed2cccbc2a.json",
+					"name" : "libcef_dll_wrapper",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "E:/study/cpp/cef_osr_win64/build",
+		"source" : "E:/study/cpp/cef_osr_win64"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}

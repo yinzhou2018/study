@@ -1,0 +1,36 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\study\\cpp\\webview2_composition_sample\\build\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{E634D8F2-1FFC-3056-9A2D-4A4DC68DFF9F}|webview2_composition_sample.vcxproj|E:\\study\\cpp\\webview2_composition_sample\\main.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "main.cc",
+              "DocumentMoniker": "E:\\study\\cpp\\webview2_composition_sample\\main.cc",
+              "RelativeDocumentMoniker": "..\\main.cc",
+              "ToolTip": "E:\\study\\cpp\\webview2_composition_sample\\main.cc",
+              "RelativeToolTip": "..\\main.cc",
+              "ViewState": "AQIAAA8AAAAAAAAAAAAAAB0AAAAcAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2024-06-27T07:20:50.936Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "libcef_dll_wrapper::@cd58661fdb9d7a5f9ad1"
+		},
+		{
+			"id" : "cefsimple::@3147a34b096639532921"
+		},
+		{
+			"id" : "cef_gtest::@a55dd99806186840b5c2"
+		},
+		{
+			"id" : "ceftests::@9e0f856d3a10496ea8e6"
+		},
+		{
+			"id" : "cefclient::@f8df86fe77e672134cf0"
+		},
+		{
+			"id" : "cefosr::@005dca125d2e5eac193f"
+		},
+		{
+			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "ALL_BUILD::@6890427a1f51a3e7e1df",
+	"isGeneratorProvided" : true,
+	"name" : "ALL_BUILD",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

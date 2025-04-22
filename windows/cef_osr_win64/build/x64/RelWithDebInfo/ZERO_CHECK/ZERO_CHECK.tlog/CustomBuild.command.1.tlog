@@ -1,0 +1,10 @@
+^E:\STUDY\CPP\CEF_OSR_WIN64\BUILD\CMAKEFILES\54754DAC714C436AC55EA3E3363B5120\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/study/cpp/cef_osr_win64 -BE:/study/cpp/cef_osr_win64/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file E:/study/cpp/cef_osr_win64/build/cef.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
