@@ -7,33 +7,33 @@
  */
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
-    application
-    kotlin("jvm") version "1.9.20"
+  // Apply the application plugin to add support for building a CLI application in Java.
+  application
+  kotlin("jvm") version "1.9.20"
 }
 
 repositories {
-    // Use Maven Central for resolving dependencies.
-    mavenCentral()
+  // Use Maven Central for resolving dependencies.
+  mavenCentral()
 }
 
 dependencies {
-    // Use JUnit Jupiter for testing.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
+  // Use JUnit Jupiter for testing.
+  testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
 
-    // This dependency is used by the application.
-    implementation("com.google.guava:guava:31.1-jre")
+  // This dependency is used by the application.
+  implementation("com.google.guava:guava:31.1-jre")
 
-    implementation(kotlin("stdlib"))
-    
-    // Ktor HTTP Client
-    implementation("io.ktor:ktor-client-core:2.3.7")
-    implementation("io.ktor:ktor-client-cio:2.3.7")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
+  implementation(kotlin("stdlib"))
+
+  // Ktor HTTP Client
+  implementation("io.ktor:ktor-client-core:2.3.7")
+  implementation("io.ktor:ktor-client-cio:2.3.7")
+  implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
+  implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
 }
 
 application {
-    // Define the main class for the application.
-    mainClass.set("playground.AppKt")
+  // Define the main class for the application.
+  mainClass.set("playground.AppKt")
 }
