@@ -9,10 +9,12 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
 import playground.utils.testFindTargetIn2DPlants
 import playground.utils.testWordPuzzle
+import playground.utils.testwardrobeFinishing
 
 fun main() {
-  testFindTargetIn2DPlants()
-  testWordPuzzle()
+  testwardrobeFinishing()
+  // testFindTargetIn2DPlants()
+  // testWordPuzzle()
   // println("start")
   // // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
   // runBlocking {

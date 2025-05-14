@@ -126,8 +126,8 @@ fun wordPuzzle(grid: Array<CharArray>, target: String): Boolean {
 
   val rows = grid.size
   val cols = grid[0].size
-  for (i in 0..<rows) {
-    for (j in 0..<cols) {
+  for (i in 0 ..< rows) {
+    for (j in 0 ..< cols) {
       val path = mutableListOf(Pair(i, j))
       if (recWordPuzzle(grid, path, calcChoices(rows, cols, path), target, 0)) {
         return true
@@ -157,7 +157,7 @@ fun recWordPuzzle(
   }
 
   if (index == target.length - 1) {
-    return true   
+    return true
   }
 
   for (choice in choices) {
@@ -172,13 +172,50 @@ fun recWordPuzzle(
 }
 
 fun testWordPuzzle() {
-  val grid =
-      arrayOf(
-          charArrayOf('A', 'B', 'C', 'E'),
-          charArrayOf('S', 'F', 'C', 'S'),
-          charArrayOf('A', 'D', 'E', 'E')
-      )
+  val grid = arrayOf(charArrayOf('A', 'B', 'C', 'E'), charArrayOf('S', 'F', 'C', 'S'), charArrayOf('A', 'D', 'E', 'E'))
   val target = "SEE"
   val found = wordPuzzle(grid, target)
   println("Target $target found: $found")
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/9h6vo2/
+fun wardrobeFinishing(m: Int, n: Int, cnt: Int): Int {
+  var path = mutableListOf<Pair<Int, Int>>()
+  if (cnt >= 0) {
+    recWardrobeFinishing(m, n, 0, 0, path, cnt)
+  }
+
+  return path.size
+}
+
+fun recWardrobeFinishing(rows: Int, cols: Int, i: Int, j: Int, path: MutableList<Pair<Int, Int>>, cnt: Int) {
+  path.add(Pair(i, j))
+  val choices = calcChoices(rows, cols, i, j, cnt, path)
+  for (choice in choices) {
+    recWardrobeFinishing(rows, cols, choice.first, choice.second, path, cnt)
+  }
+}
+
+fun calcChoices(rows: Int, cols: Int, i: Int, j: Int, cnt: Int, path: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+  return listOf(Pair(i + 1, j), Pair(i, j + 1)).filter {
+    it.first < rows && it.second < cols && !path.contains(it) && calcSum(it.first) + calcSum(it.second) <= cnt
+  }
+}
+
+fun calcSum(x: Int): Int {
+  var sum = 0
+  var m = x
+  while (m > 0) {
+    sum += m % 10
+    m /= 10
+  }
+  return sum
+}
+
+fun testwardrobeFinishing() {
+  val m = 4
+  val n = 7
+  val cnt = 5
+  val path = wardrobeFinishing(m, n, cnt)
+  println("path: $path")
 }
