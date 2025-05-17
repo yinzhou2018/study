@@ -212,10 +212,36 @@ fun calcSum(x: Int): Int {
   return sum
 }
 
-fun testwardrobeFinishing() {
-  val m = 4
-  val n = 7
-  val cnt = 5
-  val path = wardrobeFinishing(m, n, cnt)
-  println("path: $path")
+fun quickSort(ary: IntArray, left: Int, right: Int) {
+  if (left >= right) {
+    return
+  }
+
+  var i = left
+  var j = right - 1
+  val key = ary[right]
+
+  // 循环不变式为：所有索引大于j的元素 >= key, 所有索引小于i的元素 < key
+  // 这里的循环条件是<=而不是<保证了退出循环时i > j, 从而i位置的元素一定>=key，
+  // 后面不需要再做判断，而可以直接与key位置进行交换
+  while (i <= j) {
+    while (i <= j && ary[i] < key) {
+      i++
+    }
+    while (i <= j && ary[j] >= key) {
+      j--
+    }
+
+    if (i < j) {
+      val temp = ary[i]
+      ary[i] = ary[j]
+      ary[j] = temp
+    }
+  }
+
+  ary[right] = ary[i]
+  ary[i] = key
+  quickSort(ary, left, i - 1)
+  quickSort(ary, i + 1, right)
 }
+

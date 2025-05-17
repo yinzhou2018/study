@@ -37,3 +37,10 @@ application {
   // Define the main class for the application.
   mainClass.set("playground.AppKt")
 }
+
+tasks.test {
+  useJUnitPlatform()
+  testLogging {
+    events("passed", "skipped", "failed")
+  }
+}
