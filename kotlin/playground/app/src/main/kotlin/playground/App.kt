@@ -11,6 +11,21 @@ import playground.utils.testFindTargetIn2DPlants
 import playground.utils.testWordPuzzle
 import playground.utils.testwardrobeFinishing
 
+open class Animal {
+  open var name: String = ""
+  var age: Int = 0
+  open fun sayHello() {
+    println("Hello, I am $name, $age years old") 
+  }
+}
+
+class Cat: Animal() {
+  override var name: String = ""
+  override fun sayHello() {
+    println("Meow, I am $name, $age years old")
+  } 
+}
+
 fun main() {
   testwardrobeFinishing()
   // testFindTargetIn2DPlants()

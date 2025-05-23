@@ -20,6 +20,11 @@ endif()
 
 file(GLOB_RECURSE DIR_SRCS RELATIVE ${CMAKE_SOURCE_DIR} *.cpp *.c *.cc)
 list(FILTER DIR_SRCS EXCLUDE REGEX "^build/")
+
+if (NOT WIN32)
+  list(FILTER DIR_SRCS EXCLUDE REGEX "^windows/")
+endif()
+
 if (NOT MINGW)
   add_executable(playground ${DIR_SRCS})
 else()
@@ -28,6 +33,8 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(playground pthread)
+elseif(WIN32)
+  target_link_libraries(playground d3d11 dxgi dxguid)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

@@ -219,3 +219,55 @@ fun testwardrobeFinishing() {
   val path = wardrobeFinishing(m, n, cnt)
   println("path: $path")
 }
+
+data class TreeNode(val `val`: Int, var left: TreeNode? = null, var right: TreeNode? = null)
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/99lxci/
+fun deduceTree(preorder: IntArray, inorder: IntArray): TreeNode? {
+  if (preorder.isEmpty() || inorder.isEmpty()) {
+    return null
+  }
+  return recDeduceTree(preorder, 0, preorder.size - 1, inorder, 0, inorder.size - 1)
+}
+
+fun recDeduceTree(
+    preorder: IntArray,
+    preStart: Int,
+    preEnd: Int,
+    inorder: IntArray,
+    inStart: Int,
+    inEnd: Int
+): TreeNode? {
+  val root = TreeNode(preorder[preStart])
+  inorder.indexOf(root.`val`).let { index ->
+    val leftSize = index - inStart
+    val rightSize = inEnd - index
+    if (leftSize > 0) {
+      root.left = recDeduceTree(preorder, preStart + 1, preStart + leftSize, inorder, inStart, index - 1)
+    }
+    if (rightSize > 0) {
+      root.right = recDeduceTree(preorder, preStart + leftSize + 1, preEnd, inorder, index + 1, inEnd)
+    }
+  }
+
+  return root
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/5vwxx5/
+fun verifyTreeOrder(postorder: IntArray): Boolean {
+  if (postorder.isEmpty()) {
+    return true
+  }
+  return recVerifyTreeOrder(postorder, 0, postorder.size - 1)
+}
+
+fun recVerifyTreeOrder(postorder: IntArray, start: Int, end: Int): Boolean {
+  val firstGreaterIndex = postorder.indexOfFirst { it >= postorder[end] }
+  for (i in firstGreaterIndex..< end) {
+    if (postorder[i] < postorder[end]) {
+      return false
+    } 
+  }
+  return (firstGreaterIndex == start || recVerifyTreeOrder(postorder, start, firstGreaterIndex - 1)) &&
+      (firstGreaterIndex == end || recVerifyTreeOrder(postorder, firstGreaterIndex, end - 1))
+}
