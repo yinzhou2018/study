@@ -10,7 +10,7 @@ class DxgiScreenCapture {
  public:
   bool Initialize();
 
-  std::vector<uint8_t> Capture(HWND hwnd, UINT timeoutms = INFINITE);
+  std::vector<uint8_t> Capture(HWND hwnd, int* pWidth, int* pHeight, UINT timeoutms = INFINITE);
 
   // 检查系统是否支持DXGI 1.2
   static bool IsSupported();

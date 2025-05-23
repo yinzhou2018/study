@@ -1,11 +1,28 @@
 #include "screen_capture.h"
 #include "dxgi_capture.h"
 
+#include <errhandlingapi.h>
+#include <windef.h>
 #include <windows.h>
+#include <winuser.h>
 
+#include <chrono>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <vector>
+
+struct PerformanceCounter {
+  PerformanceCounter(const char* name) : name_(name) { start_ = std::chrono::high_resolution_clock::now(); }
+  ~PerformanceCounter() {
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start_);
+    std::cout << name_ << " spend: " << duration.count() << " ms" << std::endl;
+  }
+
+  std::chrono::high_resolution_clock::time_point start_;
+  const char* name_;
+};  // PerformanceCounter
 
 static void GetWindowDimensions(HWND hwnd, int& width, int& height) {
   if (!hwnd) {
@@ -53,6 +70,7 @@ static std::vector<uint8_t> CaptureRegion(HDC hdcSource, int width, int height) 
 }
 
 static std::vector<uint8_t> CaptureWindowWithGDI(HWND hwnd) {
+  PerformanceCounter counter(hwnd ? "CaptureWindowWithGDI-Window" : "CaptureScreenWithGDI-Screen");
   HDC hdcWindow = GetWindowDC(hwnd);
   if (!hdcWindow)
     return {};
@@ -64,8 +82,7 @@ static std::vector<uint8_t> CaptureWindowWithGDI(HWND hwnd) {
 }
 
 static std::vector<uint8_t> CaptureWindowWithPrintWindow(HWND hwnd) {
-  if (!hwnd)
-    return {};
+  PerformanceCounter counter(hwnd ? "CaptureWindowWithPrintWindow-Window" : "CaptureScreenWithPrintWindow-Screen");
 
   int width, height;
   GetWindowDimensions(hwnd, width, height);
@@ -78,7 +95,15 @@ static std::vector<uint8_t> CaptureWindowWithPrintWindow(HWND hwnd) {
 
   // 使用PrintWindow捕获窗口
   // PW_RENDERFULLCONTENT标志用于捕获DirectX等内容，win8.1开始才支持
-  PrintWindow(hwnd, hdcMemory, PW_RENDERFULLCONTENT);
+  auto hr = PrintWindow(hwnd, hdcMemory, PW_RENDERFULLCONTENT);
+  if (!hr) {
+    std::cerr << "PrintWindow failed: " << GetLastError() << std::endl;
+    SelectObject(hdcMemory, hOldBitmap);
+    DeleteObject(hBitmap);
+    DeleteDC(hdcMemory);
+    ReleaseDC(NULL, hdcScreen);
+    return {};
+  }
 
   // 准备位图信息
   BITMAPINFOHEADER bi;
@@ -143,9 +168,9 @@ static void capture_win_with_gdi(HWND hwnd) {
   if (!windowBuffer.empty()) {
     int width, height;
     GetWindowDimensions(hwnd, width, height);
-    SaveToBMP(windowBuffer, width, height, hwnd ? "window.bmp" : "screen.bmp");
+    SaveToBMP(windowBuffer, width, height, hwnd ? "window_with_gdi.bmp" : "screen_with_gdi.bmp");
     if (hwnd) {
-      std::cout << "Active window captured and saved to window_with_gdi.bmp" << std::endl;
+      std::cout << "Window captured and saved to window_with_gdi.bmp" << std::endl;
     } else {
       std::cout << "Screen captured and saved to screen.bmp" << std::endl;
     }
@@ -153,27 +178,34 @@ static void capture_win_with_gdi(HWND hwnd) {
 }
 
 static void capture_win_with_print_window(HWND hwnd) {
-  std::cout << "Capturing window using PrintWindow API..." << std::endl;
   auto windowBuffer = CaptureWindowWithPrintWindow(hwnd);
   if (!windowBuffer.empty()) {
     int width, height;
     GetWindowDimensions(hwnd, width, height);
-    SaveToBMP(windowBuffer, width, height, "window_with_print.bmp");
-    std::cout << "Window captured and saved to window_with_print.bmp" << std::endl;
+    SaveToBMP(windowBuffer, width, height, hwnd ? "window_with_print.bmp" : "screen_with_print.bmp");
+    if (hwnd) {
+      std::cout << "Window captured and saved to window_with_print.bmp" << std::endl;
+    } else {
+      std::cout << "Screen captured and saved to screen_with_print.bmp" << std::endl;
+    }
   }
 }
 
-static void capture_win_with_dxgi(HWND hwnd) {
+static std::vector<uint8_t> CaptureWithDxgi(HWND hwnd, int* pWidth, int* pHeight) {
   static DxgiScreenCapture dxgiCapture;
+  dxgiCapture.Initialize();
+  PerformanceCounter counter(hwnd ? "CaptureWithDxgi-Window" : "CaptureWithDxgi-Screen");
+  return dxgiCapture.Capture(hwnd, pWidth, pHeight);
+}
 
+static void capture_win_with_dxgi(HWND hwnd) {
   if (!DxgiScreenCapture::IsSupported()) {
     return;
   }
 
-  auto buffer = dxgiCapture.Capture(hwnd);
+  int width, height;
+  auto buffer = CaptureWithDxgi(hwnd, &width, &height);
   if (!buffer.empty()) {
-    int width, height;
-    GetWindowDimensions(hwnd, width, height);
     SaveToBMP(buffer, width, height, hwnd ? "window_with_dxgi.bmp" : "screen_with_dxgi.bmp");
     if (hwnd) {
       std::cout << "Window captured and saved to window_with_dxgi.bmp" << std::endl;
@@ -186,22 +218,17 @@ static void capture_win_with_dxgi(HWND hwnd) {
 void win_screen_capture_test() {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-  // 使用GDI方式捕获屏幕
   capture_win_with_gdi(nullptr);
-
-  // dxgi方式捕获屏幕
   capture_win_with_dxgi(nullptr);
+
+  // PrintWindow只能捕获普通窗口，不能捕获桌面
+  // capture_win_with_print_window(nullptr);
 
   // 获取当前窗口并截图
   HWND activeWindow = GetForegroundWindow();
   std::cout << "activeWindow: " << activeWindow << std::endl;
 
-  // 使用GDI方式捕获窗口
   capture_win_with_gdi(activeWindow);
-
-  // 使用PrintWindow方式捕获窗口
   capture_win_with_print_window(activeWindow);
-
-  // dxgi方式捕获窗口
   capture_win_with_dxgi(activeWindow);
 }

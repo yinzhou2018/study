@@ -171,7 +171,7 @@ bool DxgiScreenCapture::InitDuplication(HWND hwnd, IDXGIOutputDuplication** dupl
   return true;
 }
 
-std::vector<uint8_t> DxgiScreenCapture::Capture(HWND hwnd, UINT timeoutms) {
+std::vector<uint8_t> DxgiScreenCapture::Capture(HWND hwnd, int* pWidth, int* pHeight, UINT timeoutms) {
   if (!initialized_) {
     if (!Initialize()) {
       std::cout << "Failed to initialize DXGI capture\n";
@@ -247,6 +247,14 @@ START:
     y = rect.top - monitorTop;
     width = rect.right - rect.left;
     height = rect.bottom - rect.top;
+    if (x < 0) {
+      width += x;
+      x = 0;
+    }
+    if (y < 0) {
+      height += y;
+      y = 0;
+    }
     std::cout << "Monitor position: " << monitorLeft << ", " << monitorTop << std::endl;
     std::cout << "Window rect: " << x << ", " << y << ", " << width << ", " << height << "\n";
   }
@@ -295,5 +303,7 @@ START:
   // 解除映射并释放帧
   context_->Unmap(stagingTexture.Get(), 0);
 
+  *pWidth = width;
+  *pHeight = height;
   return frameData;
 }
