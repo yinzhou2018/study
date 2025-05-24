@@ -7,23 +7,21 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
-import playground.utils.testFindTargetIn2DPlants
-import playground.utils.testWordPuzzle
-import playground.utils.testwardrobeFinishing
+import playground.utils.testGoodsOrder
 
 fun main() {
-  testwardrobeFinishing()
-  // testFindTargetIn2DPlants()
-  // testWordPuzzle()
-  // println("start")
-  // // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
-  // runBlocking {
-  //   withContext(Dispatchers.Default) { task1() }
-  //   launch { task2() }
-  //   println("called taskl and task2 from ${Thread.currentThread()}")
+  testGoodsOrder()
+  return
+  
+  println("start")
+  // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
+  runBlocking {
+    withContext(Dispatchers.Default) { task1() }
+    launch { task2() }
+    println("called taskl and task2 from ${Thread.currentThread()}")
+  }
   // }
-  // // }
-  // println("done")
+  println("done")
 }
  
 suspend fun task1() {

@@ -245,3 +245,71 @@ fun quickSort(ary: IntArray, left: Int, right: Int) {
   quickSort(ary, i + 1, right)
 }
 
+data class TreeNode(val `val`: Int, val left: TreeNode?, val right: TreeNode?)
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/5dy6pt/
+fun pathTarget(root: TreeNode?, target: Int): List<List<Int>> {
+  val paths = mutableListOf<List<Int>>()
+  if (root != null) {
+    recPathTarget(mutableListOf(), listOf(root), target, paths)
+  }
+  return paths
+}
+
+fun recPathTarget(path: MutableList<Int>, choices: List<TreeNode>, target: Int, paths: MutableList<List<Int>>) {
+  for (choice in choices) {
+    path.add(choice.`val`)
+    if (choice.left == null && choice.right == null) {
+      if (path.sum() == target) {
+        paths.add(path.toList())
+      }
+    } else {
+      val next_choices = mutableListOf<TreeNode>()
+      if (choice.left != null) {
+        next_choices.add(choice.left)
+      }
+      if (choice.right != null) {
+        next_choices.add(choice.right)
+      }
+      recPathTarget(path, next_choices, target, paths)
+    }
+    path.removeLast()
+  }
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/5dfv5h/
+fun goodsOrder(goods: String): Array<String> {
+  val orders = mutableSetOf<String>()
+  goodsOrderWithIndex(goods.toByteArray(), 0, orders)
+  return orders.toTypedArray()
+}
+
+fun goodsOrderWithIndex(goods: ByteArray, index: Int, orders: MutableSet<String>) {
+  if (index >= goods.size) {
+    orders.add(String(goods))
+    return
+  }
+
+  val current = goods[index]
+  for (i in index..< goods.size) {
+    if (i != index && goods[i] == current) {
+      continue
+    }
+    if (i!= index) {
+      goods[index] = goods[i]
+      goods[i] = current
+    }
+    goodsOrderWithIndex(goods, index + 1, orders)
+    if (i!= index) {
+      goods[i] = goods[index]
+      goods[index] = current
+    }
+  }
+}
+
+fun testGoodsOrder() {
+  val goods = "kzfxxx"
+  val orders = goodsOrder(goods)
+  println(orders.size)
+  println(orders.joinToString())
+}
