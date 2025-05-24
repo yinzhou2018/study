@@ -313,7 +313,6 @@ fun testGoodsOrder() {
   println(orders.size)
   println(orders.joinToString())
 }
-data class TreeNode(val `val`: Int, var left: TreeNode? = null, var right: TreeNode? = null)
 
 // https://leetcode.cn/leetbook/read/illustration-of-algorithm/99lxci/
 fun deduceTree(preorder: IntArray, inorder: IntArray): TreeNode? {
