@@ -245,7 +245,7 @@ fun quickSort(ary: IntArray, left: Int, right: Int) {
   quickSort(ary, i + 1, right)
 }
 
-data class TreeNode(val `val`: Int, val left: TreeNode?, val right: TreeNode?)
+data class TreeNode(val `val`: Int, var left: TreeNode? = null, var right: TreeNode? = null)
 
 // https://leetcode.cn/leetbook/read/illustration-of-algorithm/5dy6pt/
 fun pathTarget(root: TreeNode?, target: Int): List<List<Int>> {
@@ -266,10 +266,10 @@ fun recPathTarget(path: MutableList<Int>, choices: List<TreeNode>, target: Int, 
     } else {
       val next_choices = mutableListOf<TreeNode>()
       if (choice.left != null) {
-        next_choices.add(choice.left)
+        next_choices.add(choice.left!!)
       }
       if (choice.right != null) {
-        next_choices.add(choice.right)
+        next_choices.add(choice.right!!)
       }
       recPathTarget(path, next_choices, target, paths)
     }
