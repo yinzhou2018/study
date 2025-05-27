@@ -1,5 +1,6 @@
 #include "screen_capture.h"
 #include "dxgi_capture.h"
+#include "wgc_capture.h"
 
 #include <errhandlingapi.h>
 #include <windef.h>
@@ -169,11 +170,6 @@ static void capture_win_with_gdi(HWND hwnd) {
     int width, height;
     GetWindowDimensions(hwnd, width, height);
     SaveToBMP(windowBuffer, width, height, hwnd ? "window_with_gdi.bmp" : "screen_with_gdi.bmp");
-    if (hwnd) {
-      std::cout << "Window captured and saved to window_with_gdi.bmp" << std::endl;
-    } else {
-      std::cout << "Screen captured and saved to screen.bmp" << std::endl;
-    }
   }
 }
 
@@ -183,19 +179,14 @@ static void capture_win_with_print_window(HWND hwnd) {
     int width, height;
     GetWindowDimensions(hwnd, width, height);
     SaveToBMP(windowBuffer, width, height, hwnd ? "window_with_print.bmp" : "screen_with_print.bmp");
-    if (hwnd) {
-      std::cout << "Window captured and saved to window_with_print.bmp" << std::endl;
-    } else {
-      std::cout << "Screen captured and saved to screen_with_print.bmp" << std::endl;
-    }
   }
 }
 
 static std::vector<uint8_t> CaptureWithDxgi(HWND hwnd, int* pWidth, int* pHeight) {
-  static DxgiScreenCapture dxgiCapture;
-  dxgiCapture.Initialize();
+  DxgiScreenCapture dxgiCapture;
+  dxgiCapture.Initialize(hwnd);
   PerformanceCounter counter(hwnd ? "CaptureWithDxgi-Window" : "CaptureWithDxgi-Screen");
-  return dxgiCapture.Capture(hwnd, pWidth, pHeight);
+  return dxgiCapture.Capture(pWidth, pHeight);
 }
 
 static void capture_win_with_dxgi(HWND hwnd) {
@@ -207,19 +198,31 @@ static void capture_win_with_dxgi(HWND hwnd) {
   auto buffer = CaptureWithDxgi(hwnd, &width, &height);
   if (!buffer.empty()) {
     SaveToBMP(buffer, width, height, hwnd ? "window_with_dxgi.bmp" : "screen_with_dxgi.bmp");
-    if (hwnd) {
-      std::cout << "Window captured and saved to window_with_dxgi.bmp" << std::endl;
-    } else {
-      std::cout << "Screen captured and saved to screen_with_dxgi.bmp" << std::endl;
-    }
+  }
+}
+
+static std::vector<uint8_t> CaptureWithWGC(HWND hwnd, int* pWidth, int* pHeight) {
+  WGCCapture capture;
+  capture.Initialize(hwnd);
+  PerformanceCounter counter(hwnd ? "CaptureWithWGC-Window" : "CaptureWithWGC-Screen");
+  return capture.Capture(pWidth, pHeight);
+}
+
+static void capture_win_with_wgc(HWND hwnd) {
+  int width, height;
+  auto buffer = CaptureWithWGC(hwnd, &width, &height);
+  if (!buffer.empty()) {
+    SaveToBMP(buffer, width, height, hwnd ? "window_with_wgc.bmp" : "screen_with_wgc.bmp");
   }
 }
 
 void win_screen_capture_test() {
+  RoInitialize(RO_INIT_MULTITHREADED);  // Initialize WinRT
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
   capture_win_with_gdi(nullptr);
   capture_win_with_dxgi(nullptr);
+  // capture_win_with_wgc(nullptr);
 
   // PrintWindow只能捕获普通窗口，不能捕获桌面
   // capture_win_with_print_window(nullptr);
@@ -231,4 +234,7 @@ void win_screen_capture_test() {
   capture_win_with_gdi(activeWindow);
   capture_win_with_print_window(activeWindow);
   capture_win_with_dxgi(activeWindow);
+  capture_win_with_wgc(activeWindow);
+
+  RoUninitialize();
 }

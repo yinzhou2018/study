@@ -34,7 +34,7 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(playground pthread)
 elseif(WIN32)
-  target_link_libraries(playground d3d11 dxgi dxguid)
+  target_link_libraries(playground d3d11 dxgi dxguid windowsapp)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

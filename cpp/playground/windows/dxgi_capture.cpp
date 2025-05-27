@@ -1,5 +1,6 @@
 #include "dxgi_capture.h"
 
+#include <chrono>
 #include <iostream>
 
 bool DxgiScreenCapture::IsSupported() {
@@ -36,10 +37,38 @@ bool DxgiScreenCapture::IsSupported() {
   return SUCCEEDED(hr);
 }
 
-bool DxgiScreenCapture::Initialize() {
+bool DxgiScreenCapture::Initialize(HWND hwnd) {
   if (!InitD3D11Device()) {
     return false;
   }
+  if (!InitDuplication(hwnd, &duplication_)) {
+    return false;
+  }
+
+  if (hwnd) {
+    HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO monitorInfo = {sizeof(MONITORINFO)};
+    GetMonitorInfo(monitor, &monitorInfo);
+    int monitorLeft = monitorInfo.rcMonitor.left;
+    int monitorTop = monitorInfo.rcMonitor.top;
+    RECT rect;
+    GetWindowRect(hwnd, &rect);
+    auto x = rect.left - monitorLeft;
+    auto y = rect.top - monitorTop;
+    auto width = rect.right - rect.left;
+    auto height = rect.bottom - rect.top;
+    if (x < 0) {
+      width += x;
+      x = 0;
+    }
+    if (y < 0) {
+      height += y;
+      y = 0;
+    }
+    copyRect_ = {x, y, x + width, y + height};
+  }
+
+  hwnd_ = hwnd;
   initialized_ = true;
   return true;
 }
@@ -79,28 +108,7 @@ bool DxgiScreenCapture::InitD3D11Device() {
     }
 
     std::cerr << "Created D3D11 device using WARP\n";
-  } else {
-    std::cerr << "Created D3D11 device using hardware acceleration\n";
   }
-
-  std::cerr << "Feature level: ";
-  switch (featureLevel) {
-    case D3D_FEATURE_LEVEL_11_1:
-      std::cerr << "11.1";
-      break;
-    case D3D_FEATURE_LEVEL_11_0:
-      std::cerr << "11.0";
-      break;
-    case D3D_FEATURE_LEVEL_10_1:
-      std::cerr << "10.1";
-      break;
-    case D3D_FEATURE_LEVEL_10_0:
-      std::cerr << "10.0";
-      break;
-    default:
-      std::cerr << "Unknown";
-  }
-  std::cerr << "\n";
 
   return true;
 }
@@ -130,7 +138,6 @@ bool DxgiScreenCapture::InitDuplication(HWND hwnd, IDXGIOutputDuplication** dupl
       DXGI_OUTPUT_DESC outputDesc;
       if (SUCCEEDED(dxgiOutput->GetDesc(&outputDesc))) {
         if (outputDesc.Monitor == monitor) {
-          std::cout << "Found DXGI output for monitor, index: " << displayIndex << "\n";
           break;
         }
       }
@@ -171,31 +178,19 @@ bool DxgiScreenCapture::InitDuplication(HWND hwnd, IDXGIOutputDuplication** dupl
   return true;
 }
 
-std::vector<uint8_t> DxgiScreenCapture::Capture(HWND hwnd, int* pWidth, int* pHeight, UINT timeoutms) {
-  if (!initialized_) {
-    if (!Initialize()) {
-      std::cout << "Failed to initialize DXGI capture\n";
-      return {};
-    }
-  }
-
-  Microsoft::WRL::ComPtr<IDXGIOutputDuplication> dxgiOutputDuplication;
-  if (!InitDuplication(hwnd, &dxgiOutputDuplication)) {
-    std::cout << "Failed to init duplication\n";
-    return {};
-  }
-
+std::vector<uint8_t> DxgiScreenCapture::Capture(int* pWidth, int* pHeight, UINT timeoutms) {
   DXGI_OUTDUPL_FRAME_INFO frameInfo;
   ZeroMemory(&frameInfo, sizeof(frameInfo));
   Microsoft::WRL::ComPtr<IDXGIResource> desktopResource;
 
+  auto now = std::chrono::steady_clock::now();
 START:
-  HRESULT hr = dxgiOutputDuplication->AcquireNextFrame(timeoutms, &frameInfo, &desktopResource);
+  HRESULT hr = duplication_->AcquireNextFrame(timeoutms, &frameInfo, &desktopResource);
 
   if (hr == DXGI_ERROR_ACCESS_LOST) {
     std::cout << "Access lost, reinitializing...\n";
-    dxgiOutputDuplication.Reset();
-    if (!InitDuplication(hwnd, &dxgiOutputDuplication)) {
+    duplication_.Reset();
+    if (!InitDuplication(hwnd_, &duplication_)) {
       std::cout << "Failed to reinitialize duplication\n";
       return {};
     }
@@ -214,10 +209,13 @@ START:
 
   // 很重要：屏幕数据并未变化，这种情况destkopResource为空，需要重新获取，但理论上有死循环的风险
   if (frameInfo.AccumulatedFrames == 0 || frameInfo.LastPresentTime.QuadPart == 0) {
-    dxgiOutputDuplication->ReleaseFrame();
+    duplication_->ReleaseFrame();
     desktopResource = nullptr;
     goto START;
   }
+  std::cout << "DXGI Ready time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - now).count()
+            << "ms\n";
 
   // 获取桌面纹理
   Microsoft::WRL::ComPtr<ID3D11Texture2D> desktopTexture;
@@ -235,28 +233,11 @@ START:
   auto height = desktopDesc.Height;
   auto x = 0;
   auto y = 0;
-  if (hwnd) {
-    HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO monitorInfo = {sizeof(MONITORINFO)};
-    GetMonitorInfo(monitor, &monitorInfo);
-    int monitorLeft = monitorInfo.rcMonitor.left;
-    int monitorTop = monitorInfo.rcMonitor.top;
-    RECT rect;
-    GetWindowRect(hwnd, &rect);
-    x = rect.left - monitorLeft;
-    y = rect.top - monitorTop;
-    width = rect.right - rect.left;
-    height = rect.bottom - rect.top;
-    if (x < 0) {
-      width += x;
-      x = 0;
-    }
-    if (y < 0) {
-      height += y;
-      y = 0;
-    }
-    std::cout << "Monitor position: " << monitorLeft << ", " << monitorTop << std::endl;
-    std::cout << "Window rect: " << x << ", " << y << ", " << width << ", " << height << "\n";
+  if (!IsRectEmpty(&copyRect_)) {
+    x = copyRect_.left;
+    y = copyRect_.top;
+    width = copyRect_.right - copyRect_.left;
+    height = copyRect_.bottom - copyRect_.top;
   }
 
   // 创建暂存纹理，确保格式匹配

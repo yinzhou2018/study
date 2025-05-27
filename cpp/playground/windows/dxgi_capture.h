@@ -8,9 +8,9 @@
 
 class DxgiScreenCapture {
  public:
-  bool Initialize();
+  bool Initialize(HWND hwnd);
 
-  std::vector<uint8_t> Capture(HWND hwnd, int* pWidth, int* pHeight, UINT timeoutms = INFINITE);
+  std::vector<uint8_t> Capture(int* pWidth, int* pHeight, UINT timeoutms = INFINITE);
 
   // 检查系统是否支持DXGI 1.2
   static bool IsSupported();
@@ -22,5 +22,8 @@ class DxgiScreenCapture {
  private:
   Microsoft::WRL::ComPtr<ID3D11Device> device_;
   Microsoft::WRL::ComPtr<ID3D11DeviceContext> context_;
+  Microsoft::WRL::ComPtr<IDXGIOutputDuplication> duplication_;
+  RECT copyRect_{0, 0, 0, 0};
+  HWND hwnd_{nullptr};
   bool initialized_{false};
 };
