@@ -7,6 +7,7 @@
 #include <windows.devices.display.h>
 #include <windows.foundation.h>
 #include <windows.graphics.capture.h>
+#include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directx.direct3d11.interop.h>
 
 #include <wrl/event.h>
@@ -26,7 +27,8 @@ using namespace ABI::Windows::Devices::Display;
 using namespace Windows::Graphics::DirectX::Direct3D11;
 using namespace Windows::Foundation;
 
-class WGCCapture {
+// Use Windows Runtime Library (WRL)
+class WGCCaptureWithWRL {
  public:
   bool Initialize(HWND hwnd);
   std::vector<uint8_t> Capture(int* pWidth, int* pHeight, UINT timeoutms = INFINITE);

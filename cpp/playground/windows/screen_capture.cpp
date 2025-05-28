@@ -1,6 +1,7 @@
 #include "screen_capture.h"
 #include "dxgi_capture.h"
-#include "wgc_capture.h"
+#include "wgc_capture_with_cppwinrt.h"
+#include "wgc_capture_with_wrl.h"
 
 #include <errhandlingapi.h>
 #include <windef.h>
@@ -202,7 +203,11 @@ static void capture_win_with_dxgi(HWND hwnd) {
 }
 
 static std::vector<uint8_t> CaptureWithWGC(HWND hwnd, int* pWidth, int* pHeight) {
-  WGCCapture capture;
+#ifdef USE_CPP_WINRT
+  WGCCaptureWithCppWinRT capture;
+#else
+  WGCCaptureWithWRL capture;
+#endif  // USE_CPP_WINRT
   capture.Initialize(hwnd);
   PerformanceCounter counter(hwnd ? "CaptureWithWGC-Window" : "CaptureWithWGC-Screen");
   return capture.Capture(pWidth, pHeight);
@@ -222,7 +227,7 @@ void win_screen_capture_test() {
 
   capture_win_with_gdi(nullptr);
   capture_win_with_dxgi(nullptr);
-  // capture_win_with_wgc(nullptr);
+  capture_win_with_wgc(nullptr);
 
   // PrintWindow只能捕获普通窗口，不能捕获桌面
   // capture_win_with_print_window(nullptr);

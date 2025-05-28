@@ -1,24 +1,54 @@
-#include "wgc_capture.h"
+#include "wgc_capture_with_wrl.h"
 
-ComPtr<IGraphicsCaptureItem> CreateCaptureItemForWindow(HWND hwnd) {
-  ComPtr<IGraphicsCaptureItemStatics2> itemStatics;
+static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+  HMONITOR* pPrimaryMonitor = reinterpret_cast<HMONITOR*>(dwData);
+  MONITORINFO monitorInfo;
+  monitorInfo.cbSize = sizeof(MONITORINFO);
+  GetMonitorInfo(hMonitor, &monitorInfo);
+
+  if (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) {
+    *pPrimaryMonitor = hMonitor;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static HMONITOR GetPrimaryMonitor() {
+  HMONITOR primaryMonitor = nullptr;
+  EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, reinterpret_cast<LPARAM>(&primaryMonitor));
+  return primaryMonitor;
+}
+
+static ComPtr<IGraphicsCaptureItem> CreateCaptureItemForWindow(HWND hwnd) {
+  ComPtr<IGraphicsCaptureItemInterop> itemInterop;
   HRESULT hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Graphics_Capture_GraphicsCaptureItem).Get(),
-                                      IID_PPV_ARGS(&itemStatics));
+                                      IID_PPV_ARGS(&itemInterop));
+  ;
   if (FAILED(hr)) {
-    std::cout << "Failed to get IGraphicsCaptureItemStatics\n";
+    std::cout << "Failed to get IGraphicsCaptureItemInterop\n";
     return nullptr;
   }
-  ABI::Windows::UI::WindowId windowId{(UINT64)hwnd};
+
   ComPtr<IGraphicsCaptureItem> item;
-  hr = itemStatics->TryCreateFromWindowId(windowId, &item);
-  if (FAILED(hr)) {
-    std::cout << "Failed to create IGraphicsCaptureItem from window\n";
-    return nullptr;
+  if (hwnd) {
+    hr = itemInterop->CreateForWindow(hwnd, IID_PPV_ARGS(&item));
+    if (FAILED(hr)) {
+      std::cout << "Failed to create IGraphicsCaptureItem from window\n";
+      return nullptr;
+    }
+  } else {
+    HMONITOR primaryMonitor = GetPrimaryMonitor();
+    hr = itemInterop->CreateForMonitor(primaryMonitor, IID_PPV_ARGS(&item));
+    if (FAILED(hr)) {
+      std::cout << "Failed to create IGraphicsCaptureItem from primary monitor\n";
+      return nullptr;
+    }
   }
+
   return item;
 }
 
-bool WGCCapture::Initialize(HWND hwnd) {
+bool WGCCaptureWithWRL::Initialize(HWND hwnd) {
   if (initialized_) {
     return true;
   }
@@ -37,7 +67,6 @@ bool WGCCapture::Initialize(HWND hwnd) {
   ComPtr<IDXGIDevice> dxgiDevice;
   device_.As(&dxgiDevice);
   ComPtr<IInspectable> inspectableDevice;
-  ComPtr<IDirect3DDxgiInterfaceAccess> dxgiInterfaceAccess;
   hr = CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.Get(), &inspectableDevice);
   if (FAILED(hr)) {
     std::cout << "Failed to create IDirect3DDevice: " << hr << "\n";
@@ -152,7 +181,7 @@ std::vector<uint8_t> GetPixels(ID3D11Device* device,
   return pixels;
 }
 
-std::vector<uint8_t> WGCCapture::Capture(int* pWidth, int* pHeight, UINT timeoutms) {
+std::vector<uint8_t> WGCCaptureWithWRL::Capture(int* pWidth, int* pHeight, UINT timeoutms) {
   auto now = std::chrono::steady_clock::now();
   do {
     ComPtr<IDirect3D11CaptureFrame> frame;
