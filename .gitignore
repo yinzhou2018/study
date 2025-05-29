@@ -4,3 +4,4 @@
 /java/**/build
 /rust/**/target
 .DS_Store
+build
