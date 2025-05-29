@@ -38,7 +38,7 @@ elseif(WIN32)
     add_compile_definitions(WINRT_LEAN_AND_MEAN)
   endif()
   # add_compile_definitions(USE_CPP_WINRT)
-  target_link_libraries(playground d3d11 dxgi dxguid windowsapp)
+  target_link_libraries(playground d3d11 dxgi dxguid windowsapp Shcore)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
