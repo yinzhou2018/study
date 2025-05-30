@@ -7,17 +7,19 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
+import playground.utils.*
 
 fun main() {
-  println("start")
-  // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
-  runBlocking {
-    withContext(Dispatchers.Default) { task1() }
-    launch { task2() }
-    println("called taskl and task2 from ${Thread.currentThread()}")
-  }
+  testInventoryManagementV2()
+  // println("start")
+  // // Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { context ->
+  // runBlocking {
+  //   withContext(Dispatchers.Default) { task1() }
+  //   launch { task2() }
+  //   println("called taskl and task2 from ${Thread.currentThread()}")
   // }
-  println("done")
+  // // }
+  // println("done")
 }
  
 suspend fun task1() {

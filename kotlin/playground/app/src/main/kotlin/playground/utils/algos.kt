@@ -1,5 +1,7 @@
 package playground.utils
 
+import java.util.*
+
 // 找到第一个只出现一次的字符
 // 输入："abaccdeff"
 // 输出：'b'
@@ -291,16 +293,16 @@ fun goodsOrderWithIndex(goods: ByteArray, index: Int, orders: MutableSet<String>
   }
 
   val current = goods[index]
-  for (i in index..< goods.size) {
+  for (i in index ..< goods.size) {
     if (i != index && goods[i] == current) {
       continue
     }
-    if (i!= index) {
+    if (i != index) {
       goods[index] = goods[i]
       goods[i] = current
     }
     goodsOrderWithIndex(goods, index + 1, orders)
-    if (i!= index) {
+    if (i != index) {
       goods[i] = goods[index]
       goods[index] = current
     }
@@ -355,11 +357,106 @@ fun verifyTreeOrder(postorder: IntArray): Boolean {
 
 fun recVerifyTreeOrder(postorder: IntArray, start: Int, end: Int): Boolean {
   val firstGreaterIndex = postorder.indexOfFirst { it >= postorder[end] }
-  for (i in firstGreaterIndex..< end) {
+  for (i in firstGreaterIndex ..< end) {
     if (postorder[i] < postorder[end]) {
       return false
-    } 
+    }
   }
   return (firstGreaterIndex == start || recVerifyTreeOrder(postorder, start, firstGreaterIndex - 1)) &&
       (firstGreaterIndex == end || recVerifyTreeOrder(postorder, firstGreaterIndex, end - 1))
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/594wfg/
+fun countNumbers(cnt: Int): IntArray {
+  val maxValue = parseMaxValue(cnt)
+  val li = mutableListOf<Int>()
+  for (i in 1..maxValue) {
+    li.add(i)
+  }
+  return li.toIntArray()
+}
+
+fun parseMaxValue(cnt: Int): Int {
+  if (cnt <= 0) {
+    return 0
+  }
+
+  var value = 9
+  for (i in 1 ..< cnt) {
+    value = value * 10 + 9
+  }
+  return value
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/lheu7m/
+fun inventoryManagement(stock: IntArray, cnt: Int): IntArray {
+  if (stock.isEmpty() || cnt <= 0) {
+    return intArrayOf()
+  }
+
+  val pq = PriorityQueue<Int>(compareByDescending { it })
+  stock.forEach {
+    if (pq.size < cnt) {
+      pq.add(it)
+    } else {
+      if (pq.peek() > it) {
+        pq.poll()
+        pq.add(it)
+      }
+    }
+  }
+  return pq.toIntArray()
+}
+
+// https://leetcode.cn/leetbook/read/illustration-of-algorithm/lheu7m/
+fun inventoryManagementV2(stock: IntArray, cnt: Int): IntArray {
+  if (stock.isEmpty() || cnt <= 0) {
+    return intArrayOf()
+  }
+
+  return revInventoryManagement(stock, cnt, 0, stock.size - 1)
+}
+
+fun revInventoryManagement(stock: IntArray, cnt: Int, left: Int, right: Int): IntArray {
+  if (left == right) {
+    return intArrayOf(stock[left])
+  }
+
+  val key = stock[right]
+  var i = left
+  var j = right - 1
+  while (i <= j) {
+    while (i <= j && stock[i] < key) {
+      i++
+    }
+    while (i <= j && stock[j] >= key) {
+      j--
+    }
+
+    if (i < j) {
+      val temp = stock[i]
+      stock[i] = stock[j]
+      stock[j] = temp
+    }
+  }
+  stock[right] = stock[i]
+  stock[i] = key
+
+  val leftCount = i - left + 1
+  if (leftCount == cnt) {
+    return stock.sliceArray(left ..< left + cnt)
+  } else if (leftCount > cnt) {
+    return revInventoryManagement(stock, cnt, left, i - 1)
+  } else {
+    val leftArray = stock.sliceArray(left..i)
+    val rightArray = revInventoryManagement(stock, cnt - leftCount, i + 1, right)
+    return leftArray + rightArray
+  }
+}
+
+fun testInventoryManagementV2() {
+  val stock = intArrayOf(0, 1, 1, 2, 4, 4, 1, 3, 3, 2)
+  val cnt = 6
+  val result = inventoryManagementV2(stock, cnt)
+  println(result.joinToString())
 }
