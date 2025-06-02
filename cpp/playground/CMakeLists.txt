@@ -46,6 +46,7 @@ elseif(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11")
   target_link_libraries(playground "-framework ApplicationServices -framework CoreMedia -framework CoreVideo -framework Foundation")
   target_link_options(playground PRIVATE "-weak_framework" "ScreenCaptureKit")
+  target_compile_options(playground PRIVATE -Werror=objc-method-access)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
