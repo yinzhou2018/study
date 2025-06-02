@@ -1,3 +1,3 @@
 #pragma once
 
-void win_screen_capture_test();
+void screen_capture_test();

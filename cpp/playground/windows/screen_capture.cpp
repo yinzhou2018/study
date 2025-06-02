@@ -37,7 +37,8 @@ static void GetWindowDimensions(HWND hwnd, int& width, int& height) {
     height = rect.bottom - rect.top;
     auto dpiForWin = GetDpiForWindow(hwnd);
     UINT dpiForSystemX, dpiForSystemY;
-    GetDpiForMonitor(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), MDT_EFFECTIVE_DPI, &dpiForSystemX, &dpiForSystemY);
+    GetDpiForMonitor(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), MDT_EFFECTIVE_DPI, &dpiForSystemX,
+                     &dpiForSystemY);
     width = width * dpiForWin / dpiForSystemX;
     height = height * dpiForWin / dpiForSystemY;
     std::cout << "window dpi: " << dpiForWin << std::endl;
@@ -228,7 +229,7 @@ static void capture_win_with_wgc(HWND hwnd) {
   }
 }
 
-void win_screen_capture_test() {
+void screen_capture_test() {
   // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
   RoInitialize(RO_INIT_MULTITHREADED);  // Initialize WinRT
