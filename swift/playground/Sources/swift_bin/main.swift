@@ -24,3 +24,7 @@ let d4 = withUnsafeMutablePointer(to: &d1) { p1 in
   }
 }
 print("Result of lib_add_v3: \(d4.a), \(d4.b)")
+
+print("Result is: \(Algos.fib(4))")
+let hr = Algos.maxSales([-2, 1, -3, 4, -1, 2, 1, -5, 4])
+print("Result of maxSales: \(hr)")
