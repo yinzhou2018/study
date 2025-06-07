@@ -1,3 +1,5 @@
 #pragma once
+#include <CoreGraphics/CGImage.h>
+#include <CoreGraphics/CGWindow.h>
 
-void capture_with_sck();
+CGImageRef capture_with_sck(CGWindowID window_id);

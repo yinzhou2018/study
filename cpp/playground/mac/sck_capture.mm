@@ -1,4 +1,8 @@
 #import "sck_capture.h"
+#include <CoreGraphics/CGImage.h>
+#include <CoreGraphics/CGWindow.h>
+#include <Foundation/NSObjCRuntime.h>
+#include <objc/NSObjCRuntime.h>
 
 #import <Foundation/Foundation.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
@@ -6,113 +10,105 @@
 #include <iostream>
 
 @interface CaptureDelegate : NSObject <SCStreamOutput>
-@property(nonatomic, copy) void (^frameHandler)(CGImageRef);
+- (instancetype)initWithSemaphore:(dispatch_semaphore_t)semaphore;
+@property(nonatomic, weak) dispatch_semaphore_t semaphore;
+@property(nonatomic, assign) CGImageRef image;
 @end
 
 @implementation CaptureDelegate
+- (instancetype)initWithSemaphore:(dispatch_semaphore_t)semaphore {
+  self = [super init];
+  if (self) {
+    _semaphore = semaphore;
+    _image = nullptr;
+  }
+  return self;
+}
 
 - (void)stream:(SCStream*)stream didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer ofType:(SCStreamOutputType)type {
-  if (type == SCStreamOutputTypeScreen) {
+  if (type == SCStreamOutputTypeScreen && !_image) {
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-    CVPixelBufferLockBaseAddress(imageBuffer, 0);
-
+    auto hr = CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+    auto baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+    auto width = CVPixelBufferGetWidth(imageBuffer);
+    auto height = CVPixelBufferGetHeight(imageBuffer);
+    auto bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context =
-        CGBitmapContextCreate(CVPixelBufferGetBaseAddress(imageBuffer), CVPixelBufferGetWidth(imageBuffer),
-                              CVPixelBufferGetHeight(imageBuffer), 8, CVPixelBufferGetBytesPerRow(imageBuffer),
-                              colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
-
-    CGImageRef cgImage = CGBitmapContextCreateImage(context);
-    if (self.frameHandler) {
-      self.frameHandler(cgImage);
-    }
-
-    CGImageRelease(cgImage);
+    CGContextRef context = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace,
+                                                 kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+    _image = CGBitmapContextCreateImage(context);
+    NSLog(@"Capture completed, stream: %@", stream);
+    [stream stopCaptureWithCompletionHandler:^(NSError* error) {
+      NSLog(@"Capture stopped!");
+      if (error) {
+        NSLog(@"Error stopping capture: %@", error);
+      }
+      dispatch_semaphore_signal(_semaphore);
+    }];
     CGContextRelease(context);
     CGColorSpaceRelease(colorSpace);
-    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
   }
 }
 
 @end
 
-void captureDisplay(bool includeWindows) {
+CGImageRef capture(CGWindowID window_id) {
   @autoreleasepool {
     dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+    CaptureDelegate* delegate = [[CaptureDelegate alloc] initWithSemaphore:semaphore];
+    __block SCStream* strongStream = nil;  // 保障SCStream对象生存期
 
-    [SCShareableContent getShareableContentWithCompletionHandler:^(SCShareableContent* content, NSError* error) {
+    auto completeHandler = ^(SCShareableContent* content, NSError* error) {
       if (error) {
         NSLog(@"Error getting shareable content: %@", error);
+        dispatch_semaphore_signal(semaphore);
         return;
       }
 
       SCContentFilter* filter;
-      if (includeWindows) {
-        filter = [[SCContentFilter alloc] initWithDisplay:content.displays.firstObject excludingWindows:@[]];
-      } else {
-        filter = [[SCContentFilter alloc] initWithDisplay:content.displays.firstObject
-                                         excludingWindows:content.windows];
-      }
-
-      // 创建流配置
       SCStreamConfiguration* config = [[SCStreamConfiguration alloc] init];
-      config.width = 1920;
-      config.height = 1080;
-      config.minimumFrameInterval = CMTimeMake(1, 30);
-      config.queueDepth = 5;
-
-      // 创建捕获流
-      NSError* streamError = nil;
-      SCStream* stream = [[SCStream alloc] initWithFilter:filter configuration:config delegate:nil];
-
-      if (streamError) {
-        NSLog(@"Error creating stream: %@", streamError);
-        return;
+      if (window_id == 0) {
+        filter = [[SCContentFilter alloc] initWithDisplay:content.displays.firstObject excludingWindows:@[]];
+        config.width = content.displays.firstObject.frame.size.width;
+        config.height = content.displays.firstObject.frame.size.height;
+      } else {
+        auto idx = [content.windows indexOfObjectPassingTest:^BOOL(SCWindow* obj, NSUInteger idx, BOOL* stop) {
+          return obj.windowID == window_id;
+        }];
+        SCWindow* window = content.windows[idx];
+        filter = [[SCContentFilter alloc] initWithDesktopIndependentWindow:window];
+        config.width = window.frame.size.width;
+        config.height = window.frame.size.height;
       }
 
-      // 创建代理处理捕获的帧
-      CaptureDelegate* delegate = [[CaptureDelegate alloc] init];
-      delegate.frameHandler = ^(CGImageRef image) {
-        // 在这里处理捕获的帧
-        NSString* path = @"screen_with_sck.png";
-        NSURL* url = [NSURL fileURLWithPath:path];
-        CGImageDestinationRef destination =
-            CGImageDestinationCreateWithURL((__bridge CFURLRef)url, kUTTypePNG, 1, NULL);
-        CGImageDestinationAddImage(destination, image, nil);
-        CGImageDestinationFinalize(destination);
-        CFRelease(destination);
+      config.minimumFrameInterval = CMTimeMake(1, 60);
+      config.pixelFormat = kCVPixelFormatType_32BGRA;  // 正确的格式设置非常重要
 
-        // 停止捕获
-        [stream stopCaptureWithCompletionHandler:^(NSError* error) {
-          if (error) {
-            NSLog(@"Error stopping capture: %@", error);
-          }
-          dispatch_semaphore_signal(semaphore);
-        }];
-      };
+      strongStream = [[SCStream alloc] initWithFilter:filter configuration:config delegate:nil];
 
-      // 添加流输出
-      [stream addStreamOutput:delegate
-                         type:SCStreamOutputTypeScreen
-           sampleHandlerQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
-                        error:nil];
-
-      // 开始捕获
-      [stream startCaptureWithCompletionHandler:^(NSError* error) {
+      [strongStream addStreamOutput:delegate
+                               type:SCStreamOutputTypeScreen
+                 sampleHandlerQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
+                              error:nil];
+      [strongStream startCaptureWithCompletionHandler:^(NSError* error) {
         if (error) {
           NSLog(@"Error starting capture: %@", error);
           dispatch_semaphore_signal(semaphore);
         }
       }];
-    }];
+    };
 
-    // 等待捕获完成
+    [SCShareableContent getShareableContentWithCompletionHandler:completeHandler];
+
     dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+    return delegate.image;
   }
 }
 
-void capture_with_sck() {
+CGImageRef capture_with_sck(CGWindowID window_id) {
   if (@available(macOS 12.3, *)) {
-    captureDisplay(true);
+    return capture(window_id);
   }
+  return nullptr;
 }
