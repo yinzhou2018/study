@@ -39,4 +39,18 @@ CGWindowID getActiveWindowID() {
   return windowID;
 }
 
+void saveImageToFile(CGImageRef imageRef, const char* filePath) {
+  CFURLRef url =
+      CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8*)filePath, strlen(filePath), false);
+  CFStringRef utType = CFSTR("public.png");
+  CGImageDestinationRef destination = CGImageDestinationCreateWithURL(url, utType, 1, nullptr);
+  if (destination) {
+    CGImageDestinationAddImage(destination, imageRef, nullptr);
+    CGImageDestinationFinalize(destination);
+    CFRelease(destination);
+  }
+
+  CFRelease(url);
+}
+
 }  // namespace utils

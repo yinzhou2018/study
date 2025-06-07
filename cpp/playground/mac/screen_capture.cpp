@@ -19,20 +19,6 @@ struct PerformanceCounter {
   const char* name_;
 };  // PerformanceCounter
 
-void saveImageToFile(CGImageRef imageRef, const char* filePath) {
-  CFURLRef url =
-      CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8*)filePath, strlen(filePath), false);
-  CFStringRef utType = CFSTR("public.png");
-  CGImageDestinationRef destination = CGImageDestinationCreateWithURL(url, utType, 1, nullptr);
-  if (destination) {
-    CGImageDestinationAddImage(destination, imageRef, nullptr);
-    CGImageDestinationFinalize(destination);
-    CFRelease(destination);
-  }
-
-  CFRelease(url);
-}
-
 auto captureScreen() {
   CGDirectDisplayID displayID = CGMainDisplayID();
   CGRect screenRect = CGDisplayBounds(displayID);
@@ -55,25 +41,25 @@ void screen_capture_test() {
 
   auto windowImageWithSck = captureWithSCK(activeWindowID);
   if (windowImageWithSck) {
-    saveImageToFile(windowImageWithSck, "window_with_sck.png");
+    utils::saveImageToFile(windowImageWithSck, "window_with_sck.png");
     CFRelease(windowImageWithSck);
   }
 
   auto windowImage = captureWindow(activeWindowID);
   if (windowImage) {
-    saveImageToFile(windowImage, "window.png");
+    utils::saveImageToFile(windowImage, "window.png");
     CFRelease(windowImage);
   }
 
   auto screenImageWithSck = captureWithSCK(0);
   if (screenImageWithSck) {
-    saveImageToFile(screenImageWithSck, "screen_with_sck.png");
+    utils::saveImageToFile(screenImageWithSck, "screen_with_sck.png");
     CFRelease(screenImageWithSck);
   }
 
   auto screenImage = captureScreen();
   if (screenImage) {
-    saveImageToFile(screenImage, "screen.png");
+    utils::saveImageToFile(screenImage, "screen.png");
     CFRelease(screenImage);
   }
 }
