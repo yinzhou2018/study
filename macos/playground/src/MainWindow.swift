@@ -63,19 +63,34 @@ class LayerBackedView: NSView {
 }
 
 class NonLayerBackedView: NSView {
+  var dplink: CADisplayLink?
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    // 监听frame变化
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(frameDidChange(_:)),
       name: NSView.frameDidChangeNotification,
       object: self)
+    createDisplayLink()
   }
 
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
+  }
+
+  func createDisplayLink() {
+    dplink = displayLink(
+      target: self,
+      selector: #selector(step))
+
+    dplink?.add(
+      to: .current,
+      forMode: .default)
+  }
+
+  @objc func step(dplink: CADisplayLink) {
+    updateSubviews()
   }
 
   deinit {
@@ -83,10 +98,15 @@ class NonLayerBackedView: NSView {
       self,
       name: NSView.frameDidChangeNotification,
       object: self)
+    dplink?.invalidate()
   }
 
   @objc func frameDidChange(_ notification: Notification) {
     print("NonLayerBackedView::frameDidChange...")
+    updateSubviews()
+  }
+
+  private func updateSubviews() {
     for subview in subviews {
       if let layerHostedView = subview as? LayerHostedView {
         layerHostedView.layer?.setNeedsDisplay()
