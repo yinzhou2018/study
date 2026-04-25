@@ -3,6 +3,9 @@
 #include <iostream>
 #include <stdexcept>
 
+// 类型别名
+using ListPtr = std::shared_ptr<List>;
+
 // 创建全局环境
 std::shared_ptr<Env> createGlobalEnv() {
   auto env = std::make_shared<Env>();
@@ -56,39 +59,24 @@ std::shared_ptr<Env> createGlobalEnv() {
                 return std::make_shared<Number>(a / b);
               }));
 
-  // 比较运算
-  env->define("<", std::make_shared<BuiltinFunc>("<", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
-                if (args.size() != 2)
-                  throw std::runtime_error("< needs exactly two arguments");
-                if (!args[0]->isNumber() || !args[1]->isNumber())
-                  throw std::runtime_error("< expects numbers");
-                return std::dynamic_pointer_cast<Number>(args[0])->get() <
-                               std::dynamic_pointer_cast<Number>(args[1])->get()
-                           ? std::make_shared<Symbol>("t")
-                           : nil();
-              }));
+  // 创建比较运算符工厂函数
+auto makeComparisonOp = [](const std::string& name, auto comparator) {
+  return std::make_shared<BuiltinFunc>(name, [name, comparator](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
+    if (args.size() != 2)
+      throw std::runtime_error(name + " needs exactly two arguments");
+    if (!args[0]->isNumber() || !args[1]->isNumber())
+      throw std::runtime_error(name + " expects numbers");
+    return comparator(std::dynamic_pointer_cast<Number>(args[0])->get(),
+                     std::dynamic_pointer_cast<Number>(args[1])->get())
+        ? std::make_shared<Symbol>("t")
+        : nil();
+  });
+};
 
-  env->define(">", std::make_shared<BuiltinFunc>(">", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
-                if (args.size() != 2)
-                  throw std::runtime_error("> needs exactly two arguments");
-                if (!args[0]->isNumber() || !args[1]->isNumber())
-                  throw std::runtime_error("> expects numbers");
-                return std::dynamic_pointer_cast<Number>(args[0])->get() >
-                               std::dynamic_pointer_cast<Number>(args[1])->get()
-                           ? std::make_shared<Symbol>("t")
-                           : nil();
-              }));
-
-  env->define("=", std::make_shared<BuiltinFunc>("=", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
-                if (args.size() != 2)
-                  throw std::runtime_error("= needs exactly two arguments");
-                if (!args[0]->isNumber() || !args[1]->isNumber())
-                  throw std::runtime_error("= expects numbers");
-                return std::dynamic_pointer_cast<Number>(args[0])->get() ==
-                               std::dynamic_pointer_cast<Number>(args[1])->get()
-                           ? std::make_shared<Symbol>("t")
-                           : nil();
-              }));
+// 比较运算
+env->define("<", makeComparisonOp("<", std::less<>()));
+env->define(">", makeComparisonOp(">", std::greater<>()));
+env->define("=", makeComparisonOp("=", std::equal_to<>()));
 
   // 数学函数
   env->define("abs", std::make_shared<BuiltinFunc>("abs", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
@@ -105,16 +93,23 @@ std::shared_ptr<Env> createGlobalEnv() {
               std::make_shared<BuiltinFunc>("cons", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
                 if (args.size() != 2)
                   throw std::runtime_error("cons needs exactly two arguments");
+
+                // 第一个参数总是添加到结果中
                 std::vector<ValuePtr> result;
                 result.push_back(args[0]);
-                if (args[1]->isList() && !args[1]->isNil()) {
-                  auto lst = std::dynamic_pointer_cast<List>(args[1]);
-                  for (const auto& item : lst->get()) {
-                    result.push_back(item);
+
+                // 处理第二个参数
+                if (args[1]->isList()) {
+                  if (!args[1]->isNil()) {
+                    auto lst = std::dynamic_pointer_cast<List>(args[1]);
+                    for (const auto& item : lst->get()) {
+                      result.push_back(item);
+                    }
                   }
-                } else if (!args[1]->isNil()) {
+                } else {
                   throw std::runtime_error("cons second argument must be a list");
                 }
+
                 return std::make_shared<List>(result);
               }));
 
@@ -148,6 +143,9 @@ std::shared_ptr<Env> createGlobalEnv() {
               std::make_shared<BuiltinFunc>("list", [](const std::vector<ValuePtr>& args, std::shared_ptr<Env>) {
                 return std::make_shared<List>(args);
               }));
+
+  // 定义 nil 符号
+  env->define("nil", nil());
 
   // 输出
   env->define("print",
@@ -186,8 +184,8 @@ std::shared_ptr<Env> createGlobalEnv() {
   return env;
 }
 
-// 求值函数
-ValuePtr eval(ValuePtr expr, std::shared_ptr<Env> env) {
+// 求值原子表达式
+ValuePtr evalAtom(ValuePtr expr, std::shared_ptr<Env> env) {
   // 数字和字符串直接返回
   if (expr->isNumber() || expr->isString()) {
     return expr;
@@ -208,171 +206,191 @@ ValuePtr eval(ValuePtr expr, std::shared_ptr<Env> env) {
     return expr;
   }
 
-  // 列表处理
-  if (expr->isList()) {
-    auto lst = std::dynamic_pointer_cast<List>(expr);
-    if (lst->empty()) {
-      return nil();
+  throw std::runtime_error("Unknown expression type");
+}
+
+// 求值符号表达式
+ValuePtr evalSymbol(ValuePtr expr, std::shared_ptr<Env> env, ListPtr lst) {
+  auto sym = std::dynamic_pointer_cast<Symbol>(expr);
+  const std::string& name = sym->get();
+
+  // 特殊形式
+  if (name == "quote") {
+    if (lst->size() != 2)
+      throw std::runtime_error("quote needs exactly one argument");
+    return (*lst)[1];
+  }
+
+  if (name == "if") {
+    if (lst->size() != 4)
+      throw std::runtime_error("if needs exactly three arguments");
+    auto cond = eval((*lst)[1], env);
+    if (!cond->isNil()) {
+      return eval((*lst)[2], env);
+    } else {
+      return eval((*lst)[3], env);
     }
+  }
 
-    // 第一个元素作为操作符
-    auto first = (*lst)[0];
-    if (!first->isSymbol()) {
-      // 如果不是符号，先求值
-      auto evaluated = eval(first, env);
-      if (evaluated->isLambda()) {
-        // 函数调用
-        auto lambda = std::dynamic_pointer_cast<Lambda>(evaluated);
-        std::vector<ValuePtr> args;
-        for (size_t i = 1; i < lst->size(); ++i) {
-          args.push_back(eval((*lst)[i], env));
-        }
-        // 创建新环境
-        auto newEnv = std::make_shared<Env>(lambda->getClosure());
-        const auto& params = lambda->getParams();
-        if (args.size() != params.size()) {
-          throw std::runtime_error("Wrong number of arguments to lambda");
-        }
-        for (size_t i = 0; i < params.size(); ++i) {
-          newEnv->define(params[i], args[i]);
-        }
-        return eval(lambda->getBody(), newEnv);
-      }
-      throw std::runtime_error("Cannot apply non-function");
-    }
+  if (name == "define") {
+    if (lst->size() < 3)
+      throw std::runtime_error("define needs at least two arguments");
 
-    auto sym = std::dynamic_pointer_cast<Symbol>(first);
-    const std::string& name = sym->get();
+    auto firstArg = (*lst)[1];
 
-    // 特殊形式
-    if (name == "quote") {
-      if (lst->size() != 2)
-        throw std::runtime_error("quote needs exactly one argument");
-      return (*lst)[1];
-    }
+    // 检查是否是函数定义语法: (define (name args...) body...)
+    if (firstArg->isList()) {
+      auto sig = std::dynamic_pointer_cast<List>(firstArg);
+      if (sig->empty())
+        throw std::runtime_error("define function signature cannot be empty");
 
-    if (name == "if") {
-      if (lst->size() != 4)
-        throw std::runtime_error("if needs exactly three arguments");
-      auto cond = eval((*lst)[1], env);
-      if (!cond->isNil()) {
-        return eval((*lst)[2], env);
-      } else {
-        return eval((*lst)[3], env);
-      }
-    }
+      auto funcNameSym = std::dynamic_pointer_cast<Symbol>((*sig)[0]);
+      if (!funcNameSym)
+        throw std::runtime_error("function name must be a symbol");
 
-    if (name == "define") {
-      if (lst->size() < 3)
-        throw std::runtime_error("define needs at least two arguments");
-
-      auto firstArg = (*lst)[1];
-
-      // 检查是否是函数定义语法: (define (name args...) body...)
-      if (firstArg->isList()) {
-        auto sig = std::dynamic_pointer_cast<List>(firstArg);
-        if (sig->empty())
-          throw std::runtime_error("define function signature cannot be empty");
-
-        auto funcNameSym = std::dynamic_pointer_cast<Symbol>((*sig)[0]);
-        if (!funcNameSym)
-          throw std::runtime_error("function name must be a symbol");
-
-        // 提取参数名
-        std::vector<std::string> paramNames;
-        for (size_t i = 1; i < sig->size(); ++i) {
-          auto pSym = std::dynamic_pointer_cast<Symbol>((*sig)[i]);
-          if (!pSym)
-            throw std::runtime_error("function parameters must be symbols");
-          paramNames.push_back(pSym->get());
-        }
-
-        // 创建函数体：如果有多个表达式，用 begin 包裹
-        ValuePtr body;
-        if (lst->size() == 3) {
-          body = (*lst)[2];
-        } else {
-          // 构建 (begin expr1 expr2 ...) 列表
-          std::vector<ValuePtr> beginList;
-          beginList.push_back(std::make_shared<Symbol>("begin"));
-          for (size_t i = 2; i < lst->size(); ++i) {
-            beginList.push_back((*lst)[i]);
-          }
-          body = std::make_shared<List>(beginList);
-        }
-
-        // 创建 lambda
-        auto lambda = std::make_shared<Lambda>(paramNames, body, env);
-        env->define(funcNameSym->get(), lambda);
-        return lambda;
-      }
-
-      // 普通变量定义: (define symbol value)
-      if (lst->size() != 3)
-        throw std::runtime_error("define variable needs exactly two arguments");
-      auto varSym = std::dynamic_pointer_cast<Symbol>(firstArg);
-      if (!varSym)
-        throw std::runtime_error("define first argument must be a symbol or function signature");
-      auto val = eval((*lst)[2], env);
-      env->define(varSym->get(), val);
-      return val;
-    }
-
-    if (name == "lambda") {
-      if (lst->size() != 3)
-        throw std::runtime_error("lambda needs exactly two arguments");
-      auto params = std::dynamic_pointer_cast<List>((*lst)[1]);
-      if (!params)
-        throw std::runtime_error("lambda first argument must be a parameter list");
+      // 提取参数名
       std::vector<std::string> paramNames;
-      for (const auto& p : params->get()) {
-        auto pSym = std::dynamic_pointer_cast<Symbol>(p);
+      for (size_t i = 1; i < sig->size(); ++i) {
+        auto pSym = std::dynamic_pointer_cast<Symbol>((*sig)[i]);
         if (!pSym)
-          throw std::runtime_error("lambda parameters must be symbols");
+          throw std::runtime_error("function parameters must be symbols");
         paramNames.push_back(pSym->get());
       }
-      return std::make_shared<Lambda>(paramNames, (*lst)[2], env);
-    }
 
-    if (name == "begin") {
-      ValuePtr result = nil();
-      for (size_t i = 1; i < lst->size(); ++i) {
-        result = eval((*lst)[i], env);
+      // 创建函数体：如果有多个表达式，用 begin 包裹
+      ValuePtr body;
+      if (lst->size() == 3) {
+        body = (*lst)[2];
+      } else {
+        // 构建 (begin expr1 expr2 ...) 列表
+        std::vector<ValuePtr> beginList;
+        beginList.push_back(std::make_shared<Symbol>("begin"));
+        for (size_t i = 2; i < lst->size(); ++i) {
+          beginList.push_back((*lst)[i]);
+        }
+        body = std::make_shared<List>(beginList);
       }
-      return result;
+
+      // 创建 lambda
+      auto lambda = std::make_shared<Lambda>(paramNames, body, env);
+      env->define(funcNameSym->get(), lambda);
+      return lambda;
     }
 
-    // 普通函数调用
-    auto func = env->lookup(name);
-    if (!func) {
-      throw std::runtime_error("Undefined function: " + name);
-    }
+    // 普通变量定义: (define symbol value)
+    if (lst->size() != 3)
+      throw std::runtime_error("define variable needs exactly two arguments");
+    auto varSym = std::dynamic_pointer_cast<Symbol>(firstArg);
+    if (!varSym)
+      throw std::runtime_error("define first argument must be a symbol or function signature");
+    auto val = eval((*lst)[2], env);
+    env->define(varSym->get(), val);
+    return val;
+  }
 
-    // 求值所有参数
-    std::vector<ValuePtr> args;
+  if (name == "lambda") {
+    if (lst->size() != 3)
+      throw std::runtime_error("lambda needs exactly two arguments");
+    auto params = std::dynamic_pointer_cast<List>((*lst)[1]);
+    if (!params)
+      throw std::runtime_error("lambda first argument must be a parameter list");
+    std::vector<std::string> paramNames;
+    for (const auto& p : params->get()) {
+      auto pSym = std::dynamic_pointer_cast<Symbol>(p);
+      if (!pSym)
+        throw std::runtime_error("lambda parameters must be symbols");
+      paramNames.push_back(pSym->get());
+    }
+    return std::make_shared<Lambda>(paramNames, (*lst)[2], env);
+  }
+
+  if (name == "begin") {
+    ValuePtr result = nil();
     for (size_t i = 1; i < lst->size(); ++i) {
-      args.push_back(eval((*lst)[i], env));
+      result = eval((*lst)[i], env);
     }
+    return result;
+  }
 
-    // 调用内置函数
-    if (auto builtin = std::dynamic_pointer_cast<BuiltinFunc>(func)) {
-      return builtin->call(args, env);
+  // 普通函数调用
+  auto func = env->lookup(name);
+  if (!func) {
+    throw std::runtime_error("Undefined function: " + name);
+  }
+
+  // 求值所有参数
+  std::vector<ValuePtr> args;
+  for (size_t i = 1; i < lst->size(); ++i) {
+    args.push_back(eval((*lst)[i], env));
+  }
+
+  // 调用内置函数
+  if (auto builtin = std::dynamic_pointer_cast<BuiltinFunc>(func)) {
+    return builtin->call(args, env);
+  }
+
+  // 调用 lambda
+  if (auto lambda = std::dynamic_pointer_cast<Lambda>(func)) {
+    auto newEnv = std::make_shared<Env>(lambda->getClosure());
+    const auto& params = lambda->getParams();
+    if (args.size() != params.size()) {
+      throw std::runtime_error("Wrong number of arguments to " + name);
     }
+    for (size_t i = 0; i < params.size(); ++i) {
+      newEnv->define(params[i], args[i]);
+    }
+    return eval(lambda->getBody(), newEnv);
+  }
 
-    // 调用 lambda
-    if (auto lambda = std::dynamic_pointer_cast<Lambda>(func)) {
+  throw std::runtime_error("Cannot apply: " + name);
+}
+
+// 求值列表表达式
+ValuePtr evalList(ValuePtr expr, std::shared_ptr<Env> env) {
+  auto lst = std::dynamic_pointer_cast<List>(expr);
+  if (lst->empty()) {
+    return nil();
+  }
+
+  // 第一个元素作为操作符
+  auto first = (*lst)[0];
+  if (!first->isSymbol()) {
+    // 如果不是符号，先求值
+    auto evaluated = eval(first, env);
+    if (evaluated->isLambda()) {
+      // 函数调用
+      auto lambda = std::dynamic_pointer_cast<Lambda>(evaluated);
+      std::vector<ValuePtr> args;
+      for (size_t i = 1; i < lst->size(); ++i) {
+        args.push_back(eval((*lst)[i], env));
+      }
+      // 创建新环境
       auto newEnv = std::make_shared<Env>(lambda->getClosure());
       const auto& params = lambda->getParams();
       if (args.size() != params.size()) {
-        throw std::runtime_error("Wrong number of arguments to " + name);
+        throw std::runtime_error("Wrong number of arguments to lambda");
       }
       for (size_t i = 0; i < params.size(); ++i) {
         newEnv->define(params[i], args[i]);
       }
       return eval(lambda->getBody(), newEnv);
     }
+    throw std::runtime_error("Cannot apply non-function");
+  }
 
-    throw std::runtime_error("Cannot apply: " + name);
+  return evalSymbol(first, env, lst);
+}
+
+// 求值函数
+ValuePtr eval(ValuePtr expr, std::shared_ptr<Env> env) {
+  // 原子表达式求值
+  if (expr->isNumber() || expr->isString() || expr->isSymbol() || expr->isNil()) {
+    return evalAtom(expr, env);
+  }
+
+  // 列表表达式求值
+  if (expr->isList()) {
+    return evalList(expr, env);
   }
 
   throw std::runtime_error("Unknown expression type");

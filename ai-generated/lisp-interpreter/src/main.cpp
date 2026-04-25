@@ -4,6 +4,9 @@
 #include <string>
 #include "eval.hpp"
 
+// 函数声明
+std::string removeComments(const std::string& input);
+
 // 声明解析器的全局变量和函数
 extern FILE* yyin;
 extern int yyparse();
@@ -11,17 +14,8 @@ extern ValuePtr parsedResult;
 
 // 检查输入是否只包含空白和注释
 bool isOnlyWhitespaceOrComment(const std::string& input) {
-  for (size_t i = 0; i < input.length(); ++i) {
-    char c = input[i];
-    if (c == ';') {
-      // 跳过到行尾
-      while (i < input.length() && input[i] != '\n')
-        i++;
-    } else if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-      return false;
-    }
-  }
-  return true;
+  std::string withoutComments = removeComments(input);
+  return withoutComments.find_first_not_of(" \t\n\r") == std::string::npos;
 }
 
 // 执行单个表达式
@@ -48,27 +42,30 @@ ValuePtr evalExpression(const std::string& input, std::shared_ptr<Env>& env) {
 
 // 去除字符串首尾空白
 std::string trim(const std::string& s) {
-  size_t start = s.find_first_not_of(" \t\n\r");
+  auto start = s.find_first_not_of(" \t\n\r");
   if (start == std::string::npos)
     return "";
-  size_t end = s.find_last_not_of(" \t\n\r");
+  auto end = s.find_last_not_of(" \t\n\r");
   return s.substr(start, end - start + 1);
 }
 
 // 移除注释，返回纯代码
 std::string removeComments(const std::string& input) {
   std::string result;
-  for (size_t i = 0; i < input.length(); ++i) {
-    if (input[i] == ';') {
-      // 跳过到行尾
-      while (i < input.length() && input[i] != '\n')
-        i++;
-      if (i < input.length())
-        result += input[i];  // 保留换行符
-    } else {
-      result += input[i];
+  result.reserve(input.size()); // 预分配内存
+
+  size_t start = 0;
+  size_t commentPos = input.find(';');
+  while (commentPos != std::string::npos) {
+    result.append(input, start, commentPos - start);
+    start = input.find('\n', commentPos);
+    if (start != std::string::npos) {
+      result.push_back('\n');
+      start++;
     }
+    commentPos = input.find(';', start);
   }
+  result.append(input, start, std::string::npos);
   return result;
 }
 
@@ -87,15 +84,14 @@ bool hasRootParentheses(const std::string& code) {
       parenCount--;
 
     // 如果在最外层括号闭合后还有非空白内容，则不是根括号
-    if (parenCount == 0) {
-      return (i == trimmed.length() - 1);
-    }
+    if (parenCount == 0 && i < trimmed.length() - 1)
+      return false;
   }
-  return false;
+  return parenCount == 0;
 }
 
-// 从文件执行代码
-int runFile(const char* filename) {
+// 执行有根括号包裹的文件
+int runFileWithRootParentheses(const std::string& filename, std::shared_ptr<Env>& env) {
   std::ifstream file(filename);
   if (!file.is_open()) {
     std::cerr << "Error: Cannot open file '" << filename << "'" << std::endl;
@@ -108,75 +104,112 @@ int runFile(const char* filename) {
   std::string content = buffer.str();
   file.close();
 
-  auto env = createGlobalEnv();
-
-  // 检查是否有根括号包裹
   std::string codeOnly = removeComments(content);
   std::string trimmedCode = trim(codeOnly);
 
-  if (hasRootParentheses(trimmedCode)) {
-    // 有根括号：解析整个文件为列表，然后逐个执行列表中的表达式
-    yyin = fmemopen(const_cast<char*>(trimmedCode.c_str()), trimmedCode.length(), "r");
-    if (yyparse() != 0) {
-      if (yyin)
-        fclose(yyin);
-      std::cerr << "Error: Parse error" << std::endl;
-      return 1;
-    }
+  yyin = fmemopen(const_cast<char*>(trimmedCode.c_str()), trimmedCode.length(), "r");
+  if (yyparse() != 0) {
     if (yyin)
       fclose(yyin);
+    std::cerr << "Error: Parse error" << std::endl;
+    return 1;
+  }
+  if (yyin)
+    fclose(yyin);
 
-    if (parsedResult && parsedResult->isList()) {
-      auto list = std::dynamic_pointer_cast<List>(parsedResult);
-      for (const auto& expr : list->get()) {
-        try {
-          eval(expr, env);
-        } catch (const std::exception& e) {
-          std::cerr << "Error: " << e.what() << std::endl;
-          return 1;
-        }
+  if (parsedResult && parsedResult->isList()) {
+    auto list = std::dynamic_pointer_cast<List>(parsedResult);
+    for (const auto& expr : list->get()) {
+      try {
+        eval(expr, env);
+      } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
       }
-    }
-  } else {
-    // 无根括号：按原有方式逐段执行
-    std::istringstream stream(content);
-    std::string line;
-    std::string input;
-    int parenCount = 0;
-
-    while (std::getline(stream, line)) {
-      // 计算括号平衡（忽略注释部分）
-      size_t commentPos = line.find(';');
-      std::string codePart = (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
-
-      for (char c : codePart) {
-        if (c == '(')
-          parenCount++;
-        if (c == ')')
-          parenCount--;
-      }
-      input += line + "\n";
-
-      // 当括号平衡时执行
-      if (parenCount == 0 && !input.empty()) {
-        try {
-          evalExpression(input, env);
-        } catch (const std::exception& e) {
-          std::cerr << "Error: " << e.what() << std::endl;
-          return 1;
-        }
-        input.clear();
-      }
-    }
-
-    // 处理未完成的输入（文件末尾括号不完整）
-    if (parenCount != 0) {
-      std::cerr << "Error: Unbalanced parentheses" << std::endl;
-      return 1;
     }
   }
 
   return 0;
+}
+
+// 执行无根括号包裹的文件
+int runFileWithoutRootParentheses(const std::string& filename, std::shared_ptr<Env>& env) {
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Error: Cannot open file '" << filename << "'" << std::endl;
+    return 1;
+  }
+
+  // 读取整个文件
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::string content = buffer.str();
+  file.close();
+
+  std::istringstream stream(content);
+  std::string line;
+  std::string input;
+  int parenCount = 0;
+
+  while (std::getline(stream, line)) {
+    // 计算括号平衡（忽略注释部分）
+    size_t commentPos = line.find(';');
+    std::string codePart = (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
+
+    for (char c : codePart) {
+      if (c == '(')
+        parenCount++;
+      if (c == ')')
+        parenCount--;
+    }
+    input += line + "\n";
+
+    // 当括号平衡时执行
+    if (parenCount == 0 && !input.empty()) {
+      try {
+        evalExpression(input, env);
+      } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+      }
+      input.clear();
+    }
+  }
+
+  // 处理未完成的输入（文件末尾括号不完整）
+  if (parenCount != 0) {
+    std::cerr << "Error: Unbalanced parentheses" << std::endl;
+    return 1;
+  }
+
+  return 0;
+}
+
+// 从文件执行代码
+int runFile(const char* filename) {
+  auto env = createGlobalEnv();
+
+  // 检查是否有根括号包裹
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Error: Cannot open file '" << filename << "'" << std::endl;
+    return 1;
+  }
+
+  // 读取整个文件
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::string content = buffer.str();
+  file.close();
+
+  std::string codeOnly = removeComments(content);
+  std::string trimmedCode = trim(codeOnly);
+
+  if (hasRootParentheses(trimmedCode)) {
+    return runFileWithRootParentheses(filename, env);
+  } else {
+    return runFileWithoutRootParentheses(filename, env);
+  }
 }
 
 // REPL 模式
