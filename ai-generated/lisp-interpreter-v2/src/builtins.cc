@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-std::vector<double> CollectNumbers(const Value& args) {
+static std::vector<double> CollectNumbers(const Value& args) {
   std::vector<double> nums;
   auto cur = args;
   while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
