@@ -19,7 +19,6 @@ class Evaluator {
   Value EvalList(const Value& exprs, std::shared_ptr<Environment> env);
   Value ApplyFunction(const Value& func, const Value& args);
   Value ApplySpecialForm(const Symbol& name, const Value& args, std::shared_ptr<Environment> env);
-  void RegisterBuiltins();
 
   Value EvalDefine(const Value& args, std::shared_ptr<Environment> env);
   Value EvalIf(const Value& args, std::shared_ptr<Environment> env);

@@ -2,10 +2,9 @@
 #include "environment.h"
 
 #include <stdexcept>
+namespace {
 
-std::unordered_map<std::string, BuiltinManager::Handler> BuiltinManager::handlers_;
-
-static std::vector<double> CollectNumbers(const Value& args) {
+std::vector<double> CollectNumbers(const Value& args) {
   std::vector<double> nums;
   auto cur = args;
   while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
@@ -109,6 +108,10 @@ Value BuiltinBoolean(const std::string& op, const Value& args) {
     return !IsTruthy(cell->car);
   throw std::runtime_error("unknown boolean op: " + op);
 }
+
+}  // namespace
+
+std::unordered_map<std::string, BuiltinManager::Handler> BuiltinManager::handlers_;
 
 void BuiltinManager::InitRegistry() {
   static bool initialized = false;

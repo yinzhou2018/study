@@ -14,7 +14,7 @@ bool IsSpecialForm(const std::string& name) {
 }  // namespace
 
 Evaluator::Evaluator() : global_env_(std::make_shared<Environment>()) {
-  RegisterBuiltins();
+  BuiltinManager::RegisterAll(global_env_);
 }
 
 Value Evaluator::Eval(const Value& expr) {
@@ -189,8 +189,4 @@ Value Evaluator::EvalLambda(const Value& args, std::shared_ptr<Environment> env)
   lambda->body = body_cell->car;
   lambda->closure = env;
   return lambda;
-}
-
-void Evaluator::RegisterBuiltins() {
-  BuiltinManager::RegisterAll(global_env_);
 }

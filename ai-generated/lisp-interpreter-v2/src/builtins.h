@@ -10,11 +10,6 @@
 
 class Environment;
 
-Value BuiltinArith(const std::string& op, const Value& args);
-Value BuiltinListOp(const std::string& op, const Value& args);
-Value BuiltinCompare(const std::string& op, const Value& args);
-Value BuiltinBoolean(const std::string& op, const Value& args);
-
 class BuiltinManager {
  public:
   static bool IsBuiltin(const std::string& name);
