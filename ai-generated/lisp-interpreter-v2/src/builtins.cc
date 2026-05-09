@@ -1,6 +1,9 @@
 #include "builtins.h"
+#include "environment.h"
 
 #include <stdexcept>
+
+std::unordered_map<std::string, BuiltinManager::Handler> BuiltinManager::handlers_;
 
 static std::vector<double> CollectNumbers(const Value& args) {
   std::vector<double> nums;
@@ -105,4 +108,51 @@ Value BuiltinBoolean(const std::string& op, const Value& args) {
   if (op == "not")
     return !IsTruthy(cell->car);
   throw std::runtime_error("unknown boolean op: " + op);
+}
+
+void BuiltinManager::InitRegistry() {
+  static bool initialized = false;
+  if (initialized)
+    return;
+  Register("+", BuiltinArith);
+  Register("-", BuiltinArith);
+  Register("*", BuiltinArith);
+  Register("/", BuiltinArith);
+  Register("car", BuiltinListOp);
+  Register("cdr", BuiltinListOp);
+  Register("cons", BuiltinListOp);
+  Register("list", BuiltinListOp);
+  Register("null?", BuiltinListOp);
+  Register("pair?", BuiltinListOp);
+  Register("=", BuiltinCompare);
+  Register("<", BuiltinCompare);
+  Register(">", BuiltinCompare);
+  Register("<=", BuiltinCompare);
+  Register(">=", BuiltinCompare);
+  Register("not", BuiltinBoolean);
+  initialized = true;
+}
+
+bool BuiltinManager::IsBuiltin(const std::string& name) {
+  InitRegistry();
+  return handlers_.find(name) != handlers_.end();
+}
+
+Value BuiltinManager::Call(const std::string& name, const Value& args) {
+  InitRegistry();
+  auto it = handlers_.find(name);
+  if (it == handlers_.end())
+    throw std::runtime_error("not a builtin: " + name);
+  return it->second(name, args);
+}
+
+void BuiltinManager::RegisterAll(std::shared_ptr<Environment> env) {
+  InitRegistry();
+  for (const auto& [name, _] : handlers_) {
+    env->Define(name, Symbol{name});
+  }
+}
+
+void BuiltinManager::Register(const std::string& name, Handler handler) {
+  handlers_[name] = std::move(handler);
 }

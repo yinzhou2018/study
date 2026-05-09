@@ -74,14 +74,8 @@ Value Evaluator::ApplyFunction(const Value& func, const Value& args) {
   }
   if (std::holds_alternative<Symbol>(func)) {
     auto name = std::get<Symbol>(func).name;
-    if (name == "+" || name == "-" || name == "*" || name == "/")
-      return BuiltinArith(name, args);
-    if (name == "car" || name == "cdr" || name == "cons" || name == "list" || name == "null?" || name == "pair?")
-      return BuiltinListOp(name, args);
-    if (name == "=" || name == "<" || name == ">" || name == "<=" || name == ">=")
-      return BuiltinCompare(name, args);
-    if (name == "not")
-      return BuiltinBoolean(name, args);
+    if (BuiltinManager::IsBuiltin(name))
+      return BuiltinManager::Call(name, args);
   }
   throw std::runtime_error("not a function: " + ValueToString(func));
 }
@@ -198,20 +192,5 @@ Value Evaluator::EvalLambda(const Value& args, std::shared_ptr<Environment> env)
 }
 
 void Evaluator::RegisterBuiltins() {
-  global_env_->Define("+", Symbol{"+"});
-  global_env_->Define("-", Symbol{"-"});
-  global_env_->Define("*", Symbol{"*"});
-  global_env_->Define("/", Symbol{"/"});
-  global_env_->Define("car", Symbol{"car"});
-  global_env_->Define("cdr", Symbol{"cdr"});
-  global_env_->Define("cons", Symbol{"cons"});
-  global_env_->Define("list", Symbol{"list"});
-  global_env_->Define("null?", Symbol{"null?"});
-  global_env_->Define("pair?", Symbol{"pair?"});
-  global_env_->Define("=", Symbol{"="});
-  global_env_->Define("<", Symbol{"<"});
-  global_env_->Define(">", Symbol{">"});
-  global_env_->Define("<=", Symbol{"<="});
-  global_env_->Define(">=", Symbol{">="});
-  global_env_->Define("not", Symbol{"not"});
+  BuiltinManager::RegisterAll(global_env_);
 }
