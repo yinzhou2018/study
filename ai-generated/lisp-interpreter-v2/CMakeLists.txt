@@ -33,7 +33,7 @@ add_executable(lisp
 )
 
 target_include_directories(lisp PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 

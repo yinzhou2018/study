@@ -1,39 +1,47 @@
-% language "c++" % defines % locations % define api.namespace {lisp} % define api.parser.class {
-  Parser
-} % define api.value.type variant % define parse.error detailed
+%language "c++"
+%defines
+%locations
+%define api.namespace {lisp}
+%define api.parser.class { Parser }
+%define api.value.type variant
+%define parse.error detailed
 
-    %
-    code requires {
+%code requires {
 #include <memory>
 #include <string>
 #include <vector>
 #include "value.h"
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
-      typedef void* yyscan_t;
+typedef void* yyscan_t;
 #endif
-    }
+}
 
-    % token LPAREN RPAREN QUOTE % token<double> NUMBER % token<bool> BOOLEAN % token<std::string> STRING %
-    token<Symbol> SYMBOL
+%token LPAREN RPAREN QUOTE
+%token<double> NUMBER
+%token<bool> BOOLEAN
+%token<std::string> STRING
+%token<Symbol> SYMBOL
 
-    % type<Value> expr atom list exprs
+%type<Value> expr atom list exprs
 
-    % param{yyscan_t scanner} % param{std::vector<Value> & result}
+%param{yyscan_t scanner}
+%param{std::vector<Value> & result}
 
-    % code{
+%code{
 #include <sstream>
 #include <stdexcept>
 
-          namespace lisp{Value BuildList(std::vector<Value> items);
+namespace lisp {
+Value BuildList(std::vector<Value> items);
 int yylex(Parser::semantic_type* yylval, Parser::location_type* yylloc, yyscan_t scanner, std::vector<Value>& result);
 }
 }
 
-% %
+%%
 
-        program : /* empty */
-                  | program expr {
+program : /* empty */
+        | program expr {
   result.push_back($2);
 }
 
@@ -78,24 +86,24 @@ exprs : expr {
   $$ = cell;
 }
 
-% %
+%%
 
-    namespace lisp {
-  Value BuildList(std::vector<Value> items) {
-    Value result = Nil{};
-    for (auto it = items.rbegin(); it != items.rend(); ++it) {
-      auto cell = std::make_shared<Pair>();
-      cell->car = std::move(*it);
-      cell->cdr = result;
-      result = cell;
-    }
-    return result;
+namespace lisp {
+Value BuildList(std::vector<Value> items) {
+  Value result = Nil{};
+  for (auto it = items.rbegin(); it != items.rend(); ++it) {
+    auto cell = std::make_shared<Pair>();
+    cell->car = std::move(*it);
+    cell->cdr = result;
+    result = cell;
   }
+  return result;
+}
 
-  void Parser::error(const location_type& loc, const std::string& msg) {
-    std::ostringstream oss;
-    oss << "syntax error at " << loc << ": " << msg;
-    throw std::runtime_error(oss.str());
-  }
+void Parser::error(const location_type& loc, const std::string& msg) {
+  std::ostringstream oss;
+  oss << "syntax error at " << loc << ": " << msg;
+  throw std::runtime_error(oss.str());
+}
 
 }  // namespace lisp
