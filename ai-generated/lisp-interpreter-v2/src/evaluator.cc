@@ -137,13 +137,13 @@ Value Evaluator::EvalDefine(const Value& args, std::shared_ptr<Environment> env)
     lambda->body = body_cell->car;
     lambda->closure = env;
     env->Define(name, lambda);
-    return Nil{};
+    return lambda;
   }
   auto name = std::get<Symbol>(cell->car).name;
   auto val_pair = std::get<std::shared_ptr<Pair>>(cell->cdr);
   auto val = EvalExpr(val_pair->car, env);
   env->Define(name, val);
-  return Nil{};
+  return val;
 }
 
 Value Evaluator::EvalIf(const Value& args, std::shared_ptr<Environment> env) {

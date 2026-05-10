@@ -25,9 +25,7 @@ void Repl::Run() {
       auto exprs = Parse(input);
       for (auto& expr : exprs) {
         auto result = evaluator_.Eval(expr);
-        if (!std::holds_alternative<Nil>(result) || std::holds_alternative<std::shared_ptr<Pair>>(result)) {
-          std::cout << ValueToString(result) << "\n";
-        }
+        std::cout << ValueToString(result) << "\n";
       }
     } catch (const std::exception& e) {
       std::cerr << "error: " << e.what() << "\n";
@@ -72,7 +70,7 @@ std::string Repl::ReadExpr() {
       break;
   }
 
-  if (expr == "(exit)" || expr == "(quit)") {
+  if (expr == "exit" || expr == "quit") {
     HandleExit();
     return "";
   }
