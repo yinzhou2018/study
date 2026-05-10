@@ -25,6 +25,7 @@ class Evaluator {
   Value EvalCond(const Value& args, std::shared_ptr<Environment> env);
   Value EvalLet(const Value& args, std::shared_ptr<Environment> env);
   Value EvalLambda(const Value& args, std::shared_ptr<Environment> env);
+  Value EvalSequence(const Value& exprs, std::shared_ptr<Environment> env);
 
   std::shared_ptr<Environment> global_env_;
 };

@@ -70,7 +70,7 @@ Value Evaluator::ApplyFunction(const Value& func, const Value& args) {
       call_env->Define(p, cell->car);
       cur = cell->cdr;
     }
-    return EvalExpr(lambda->body, call_env);
+    return EvalSequence(lambda->body, call_env);
   }
   if (std::holds_alternative<Symbol>(func)) {
     auto name = std::get<Symbol>(func).name;
@@ -78,6 +78,17 @@ Value Evaluator::ApplyFunction(const Value& func, const Value& args) {
       return BuiltinManager::Call(name, args);
   }
   throw std::runtime_error("not a function: " + ValueToString(func));
+}
+
+Value Evaluator::EvalSequence(const Value& exprs, std::shared_ptr<Environment> env) {
+  Value result;
+  auto cur = exprs;
+  while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
+    auto cell = std::get<std::shared_ptr<Pair>>(cur);
+    result = EvalExpr(cell->car, env);
+    cur = cell->cdr;
+  }
+  return result;
 }
 
 Value Evaluator::ApplySpecialForm(const Symbol& name, const Value& args, std::shared_ptr<Environment> env) {
@@ -133,8 +144,7 @@ Value Evaluator::EvalDefine(const Value& args, std::shared_ptr<Environment> env)
       lambda->params.push_back(std::get<Symbol>(p->car).name);
       cur = p->cdr;
     }
-    auto body_cell = std::get<std::shared_ptr<Pair>>(cell->cdr);
-    lambda->body = body_cell->car;
+    lambda->body = cell->cdr;
     lambda->closure = env;
     env->Define(name, lambda);
     return lambda;
@@ -162,10 +172,10 @@ Value Evaluator::EvalCond(const Value& args, std::shared_ptr<Environment> env) {
     auto clause = std::get<std::shared_ptr<Pair>>(cur);
     auto cp = std::get<std::shared_ptr<Pair>>(clause->car);
     if (std::holds_alternative<Symbol>(cp->car) && std::get<Symbol>(cp->car).name == "else") {
-      return EvalExpr(std::get<std::shared_ptr<Pair>>(cp->cdr)->car, env);
+      return EvalSequence(cp->cdr, env);
     }
     if (IsTruthy(EvalExpr(cp->car, env))) {
-      return EvalExpr(std::get<std::shared_ptr<Pair>>(cp->cdr)->car, env);
+      return EvalSequence(cp->cdr, env);
     }
     cur = clause->cdr;
   }
@@ -185,14 +195,12 @@ Value Evaluator::EvalLet(const Value& args, std::shared_ptr<Environment> env) {
     let_env->Define(bname, bval);
     cur = binding->cdr;
   }
-  auto body = std::get<std::shared_ptr<Pair>>(cell->cdr);
-  return EvalExpr(body->car, let_env);
+  return EvalSequence(cell->cdr, let_env);
 }
 
 Value Evaluator::EvalLambda(const Value& args, std::shared_ptr<Environment> env) {
   auto cell = std::get<std::shared_ptr<Pair>>(args);
   auto param_val = cell->car;
-  auto body_cell = std::get<std::shared_ptr<Pair>>(cell->cdr);
   std::vector<std::string> params;
   auto cur = param_val;
   while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
@@ -202,7 +210,7 @@ Value Evaluator::EvalLambda(const Value& args, std::shared_ptr<Environment> env)
   }
   auto lambda = std::make_shared<Lambda>();
   lambda->params = std::move(params);
-  lambda->body = body_cell->car;
+  lambda->body = cell->cdr;
   lambda->closure = env;
   return lambda;
 }
