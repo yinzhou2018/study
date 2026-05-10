@@ -4,17 +4,13 @@
 
 #include <stdexcept>
 
-namespace {
-
-bool IsSpecialForm(const std::string& name) {
-  return name == "define" || name == "if" || name == "cond" || name == "let" || name == "quote" || name == "lambda" ||
-         name == "and" || name == "or";
-}
-
-}  // namespace
-
 Evaluator::Evaluator() : global_env_(std::make_shared<Environment>()) {
   BuiltinManager::RegisterAll(global_env_);
+  special_forms_ = {
+      {"define", &Evaluator::EvalDefine}, {"if", &Evaluator::EvalIf},       {"cond", &Evaluator::EvalCond},
+      {"let", &Evaluator::EvalLet},       {"quote", &Evaluator::EvalQuote}, {"lambda", &Evaluator::EvalLambda},
+      {"and", &Evaluator::EvalAnd},       {"or", &Evaluator::EvalOr},
+  };
 }
 
 Value Evaluator::Eval(const Value& expr) {
@@ -36,8 +32,9 @@ Value Evaluator::EvalExpr(const Value& expr, std::shared_ptr<Environment> env) {
   auto head = pair->car;
   if (std::holds_alternative<Symbol>(head)) {
     auto name = std::get<Symbol>(head).name;
-    if (IsSpecialForm(name)) {
-      return ApplySpecialForm(Symbol{name}, pair->cdr, env);
+    auto sf = special_forms_.find(name);
+    if (sf != special_forms_.end()) {
+      return (this->*(sf->second))(pair->cdr, env);
     }
   }
   auto func = EvalExpr(head, env);
@@ -91,45 +88,33 @@ Value Evaluator::EvalSequence(const Value& exprs, std::shared_ptr<Environment> e
   return result;
 }
 
-Value Evaluator::ApplySpecialForm(const Symbol& name, const Value& args, std::shared_ptr<Environment> env) {
-  auto n = name.name;
-  if (n == "define")
-    return EvalDefine(args, env);
-  if (n == "if")
-    return EvalIf(args, env);
-  if (n == "cond")
-    return EvalCond(args, env);
-  if (n == "let")
-    return EvalLet(args, env);
-  if (n == "quote") {
-    return std::get<std::shared_ptr<Pair>>(args)->car;
+Value Evaluator::EvalAnd(const Value& args, std::shared_ptr<Environment> env) {
+  Value result = true;
+  auto cur = args;
+  while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
+    auto cell = std::get<std::shared_ptr<Pair>>(cur);
+    result = EvalExpr(cell->car, env);
+    if (!IsTruthy(result))
+      return false;
+    cur = cell->cdr;
   }
-  if (n == "lambda")
-    return EvalLambda(args, env);
-  if (n == "and") {
-    Value result = true;
-    auto cur = args;
-    while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
-      auto cell = std::get<std::shared_ptr<Pair>>(cur);
-      result = EvalExpr(cell->car, env);
-      if (!IsTruthy(result))
-        return false;
-      cur = cell->cdr;
-    }
-    return result;
+  return result;
+}
+
+Value Evaluator::EvalOr(const Value& args, std::shared_ptr<Environment> env) {
+  auto cur = args;
+  while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
+    auto cell = std::get<std::shared_ptr<Pair>>(cur);
+    Value result = EvalExpr(cell->car, env);
+    if (IsTruthy(result))
+      return result;
+    cur = cell->cdr;
   }
-  if (n == "or") {
-    auto cur = args;
-    while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
-      auto cell = std::get<std::shared_ptr<Pair>>(cur);
-      Value result = EvalExpr(cell->car, env);
-      if (IsTruthy(result))
-        return result;
-      cur = cell->cdr;
-    }
-    return false;
-  }
-  throw std::runtime_error("unknown special form: " + n);
+  return false;
+}
+
+Value Evaluator::EvalQuote(const Value& args, std::shared_ptr<Environment> env) {
+  return std::get<std::shared_ptr<Pair>>(args)->car;
 }
 
 Value Evaluator::EvalDefine(const Value& args, std::shared_ptr<Environment> env) {
