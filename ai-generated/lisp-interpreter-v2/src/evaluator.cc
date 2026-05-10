@@ -123,6 +123,22 @@ Value Evaluator::ApplySpecialForm(const Symbol& name, const Value& args, std::sh
 
 Value Evaluator::EvalDefine(const Value& args, std::shared_ptr<Environment> env) {
   auto cell = std::get<std::shared_ptr<Pair>>(args);
+  if (std::holds_alternative<std::shared_ptr<Pair>>(cell->car)) {
+    auto func_pair = std::get<std::shared_ptr<Pair>>(cell->car);
+    auto name = std::get<Symbol>(func_pair->car).name;
+    auto lambda = std::make_shared<Lambda>();
+    auto cur = func_pair->cdr;
+    while (std::holds_alternative<std::shared_ptr<Pair>>(cur)) {
+      auto p = std::get<std::shared_ptr<Pair>>(cur);
+      lambda->params.push_back(std::get<Symbol>(p->car).name);
+      cur = p->cdr;
+    }
+    auto body_cell = std::get<std::shared_ptr<Pair>>(cell->cdr);
+    lambda->body = body_cell->car;
+    lambda->closure = env;
+    env->Define(name, lambda);
+    return Nil{};
+  }
   auto name = std::get<Symbol>(cell->car).name;
   auto val_pair = std::get<std::shared_ptr<Pair>>(cell->cdr);
   auto val = EvalExpr(val_pair->car, env);

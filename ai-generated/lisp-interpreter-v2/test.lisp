@@ -28,6 +28,11 @@
 ; Boolean
 (define is-zero (lambda (x) (= x 0)))
 
+; Shorthand define (define (name params...) body...)
+(define (add x y) (+ x y))
+(define (answer) 42)
+(define (make-adder n) (lambda (x) (+ n x)))
+
 ; Output
 a
 b
@@ -46,3 +51,8 @@ result
 (null? '())
 (pair? '(1 2))
 (not #f)
+
+; Shorthand define tests
+(add 3 4)
+(answer)
+((make-adder 5) 3)
