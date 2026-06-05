@@ -4,10 +4,10 @@
 #include <iostream>
 #include <string>
 
-#include "calculator/result.h"
 #include "evaluator.h"
 #include "lexer.h"
 #include "parser.h"
+#include "result.h"
 
 namespace calculator {
 

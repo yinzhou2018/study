@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "calculator/result.h"
-#include "calculator/token.h"
+#include "result.h"
+#include "token.h"
 
 namespace calculator {
 

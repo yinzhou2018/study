@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "calculator/result.h"
+#include "result.h"
 
 using calculator::Error;
 using calculator::Result;

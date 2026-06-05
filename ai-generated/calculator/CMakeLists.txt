@@ -15,7 +15,7 @@ add_subdirectory(test)
 find_program(CLANG_FORMAT clang-format)
 if(CLANG_FORMAT)
   file(GLOB_RECURSE FORMAT_SOURCES ${CMAKE_SOURCE_DIR}/src/*.cc
-       ${CMAKE_SOURCE_DIR}/src/*.h ${CMAKE_SOURCE_DIR}/include/**/*.h
+       ${CMAKE_SOURCE_DIR}/src/*.h
        ${CMAKE_SOURCE_DIR}/test/*.cc)
   add_custom_target(format COMMAND ${CLANG_FORMAT} -i ${FORMAT_SOURCES}
                     COMMENT "Formatting code with clang-format")

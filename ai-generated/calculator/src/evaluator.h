@@ -1,7 +1,7 @@
 #pragma once
 
-#include "calculator/ast.h"
-#include "calculator/result.h"
+#include "ast.h"
+#include "result.h"
 
 namespace calculator {
 

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "calculator/ast.h"
+#include "ast.h"
 #include "evaluator.h"
 
 using calculator::BinaryExpr;

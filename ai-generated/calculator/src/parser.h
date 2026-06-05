@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "calculator/ast.h"
-#include "calculator/result.h"
-#include "calculator/token.h"
+#include "ast.h"
+#include "result.h"
+#include "token.h"
 
 namespace calculator {
 

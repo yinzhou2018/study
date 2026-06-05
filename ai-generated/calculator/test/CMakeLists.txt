@@ -18,8 +18,7 @@ add_executable(calculator_test result_test.cc token_test.cc ast_test.cc
 
 target_link_libraries(calculator_test PRIVATE GTest::gtest_main)
 
-target_include_directories(calculator_test PRIVATE ${CMAKE_SOURCE_DIR}/include
-                                                   ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(calculator_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 include(GoogleTest)
 gtest_discover_tests(calculator_test)

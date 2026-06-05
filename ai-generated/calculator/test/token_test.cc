@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "calculator/token.h"
+#include "token.h"
 
 using calculator::Token;
 using calculator::TokenType;

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "calculator/ast.h"
+#include "ast.h"
 #include "lexer.h"
 #include "parser.h"
 
