@@ -7,15 +7,19 @@
 ## Requirements
 
 ### Requirement: REPL交互模式
-系统 SHALL 提供REPL（Read-Eval-Print Loop）交互模式，逐行读取用户输入的数学表达式，计算并输出结果。
+系统 SHALL 提供REPL（Read-Eval-Print Loop）交互模式，逐行读取用户输入的数学表达式，计算并直接输出结果（不带前缀）。在终端交互模式下，系统 SHALL 在等待输入前显示 "> " 提示符；在管道输入模式下，系统 SHALL 不显示提示符。
 
 #### Scenario: 交互式计算
-- **WHEN** 用户在REPL中输入 "1+2" 并按回车
-- **THEN** 系统输出 "= 3" 并等待下一行输入
+- **WHEN** 用户在终端REPL中输入 "1+2" 并按回车
+- **THEN** 系统输出 "3"（不带"= "前缀）并显示 "> " 提示符等待下一行输入
 
 #### Scenario: 连续多次计算
-- **WHEN** 用户依次输入 "2+3" 和 "4*5"
-- **THEN** 系统依次输出 "= 5" 和 "= 20"
+- **WHEN** 用户依次在终端REPL中输入 "2+3" 和 "4*5"
+- **THEN** 系统依次输出 "5" 和 "20"（均不带"= "前缀）
+
+#### Scenario: 管道输入模式
+- **WHEN** 通过管道输入表达式（如 `echo "1+2" | calculator`）
+- **THEN** 系统输出 "3"（不带"= "前缀）且不显示 "> " 提示符
 
 ### Requirement: 退出命令
 系统 SHALL 支持退出命令，用户输入"quit"或"exit"时退出REPL。

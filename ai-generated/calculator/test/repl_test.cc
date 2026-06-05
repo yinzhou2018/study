@@ -12,7 +12,7 @@ TEST(ReplTest, ExpressionOutput) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 3"), std::string::npos);
+  EXPECT_NE(out.str().find("3"), std::string::npos);
 }
 
 TEST(ReplTest, ExitCommand) {
@@ -37,7 +37,7 @@ TEST(ReplTest, ErrorContinues) {
   Repl repl(in, out);
   repl.Run();
   EXPECT_NE(out.str().find("Error"), std::string::npos);
-  EXPECT_NE(out.str().find("= 5"), std::string::npos);
+  EXPECT_NE(out.str().find("5"), std::string::npos);
 }
 
 TEST(ReplTest, EmptyLineIgnored) {
@@ -45,7 +45,7 @@ TEST(ReplTest, EmptyLineIgnored) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 2"), std::string::npos);
+  EXPECT_NE(out.str().find("2"), std::string::npos);
 }
 
 TEST(ReplTest, WelcomeMessage) {

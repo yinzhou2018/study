@@ -12,7 +12,7 @@ TEST(IntegrationTest, FullPipeline) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 3"), std::string::npos);
+  EXPECT_NE(out.str().find("3"), std::string::npos);
 }
 
 TEST(IntegrationTest, DivisionByZeroIntegration) {
@@ -28,7 +28,7 @@ TEST(IntegrationTest, ParenthesesIntegration) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 9"), std::string::npos);
+  EXPECT_NE(out.str().find("9"), std::string::npos);
 }
 
 TEST(IntegrationTest, NegativeNumber) {
@@ -36,7 +36,7 @@ TEST(IntegrationTest, NegativeNumber) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= -2"), std::string::npos);
+  EXPECT_NE(out.str().find("-2"), std::string::npos);
 }
 
 TEST(IntegrationTest, FloatComputation) {
@@ -44,7 +44,7 @@ TEST(IntegrationTest, FloatComputation) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 6.28"), std::string::npos);
+  EXPECT_NE(out.str().find("6.28"), std::string::npos);
 }
 
 TEST(IntegrationTest, MultipleExpressions) {
@@ -52,8 +52,8 @@ TEST(IntegrationTest, MultipleExpressions) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 5"), std::string::npos);
-  EXPECT_NE(out.str().find("= 20"), std::string::npos);
+  EXPECT_NE(out.str().find("5"), std::string::npos);
+  EXPECT_NE(out.str().find("20"), std::string::npos);
 }
 
 TEST(IntegrationTest, IllegalCharacterIntegration) {
@@ -69,7 +69,7 @@ TEST(IntegrationTest, EmptyLineSkipped) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 2"), std::string::npos);
+  EXPECT_NE(out.str().find("2"), std::string::npos);
 }
 
 TEST(IntegrationTest, ErrorRecoveryContinues) {
@@ -78,7 +78,7 @@ TEST(IntegrationTest, ErrorRecoveryContinues) {
   Repl repl(in, out);
   repl.Run();
   EXPECT_NE(out.str().find("Division by zero"), std::string::npos);
-  EXPECT_NE(out.str().find("= 5"), std::string::npos);
+  EXPECT_NE(out.str().find("5"), std::string::npos);
 }
 
 TEST(IntegrationTest, QuitExitsRepl) {
@@ -86,5 +86,5 @@ TEST(IntegrationTest, QuitExitsRepl) {
   std::ostringstream out;
   Repl repl(in, out);
   repl.Run();
-  EXPECT_NE(out.str().find("= 2"), std::string::npos);
+  EXPECT_NE(out.str().find("2"), std::string::npos);
 }

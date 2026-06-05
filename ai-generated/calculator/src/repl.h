@@ -20,6 +20,7 @@ class Repl {
  private:
   std::reference_wrapper<std::istream> in_;
   std::reference_wrapper<std::ostream> out_;
+  bool interactive_;
 
   void ProcessLine(const std::string& line);
   bool IsExitCommand(const std::string& line) const;
