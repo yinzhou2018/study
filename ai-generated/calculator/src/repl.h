@@ -2,9 +2,11 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "evaluator.h"
+#include "input_reader.h"
 #include "lexer.h"
 #include "parser.h"
 #include "result.h"
@@ -18,9 +20,8 @@ class Repl {
   void Run();
 
  private:
-  std::reference_wrapper<std::istream> in_;
+  std::unique_ptr<InputReader> reader_;
   std::reference_wrapper<std::ostream> out_;
-  bool interactive_;
 
   void ProcessLine(const std::string& line);
   bool IsExitCommand(const std::string& line) const;

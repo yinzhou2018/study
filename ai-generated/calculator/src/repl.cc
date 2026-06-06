@@ -1,27 +1,29 @@
 #include "repl.h"
 
+#include <unistd.h>
 #include <algorithm>
 #include <sstream>
 #include <string>
-#include <unistd.h>
+
+#include "input_reader.h"
 
 namespace calculator {
 
-Repl::Repl(std::istream& in, std::ostream& out)
-    : in_{in}, out_{out}, interactive_{static_cast<bool>(isatty(fileno(stdin)))} {}
+Repl::Repl(std::istream& in, std::ostream& out) : out_{out} {
+  bool interactive = static_cast<bool>(isatty(fileno(stdin)));
+  if (interactive) {
+    reader_ = std::make_unique<LinenoiseReader>();
+  } else {
+    reader_ = std::make_unique<Stdin1Reader>(in);
+  }
+}
 
 void Repl::Run() {
   out_.get() << "Calculator v1.0\n";
   out_.get() << "Type 'quit' or 'exit' to quit.\n";
 
   std::string line;
-  while (true) {
-    if (interactive_) {
-      out_.get() << "> ";
-    }
-    if (!std::getline(in_.get(), line)) {
-      break;
-    }
+  while (reader_->ReadLine(line)) {
     if (IsExitCommand(line))
       break;
     ProcessLine(line);
