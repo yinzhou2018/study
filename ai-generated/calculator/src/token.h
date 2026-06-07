@@ -13,6 +13,8 @@ enum class TokenType {
   Slash,
   LeftParen,
   RightParen,
+  Comma,
+  Identifier,
   EndOfInput,
 };
 
@@ -20,6 +22,7 @@ struct Token {
   TokenType type;
   double value;
   int position;
+  std::string text;
 };
 
 }  // namespace calculator

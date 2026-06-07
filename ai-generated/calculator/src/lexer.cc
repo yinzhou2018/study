@@ -32,7 +32,20 @@ Result<Token> Lexer::ReadNumber() {
     }
   }
   double value = std::stod(input_.substr(start, pos_ - start));
-  return Token{TokenType::Number, value, start};
+  return Token{TokenType::Number, value, start, {}};
+}
+
+Result<Token> Lexer::ReadIdentifier() {
+  int start = pos_;
+  std::string text;
+  while (std::islower(Peek())) {
+    text += Advance();
+  }
+  if (std::isupper(Peek())) {
+    return Error{"Illegal character '" + std::string(1, Peek()) +
+                 "' at position " + std::to_string(pos_)};
+  }
+  return Token{TokenType::Identifier, 0, start, std::move(text)};
 }
 
 Result<std::vector<Token>> Lexer::Tokenize() {
@@ -49,29 +62,37 @@ Result<std::vector<Token>> Lexer::Tokenize() {
         return result.error();
       tokens.push_back(result.value());
     } else if (ch == '+') {
-      tokens.push_back(Token{TokenType::Plus, 0, pos_});
+      tokens.push_back(Token{TokenType::Plus, 0, pos_, {}});
       Advance();
     } else if (ch == '-') {
-      tokens.push_back(Token{TokenType::Minus, 0, pos_});
+      tokens.push_back(Token{TokenType::Minus, 0, pos_, {}});
       Advance();
     } else if (ch == '*') {
-      tokens.push_back(Token{TokenType::Star, 0, pos_});
+      tokens.push_back(Token{TokenType::Star, 0, pos_, {}});
       Advance();
     } else if (ch == '/') {
-      tokens.push_back(Token{TokenType::Slash, 0, pos_});
+      tokens.push_back(Token{TokenType::Slash, 0, pos_, {}});
       Advance();
     } else if (ch == '(') {
-      tokens.push_back(Token{TokenType::LeftParen, 0, pos_});
+      tokens.push_back(Token{TokenType::LeftParen, 0, pos_, {}});
       Advance();
     } else if (ch == ')') {
-      tokens.push_back(Token{TokenType::RightParen, 0, pos_});
+      tokens.push_back(Token{TokenType::RightParen, 0, pos_, {}});
       Advance();
+    } else if (ch == ',') {
+      tokens.push_back(Token{TokenType::Comma, 0, pos_, {}});
+      Advance();
+    } else if (std::islower(ch)) {
+      auto result = ReadIdentifier();
+      if (!result.ok())
+        return result.error();
+      tokens.push_back(result.value());
     } else {
       return Error{"Illegal character '" + std::string(1, ch) +
                    "' at position " + std::to_string(pos_)};
     }
   }
-  tokens.push_back(Token{TokenType::EndOfInput, 0, pos_});
+  tokens.push_back(Token{TokenType::EndOfInput, 0, pos_, {}});
   return tokens;
 }
 

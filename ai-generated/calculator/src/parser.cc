@@ -89,6 +89,37 @@ Result<Expr> Parser::Factor() {
     }
     return expr;
   }
+  if (Peek().type == TokenType::Identifier) {
+    std::string name = Peek().text;
+    int name_pos = Peek().position;
+    Advance();
+    if (Peek().type == TokenType::LeftParen) {
+      Advance();
+      auto func = std::make_unique<FuncCallExpr>(
+          FuncCallExpr{name, {}});
+      if (Peek().type == TokenType::RightParen) {
+        Advance();
+        return Result<Expr>(Expr(std::move(func)));
+      }
+      auto first_arg = ExprRule();
+      if (!first_arg.ok())
+        return first_arg.error();
+      func->args.push_back(first_arg.Take());
+      while (Peek().type == TokenType::Comma) {
+        Advance();
+        auto arg = ExprRule();
+        if (!arg.ok())
+          return arg.error();
+        func->args.push_back(arg.Take());
+      }
+      if (!Match(TokenType::RightParen)) {
+        return Error{"Mismatched parentheses in function call '" + name +
+                     "' at position " + std::to_string(name_pos)};
+      }
+      return Result<Expr>(Expr(std::move(func)));
+    }
+    return Expr(ConstantExpr{std::move(name)});
+  }
   return Error{"Unexpected token at position " +
                std::to_string(Peek().position)};
 }

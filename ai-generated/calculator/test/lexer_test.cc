@@ -99,3 +99,61 @@ TEST(LexerTest, IllegalCharacterPosition) {
   EXPECT_FALSE(result.ok());
   EXPECT_NE(result.error().message.find("position 2"), std::string::npos);
 }
+
+TEST(LexerTest, IdentifierFunctionName) {
+  Lexer lexer("sin(1)");
+  auto result = lexer.Tokenize();
+  ASSERT_TRUE(result.ok());
+  auto& tokens = result.value();
+  ASSERT_EQ(tokens.size(), 5u);
+  EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+  EXPECT_EQ(tokens[0].text, "sin");
+}
+
+TEST(LexerTest, IdentifierConstantName) {
+  Lexer lexer("pi");
+  auto result = lexer.Tokenize();
+  ASSERT_TRUE(result.ok());
+  auto& tokens = result.value();
+  ASSERT_EQ(tokens.size(), 2u);
+  EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+  EXPECT_EQ(tokens[0].text, "pi");
+  EXPECT_EQ(tokens[1].type, TokenType::EndOfInput);
+}
+
+TEST(LexerTest, CommaToken) {
+  Lexer lexer("pow(2,3)");
+  auto result = lexer.Tokenize();
+  ASSERT_TRUE(result.ok());
+  auto& tokens = result.value();
+  ASSERT_EQ(tokens.size(), 7u);
+  EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+  EXPECT_EQ(tokens[0].text, "pow");
+  EXPECT_EQ(tokens[1].type, TokenType::LeftParen);
+  EXPECT_EQ(tokens[2].type, TokenType::Number);
+  EXPECT_DOUBLE_EQ(tokens[2].value, 2.0);
+  EXPECT_EQ(tokens[3].type, TokenType::Comma);
+  EXPECT_EQ(tokens[4].type, TokenType::Number);
+  EXPECT_DOUBLE_EQ(tokens[4].value, 3.0);
+  EXPECT_EQ(tokens[5].type, TokenType::RightParen);
+}
+
+TEST(LexerTest, UppercaseIdentifierError) {
+  Lexer lexer("Sin(1)");
+  auto result = lexer.Tokenize();
+  EXPECT_FALSE(result.ok());
+  EXPECT_NE(result.error().message.find("Illegal character 'S'"),
+            std::string::npos);
+}
+
+TEST(LexerTest, IdentifierFollowedByNumber) {
+  Lexer lexer("pi2");
+  auto result = lexer.Tokenize();
+  ASSERT_TRUE(result.ok());
+  auto& tokens = result.value();
+  ASSERT_EQ(tokens.size(), 3u);
+  EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+  EXPECT_EQ(tokens[0].text, "pi");
+  EXPECT_EQ(tokens[1].type, TokenType::Number);
+  EXPECT_DOUBLE_EQ(tokens[1].value, 2.0);
+}

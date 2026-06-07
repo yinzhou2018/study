@@ -14,7 +14,7 @@ Repl::Repl(std::istream& in, std::ostream& out) : out_{out} {
   if (interactive) {
     reader_ = std::make_unique<LinenoiseReader>();
   } else {
-    reader_ = std::make_unique<Stdin1Reader>(in);
+    reader_ = std::make_unique<StdinReader>(in);
   }
 }
 

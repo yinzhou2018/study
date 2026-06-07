@@ -21,6 +21,7 @@ class Lexer {
   char Advance();
   void SkipWhitespace();
   Result<Token> ReadNumber();
+  Result<Token> ReadIdentifier();
 };
 
 }  // namespace calculator

@@ -5,6 +5,8 @@
 #include "parser.h"
 
 using calculator::BinaryExpr;
+using calculator::ConstantExpr;
+using calculator::FuncCallExpr;
 using calculator::Lexer;
 using calculator::NumberExpr;
 using calculator::Parser;
@@ -102,4 +104,66 @@ TEST(ParserTest, IncompleteExpression) {
   Parser parser(std::move(tokens.value()));
   auto expr = parser.Parse();
   EXPECT_FALSE(expr.ok());
+}
+
+TEST(ParserTest, SingleArgFunctionCall) {
+  Lexer lexer("sin(1)");
+  auto tokens = lexer.Tokenize();
+  ASSERT_TRUE(tokens.ok());
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  ASSERT_TRUE(expr.ok());
+  auto& func = *std::get<std::unique_ptr<FuncCallExpr>>(expr.value());
+  EXPECT_EQ(func.name, "sin");
+  ASSERT_EQ(func.args.size(), 1u);
+  EXPECT_DOUBLE_EQ(std::get<NumberExpr>(func.args[0]).value, 1.0);
+}
+
+TEST(ParserTest, TwoArgFunctionCall) {
+  Lexer lexer("pow(2,3)");
+  auto tokens = lexer.Tokenize();
+  ASSERT_TRUE(tokens.ok());
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  ASSERT_TRUE(expr.ok());
+  auto& func = *std::get<std::unique_ptr<FuncCallExpr>>(expr.value());
+  EXPECT_EQ(func.name, "pow");
+  ASSERT_EQ(func.args.size(), 2u);
+  EXPECT_DOUBLE_EQ(std::get<NumberExpr>(func.args[0]).value, 2.0);
+  EXPECT_DOUBLE_EQ(std::get<NumberExpr>(func.args[1]).value, 3.0);
+}
+
+TEST(ParserTest, ConstantReference) {
+  Lexer lexer("pi");
+  auto tokens = lexer.Tokenize();
+  ASSERT_TRUE(tokens.ok());
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  ASSERT_TRUE(expr.ok());
+  auto& con = std::get<ConstantExpr>(expr.value());
+  EXPECT_EQ(con.name, "pi");
+}
+
+TEST(ParserTest, FunctionCallPrecedence) {
+  Lexer lexer("2*sin(1)");
+  auto tokens = lexer.Tokenize();
+  ASSERT_TRUE(tokens.ok());
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  ASSERT_TRUE(expr.ok());
+  auto& mul = *std::get<std::unique_ptr<BinaryExpr>>(expr.value());
+  EXPECT_EQ(mul.op, BinaryExpr::Mul);
+  EXPECT_DOUBLE_EQ(std::get<NumberExpr>(mul.left).value, 2.0);
+  auto& func = *std::get<std::unique_ptr<FuncCallExpr>>(mul.right);
+  EXPECT_EQ(func.name, "sin");
+}
+
+TEST(ParserTest, FunctionCallMismatchedParens) {
+  Lexer lexer("sin(1");
+  auto tokens = lexer.Tokenize();
+  ASSERT_TRUE(tokens.ok());
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  EXPECT_FALSE(expr.ok());
+  EXPECT_NE(expr.error().message.find("Mismatched parentheses"), std::string::npos);
 }
