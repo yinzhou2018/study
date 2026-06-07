@@ -9,14 +9,17 @@
 
 namespace calculator {
 
-Repl::Repl(std::istream& in, std::ostream& out) : out_{out} {
+Repl::Repl() : out_{std::cout} {
   bool interactive = static_cast<bool>(isatty(fileno(stdin)));
   if (interactive) {
     reader_ = std::make_unique<LinenoiseReader>();
   } else {
-    reader_ = std::make_unique<StdinReader>(in);
+    reader_ = std::make_unique<StdinReader>(std::cin);
   }
 }
+
+Repl::Repl(std::unique_ptr<InputReader> reader, std::ostream& out)
+    : reader_{std::move(reader)}, out_{out} {}
 
 void Repl::Run() {
   out_.get() << "Calculator v1.0\n";

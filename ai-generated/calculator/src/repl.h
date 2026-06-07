@@ -15,7 +15,8 @@ namespace calculator {
 
 class Repl {
  public:
-  explicit Repl(std::istream& in = std::cin, std::ostream& out = std::cout);
+  Repl();
+  Repl(std::unique_ptr<InputReader> reader, std::ostream& out = std::cout);
 
   void Run();
 
