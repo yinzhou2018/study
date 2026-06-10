@@ -4,11 +4,13 @@
 #include <sstream>
 #include <string>
 
+#include "evaluator.h"
 #include "input_reader.h"
 #include "repl.h"
 
 using calculator::Repl;
 using calculator::StdinReader;
+using calculator::evaluator::EvaluateExpression;
 
 TEST(IntegrationTest, FullPipeline) {
   std::istringstream in("1+2\nexit\n");
@@ -100,4 +102,32 @@ TEST(IntegrationTest, QuitExitsRepl) {
   Repl repl(std::move(reader), out);
   repl.Run();
   EXPECT_NE(out.str().find("2"), std::string::npos);
+}
+
+TEST(EvaluateExpressionIntegrationTest, SingleArgExpression) {
+  auto result = EvaluateExpression("1+2");
+  ASSERT_TRUE(result.ok());
+  EXPECT_DOUBLE_EQ(result.value(), 3.0);
+}
+
+TEST(EvaluateExpressionIntegrationTest, MultiArgJoined) {
+  auto result = EvaluateExpression("1 + 2");
+  ASSERT_TRUE(result.ok());
+  EXPECT_DOUBLE_EQ(result.value(), 3.0);
+}
+
+TEST(EvaluateExpressionIntegrationTest, ErrorOnDivisionByZero) {
+  auto result = EvaluateExpression("1/0");
+  EXPECT_FALSE(result.ok());
+  EXPECT_NE(result.error().message.find("Division by zero"), std::string::npos);
+}
+
+TEST(EvaluateExpressionIntegrationTest, ErrorOnLexError) {
+  auto result = EvaluateExpression("1&2");
+  EXPECT_FALSE(result.ok());
+}
+
+TEST(EvaluateExpressionIntegrationTest, ErrorOnParseError) {
+  auto result = EvaluateExpression("1++2");
+  EXPECT_FALSE(result.ok());
 }

@@ -7,8 +7,6 @@
 
 #include "evaluator.h"
 #include "input_reader.h"
-#include "lexer.h"
-#include "parser.h"
 #include "result.h"
 
 namespace calculator {

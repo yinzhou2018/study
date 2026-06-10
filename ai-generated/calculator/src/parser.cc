@@ -95,8 +95,7 @@ Result<Expr> Parser::Factor() {
     Advance();
     if (Peek().type == TokenType::LeftParen) {
       Advance();
-      auto func = std::make_unique<FuncCallExpr>(
-          FuncCallExpr{name, {}});
+      auto func = std::make_unique<FuncCallExpr>(FuncCallExpr{name, {}});
       if (Peek().type == TokenType::RightParen) {
         Advance();
         return Result<Expr>(Expr(std::move(func)));

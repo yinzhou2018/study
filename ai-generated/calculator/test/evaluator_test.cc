@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <string>
+
 #include "ast.h"
 #include "evaluator.h"
 
@@ -10,6 +12,7 @@ using calculator::FuncCallExpr;
 using calculator::NumberExpr;
 using calculator::UnaryExpr;
 using calculator::evaluator::Evaluate;
+using calculator::evaluator::EvaluateExpression;
 
 TEST(EvaluatorTest, Number) {
   auto result = Evaluate(NumberExpr{42.0});
@@ -299,4 +302,38 @@ TEST(EvaluatorTest, UnknownConstant) {
   auto result = Evaluate(ConstantExpr{"unknown"});
   EXPECT_FALSE(result.ok());
   EXPECT_NE(result.error().message.find("Unknown constant"), std::string::npos);
+}
+
+TEST(EvaluateExpressionTest, NormalExpression) {
+  auto result = EvaluateExpression("1+2");
+  ASSERT_TRUE(result.ok());
+  EXPECT_DOUBLE_EQ(result.value(), 3.0);
+}
+
+TEST(EvaluateExpressionTest, LexError) {
+  auto result = EvaluateExpression("1&2");
+  EXPECT_FALSE(result.ok());
+}
+
+TEST(EvaluateExpressionTest, ParseError) {
+  auto result = EvaluateExpression("1++2");
+  EXPECT_FALSE(result.ok());
+}
+
+TEST(EvaluateExpressionTest, DivisionByZero) {
+  auto result = EvaluateExpression("1/0");
+  EXPECT_FALSE(result.ok());
+  EXPECT_NE(result.error().message.find("Division by zero"), std::string::npos);
+}
+
+TEST(EvaluateExpressionTest, WhitespaceTrimmed) {
+  auto result = EvaluateExpression("  2+3  ");
+  ASSERT_TRUE(result.ok());
+  EXPECT_DOUBLE_EQ(result.value(), 5.0);
+}
+
+TEST(EvaluateExpressionTest, EmptyInput) {
+  auto result = EvaluateExpression("");
+  EXPECT_FALSE(result.ok());
+  EXPECT_NE(result.error().message.find("Empty expression"), std::string::npos);
 }

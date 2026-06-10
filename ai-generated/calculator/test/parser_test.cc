@@ -165,5 +165,6 @@ TEST(ParserTest, FunctionCallMismatchedParens) {
   Parser parser(std::move(tokens.value()));
   auto expr = parser.Parse();
   EXPECT_FALSE(expr.ok());
-  EXPECT_NE(expr.error().message.find("Mismatched parentheses"), std::string::npos);
+  EXPECT_NE(expr.error().message.find("Mismatched parentheses"),
+            std::string::npos);
 }

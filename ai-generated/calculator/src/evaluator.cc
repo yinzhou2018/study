@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include <variant>
 
+#include "lexer.h"
+#include "parser.h"
+
 namespace calculator {
 namespace evaluator {
 
@@ -106,8 +109,7 @@ Result<double> Evaluate(const Expr& expr) {
           return VisitBinary(*node);
         } else if constexpr (std::is_same_v<T, std::unique_ptr<UnaryExpr>>) {
           return VisitUnary(*node);
-        } else if constexpr (std::is_same_v<T,
-                                            std::unique_ptr<FuncCallExpr>>) {
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<FuncCallExpr>>) {
           return VisitFuncCall(*node);
         } else if constexpr (std::is_same_v<T, ConstantExpr>) {
           return VisitConstant(node);
@@ -152,6 +154,26 @@ Result<double> VisitUnary(const UnaryExpr& expr) {
 }
 
 }  // namespace
+
+Result<double> EvaluateExpression(const std::string& input) {
+  std::string trimmed = input;
+  trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+  trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+  if (trimmed.empty())
+    return Error{"Empty expression"};
+
+  Lexer lexer(trimmed);
+  auto tokens = lexer.Tokenize();
+  if (!tokens.ok())
+    return tokens.error();
+
+  Parser parser(std::move(tokens.value()));
+  auto expr = parser.Parse();
+  if (!expr.ok())
+    return expr.error();
+
+  return Evaluate(expr.value());
+}
 
 }  // namespace evaluator
 }  // namespace calculator
