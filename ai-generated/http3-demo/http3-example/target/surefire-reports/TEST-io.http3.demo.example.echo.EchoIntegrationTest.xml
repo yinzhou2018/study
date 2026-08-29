@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.1" name="io.http3.demo.example.echo.EchoIntegrationTest" time="0.831" tests="1" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="17"/>
+    <property name="sun.jnu.encoding" value="UTF-8"/>
+    <property name="java.class.path" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/test-classes:/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/classes:/Users/yinzhou/.m2/repository/io/http3/http3-core/1.0.0-SNAPSHOT/http3-core-1.0.0-SNAPSHOT.jar:/Users/yinzhou/.m2/repository/io/http3/http3-api/1.0.0-SNAPSHOT/http3-api-1.0.0-SNAPSHOT.jar:/Users/yinzhou/.m2/repository/io/netty/netty-common/4.1.115.Final/netty-common-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-buffer/4.1.115.Final/netty-buffer-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-handler/4.1.115.Final/netty-handler-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-resolver/4.1.115.Final/netty-resolver-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-transport/4.1.115.Final/netty-transport-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-transport-native-unix-common/4.1.115.Final/netty-transport-native-unix-common-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-codec/4.1.115.Final/netty-codec-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/incubator/netty-incubator-codec-classes-quic/0.0.75.Final/netty-incubator-codec-classes-quic-0.0.75.Final.jar:/Users/yinzhou/.m2/repository/io/netty/incubator/netty-incubator-codec-native-quic/0.0.75.Final/netty-incubator-codec-native-quic-0.0.75.Final-osx-aarch_64.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.2/jackson-databind-2.17.2.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.2/jackson-annotations-2.17.2.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.2/jackson-core-2.17.2.jar:/Users/yinzhou/.m2/repository/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar:/Users/yinzhou/.m2/repository/ch/qos/logback/logback-classic/1.5.8/logback-classic-1.5.8.jar:/Users/yinzhou/.m2/repository/ch/qos/logback/logback-core/1.5.8/logback-core-1.5.8.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter/5.11.0/junit-jupiter-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.0/junit-jupiter-api-5.11.0.jar:/Users/yinzhou/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/yinzhou/.m2/repository/org/junit/platform/junit-platform-commons/1.11.0/junit-platform-commons-1.11.0.jar:/Users/yinzhou/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.0/junit-jupiter-params-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.11.0/junit-jupiter-engine-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/platform/junit-platform-engine/1.11.0/junit-platform-engine-1.11.0.jar:"/>
+    <property name="java.vm.vendor" value="Tencent"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="java.vendor.url" value="http://jdk.oa.com/"/>
+    <property name="user.timezone" value="Asia/Shanghai"/>
+    <property name="os.name" value="Mac OS X"/>
+    <property name="java.vm.specification.version" value="17"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="CN"/>
+    <property name="sun.boot.library.path" value="/Users/yinzhou/Desktop/tools/jdk-17.0.8.1.jdk/Contents/Home/lib"/>
+    <property name="sun.java.command" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/surefire/surefirebooter-20260824225337771_3.jar /Users/yinzhou/Desktop/src/http3-demo/http3-example/target/surefire 2026-08-24T22-53-37_719-jvmRun1 surefire-20260824225337771_1tmp surefire_0-20260824225337771_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/test-classes:/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/classes:/Users/yinzhou/.m2/repository/io/http3/http3-core/1.0.0-SNAPSHOT/http3-core-1.0.0-SNAPSHOT.jar:/Users/yinzhou/.m2/repository/io/http3/http3-api/1.0.0-SNAPSHOT/http3-api-1.0.0-SNAPSHOT.jar:/Users/yinzhou/.m2/repository/io/netty/netty-common/4.1.115.Final/netty-common-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-buffer/4.1.115.Final/netty-buffer-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-handler/4.1.115.Final/netty-handler-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-resolver/4.1.115.Final/netty-resolver-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-transport/4.1.115.Final/netty-transport-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-transport-native-unix-common/4.1.115.Final/netty-transport-native-unix-common-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/netty-codec/4.1.115.Final/netty-codec-4.1.115.Final.jar:/Users/yinzhou/.m2/repository/io/netty/incubator/netty-incubator-codec-classes-quic/0.0.75.Final/netty-incubator-codec-classes-quic-0.0.75.Final.jar:/Users/yinzhou/.m2/repository/io/netty/incubator/netty-incubator-codec-native-quic/0.0.75.Final/netty-incubator-codec-native-quic-0.0.75.Final-osx-aarch_64.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.2/jackson-databind-2.17.2.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.2/jackson-annotations-2.17.2.jar:/Users/yinzhou/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.2/jackson-core-2.17.2.jar:/Users/yinzhou/.m2/repository/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar:/Users/yinzhou/.m2/repository/ch/qos/logback/logback-classic/1.5.8/logback-classic-1.5.8.jar:/Users/yinzhou/.m2/repository/ch/qos/logback/logback-core/1.5.8/logback-core-1.5.8.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter/5.11.0/junit-jupiter-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.0/junit-jupiter-api-5.11.0.jar:/Users/yinzhou/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/yinzhou/.m2/repository/org/junit/platform/junit-platform-commons/1.11.0/junit-platform-commons-1.11.0.jar:/Users/yinzhou/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.0/junit-jupiter-params-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.11.0/junit-jupiter-engine-5.11.0.jar:/Users/yinzhou/.m2/repository/org/junit/platform/junit-platform-engine/1.11.0/junit-platform-engine-1.11.0.jar:"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="/Users/yinzhou"/>
+    <property name="user.language" value="zh"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2023-08-25"/>
+    <property name="java.home" value="/Users/yinzhou/Desktop/tools/jdk-17.0.8.1.jdk/Contents/Home"/>
+    <property name="file.separator" value="/"/>
+    <property name="basedir" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="surefire.real.class.path" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example/target/surefire/surefirebooter-20260824225337771_3.jar"/>
+    <property name="user.script" value="Hans"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="17.0.8.1+2-LTS"/>
+    <property name="user.name" value="yinzhou"/>
+    <property name="path.separator" value=":"/>
+    <property name="os.version" value="26.5.2"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="java.vendor.version" value="TencentKonaJDK"/>
+    <property name="localRepository" value="/Users/yinzhou/.m2/repository"/>
+    <property name="java.vendor.url.bug" value="https://git.code.oa.com/JDK/tencentJDK/issues"/>
+    <property name="java.io.tmpdir" value="/var/folders/hg/vl9lj3wn0lj01jvjlqvvnnmc0000gn/T/"/>
+    <property name="java.version" value="17.0.8.1"/>
+    <property name="user.dir" value="/Users/yinzhou/Desktop/src/http3-demo/http3-example"/>
+    <property name="os.arch" value="aarch64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="native.encoding" value="UTF-8"/>
+    <property name="java.library.path" value="/Users/yinzhou/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="java.vendor" value="Tencent"/>
+    <property name="java.vm.version" value="17.0.8.1+2-LTS"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeBig"/>
+    <property name="java.class.version" value="61.0"/>
+  </properties>
+  <testcase name="testEchoMessage" classname="io.http3.demo.example.echo.EchoIntegrationTest" time="0.82">
+    <system-out><![CDATA[22:53:38.752 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] REGISTERED
+22:53:38.753 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] ACTIVE
+22:53:38.754 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ: 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2f 65 63 68 6f                                  |/echo           |
++--------+-------------------------------------------------+----------------+
+22:53:38.755 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ COMPLETE
+22:53:38.846 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ: 90B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 00 00 00 56 7b 22 6d 73 67 49 64 22 3a 22 34 33 |...V{"msgId":"43|
+|00000010| 31 64 39 38 62 36 2d 61 61 39 37 2d 34 62 64 33 |1d98b6-aa97-4bd3|
+|00000020| 2d 61 33 39 38 2d 39 34 65 35 62 34 35 39 34 66 |-a398-94e5b4594f|
+|00000030| 36 36 22 2c 22 74 79 70 65 22 3a 22 44 41 54 41 |66","type":"DATA|
+|00000040| 22 2c 22 70 61 79 6c 6f 61 64 22 3a 22 48 65 6c |","payload":"Hel|
+|00000050| 6c 6f 20 45 63 68 6f 21 22 7d                   |lo Echo!"}      |
++--------+-------------------------------------------------+----------------+
+22:53:38.866 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] WRITE: StreamMessage{msgId='1b7466f7-ae4a-4931-8e78-68ad30635e70', type=DATA, payload=Hello Echo!}
+22:53:38.867 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] FLUSH
+22:53:38.867 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ COMPLETE
+22:53:38.867 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ: 85B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 00 00 00 51 7b 22 6d 73 67 49 64 22 3a 22 63 62 |...Q{"msgId":"cb|
+|00000010| 31 66 34 32 32 31 2d 33 35 38 33 2d 34 32 30 36 |1f4221-3583-4206|
+|00000020| 2d 39 31 30 39 2d 33 37 34 64 62 34 34 31 38 35 |-9109-374db44185|
+|00000030| 34 61 22 2c 22 74 79 70 65 22 3a 22 43 4f 4d 50 |4a","type":"COMP|
+|00000040| 4c 45 54 45 22 2c 22 70 61 79 6c 6f 61 64 22 3a |LETE","payload":|
+|00000050| 6e 75 6c 6c 7d                                  |null}           |
++--------+-------------------------------------------------+----------------+
+22:53:38.868 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] WRITE: StreamMessage{msgId='d52c43ff-1bf6-4ad3-8cca-529cffb81bd5', type=COMPLETE, payload=null}
+22:53:38.868 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] FLUSH
+22:53:38.868 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] READ COMPLETE
+22:53:38.876 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] INACTIVE
+22:53:38.876 [nioEventLoopGroup-2-1] INFO  i.n.handler.logging.LoggingHandler - [id: 0x53fb0e12, QuicStreamAddress{streamId=0}] UNREGISTERED
+]]></system-out>
+  </testcase>
+</testsuite>

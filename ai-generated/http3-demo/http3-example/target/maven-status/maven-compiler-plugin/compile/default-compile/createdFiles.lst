@@ -1,0 +1,6 @@
+io/http3/demo/example/chat/ChatServer.class
+io/http3/demo/example/streamdata/StreamDataServer.class
+io/http3/demo/example/echo/EchoClient.class
+io/http3/demo/example/echo/EchoServer.class
+io/http3/demo/example/chat/ChatClient.class
+io/http3/demo/example/streamdata/StreamDataClient.class
