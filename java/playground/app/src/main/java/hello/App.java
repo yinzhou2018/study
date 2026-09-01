@@ -4,6 +4,7 @@
 package hello;
 
 import utils1.*;
+import hello.gson.GsonDemo;
 
 public class App {
   public String getGreeting() {
@@ -18,5 +19,7 @@ public class App {
     System.out.println(new App().getGreeting());
     // System.out.println(UtilsImpl2.add(1, 2));
     System.out.println(Utils.add(1, 2));
+
+    GsonDemo.run();
   }
 }

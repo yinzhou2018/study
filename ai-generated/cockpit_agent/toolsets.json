@@ -1,0 +1,2116 @@
+{
+  "toolset_body_control": {
+    "name": "车身控制工具集",
+    "description": "车身机械执行部件的运动控制，包含车窗、天窗、门锁、雨刮、后视镜等",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_window_left_front",
+          "description": "左前车窗玻璃开度调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  100
+                ],
+                "description": "车窗开度百分比，0=全关，100=全开"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_window_right_front",
+          "description": "右前车窗玻璃开度调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  100
+                ],
+                "description": "车窗开度百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_window_rear",
+          "description": "后排车窗玻璃开度调节（左右联动）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  100
+                ],
+                "description": "车窗开度百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_window_all",
+          "description": "全车车窗一键同步控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  100
+                ],
+                "description": "车窗开度百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_sunroof_tilt",
+          "description": "天窗翘角通风模式开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭翘角模式"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_sunroof_open",
+          "description": "天窗全开滑动控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  50,
+                  100
+                ],
+                "description": "天窗开启百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_sunroof_shade",
+          "description": "天窗遮阳帘开度控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  50,
+                  100
+                ],
+                "description": "遮阳帘开度百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_door_lock",
+          "description": "全车中控门锁控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "lock",
+                  "unlock"
+                ],
+                "description": "上锁/解锁"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_child_lock",
+          "description": "后排儿童锁开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭儿童锁"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_tailgate",
+          "description": "电动尾门开关控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "close"
+                ],
+                "description": "打开/关闭尾门"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_door_soft_close",
+          "description": "电吸门辅助关闭",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "door": {
+                "type": "string",
+                "enum": [
+                  "left_front",
+                  "right_front",
+                  "tailgate"
+                ],
+                "description": "指定车门"
+              }
+            },
+            "required": [
+              "door"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_door_handle",
+          "description": "电动门把手弹出/收回",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "door": {
+                "type": "string",
+                "enum": [
+                  "left_front",
+                  "right_front"
+                ],
+                "description": "指定车门"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pop",
+                  "retract"
+                ],
+                "description": "弹出/收回"
+              }
+            },
+            "required": [
+              "door",
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_mirror_fold",
+          "description": "外后视镜折叠控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "fold",
+                  "unfold"
+                ],
+                "description": "折叠/展开"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_wiper_front",
+          "description": "前风挡雨刮档位控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "1",
+                  "2",
+                  "3",
+                  "auto"
+                ],
+                "description": "雨刮档位"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_wiper_rear",
+          "description": "后风挡雨刮开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_lighting_control": {
+    "name": "灯光照明工具集",
+    "description": "全车内外灯光系统控制，包含大灯、氛围灯、迎宾灯、星空顶等",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_headlight_mode",
+          "description": "大灯模式控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "auto",
+                  "low_beam",
+                  "high_beam",
+                  "adaptive_matrix"
+                ],
+                "description": "大灯工作模式"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_drl",
+          "description": "日行灯开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_fog_light",
+          "description": "雾灯开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ambient_light",
+          "description": "车内氛围灯控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "color": {
+                "type": "string",
+                "enum": [
+                  "white",
+                  "blue",
+                  "red",
+                  "green",
+                  "custom"
+                ],
+                "description": "灯光颜色"
+              },
+              "brightness": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "亮度百分比"
+              }
+            },
+            "required": [
+              "color",
+              "brightness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ambient_scene",
+          "description": "氛围灯场景模式",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "scene": {
+                "type": "string",
+                "enum": [
+                  "driving",
+                  "rest",
+                  "welcome",
+                  "music_sync"
+                ],
+                "description": "场景模式"
+              }
+            },
+            "required": [
+              "scene"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_welcome_light",
+          "description": "迎宾灯光系统（车外+车内联动）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_star_roof",
+          "description": "星空顶控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "brightness": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "亮度百分比"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "static",
+                  "breathe",
+                  "meteor"
+                ],
+                "description": "动态模式"
+              }
+            },
+            "required": [
+              "brightness",
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_interior_reading",
+          "description": "车内阅读灯/顶棚灯",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "zone": {
+                "type": "string",
+                "enum": [
+                  "driver",
+                  "passenger",
+                  "rear_all"
+                ],
+                "description": "控制区域"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off",
+                  "auto"
+                ],
+                "description": "开关状态"
+              }
+            },
+            "required": [
+              "zone",
+              "status"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_seat_system": {
+    "name": "座椅系统工具集",
+    "description": "全车座椅全维度调节与舒适功能，包含加热、通风、按摩、记忆等",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_driver_memory",
+          "description": "主驾座椅记忆位置调用",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "description": "记忆档位"
+              }
+            },
+            "required": [
+              "slot"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_driver_heat",
+          "description": "主驾座椅加热档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "加热档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_driver_vent",
+          "description": "主驾座椅通风档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "通风档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_driver_massage",
+          "description": "主驾座椅按摩",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "waist",
+                  "full_body",
+                  "pulse"
+                ],
+                "description": "按摩模式"
+              },
+              "level": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "description": "强度档位"
+              }
+            },
+            "required": [
+              "mode",
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_driver_lumbar",
+          "description": "主驾腰托调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "description": "腰托支撑档位"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_passenger_heat",
+          "description": "副驾座椅加热档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "加热档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_passenger_vent",
+          "description": "副驾座椅通风档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "通风档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_passenger_massage",
+          "description": "副驾座椅按摩",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "waist",
+                  "full_body",
+                  "pulse"
+                ],
+                "description": "按摩模式"
+              },
+              "level": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "description": "强度档位"
+              }
+            },
+            "required": [
+              "mode",
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_boss_key",
+          "description": "老板键（副驾座椅前移）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_rear_heat",
+          "description": "后排座椅加热档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "加热档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_rear_vent",
+          "description": "后排座椅通风档位",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "通风档位，0=关闭"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_seat_rear_recline",
+          "description": "后排座椅靠背角度调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "angle": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "description": "靠背角度档位，1最直立，5最躺"
+              }
+            },
+            "required": [
+              "angle"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_climate_control": {
+    "name": "空调温控工具集",
+    "description": "空调系统核心温湿度控制与空气净化",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ac_temperature",
+          "description": "全车空调温度设置",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "integer",
+                "minimum": 16,
+                "maximum": 30,
+                "description": "设定温度，单位摄氏度"
+              }
+            },
+            "required": [
+              "temperature"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ac_fan_speed",
+          "description": "空调风量档位调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "description": "风量档位"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ac_circulation",
+          "description": "空调内外循环模式切换",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "inner",
+                  "outer",
+                  "auto"
+                ],
+                "description": "循环模式"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ac_vent_mode",
+          "description": "空调出风口模式",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "face",
+                  "foot",
+                  "defog",
+                  "mix"
+                ],
+                "description": "出风模式"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_air_purifier",
+          "description": "车载空气净化器开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ionizer",
+          "description": "负离子发生器开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_air_quality",
+          "description": "车内空气质量查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ]
+  },
+  "toolset_cabin_comfort": {
+    "name": "座舱舒适配置工具集",
+    "description": "座舱专属舒适配置，包含冰箱、香氛、天幕遮阳等独立功能",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_fridge",
+          "description": "车载冷暖冰箱模式控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "cold",
+                  "warm"
+                ],
+                "description": "工作模式：关闭/制冷/制热"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_fridge_temp",
+          "description": "冰箱温度调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "integer",
+                "enum": [
+                  3,
+                  5,
+                  7,
+                  -6,
+                  -12,
+                  40,
+                  50
+                ],
+                "description": "设定温度，单位摄氏度，覆盖冷藏/冷冻/暖箱"
+              }
+            },
+            "required": [
+              "temperature"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_aroma_system",
+          "description": "车载香氛系统",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "scent": {
+                "type": "string",
+                "enum": [
+                  "tea",
+                  "flower",
+                  "wood",
+                  "ocean"
+                ],
+                "description": "香氛香型"
+              },
+              "intensity": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "description": "浓度强度"
+              }
+            },
+            "required": [
+              "scent",
+              "intensity"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_panoramic_shade",
+          "description": "全景天幕遮阳帘",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "openness": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  100
+                ],
+                "description": "遮阳帘开度百分比"
+              }
+            },
+            "required": [
+              "openness"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_armrest_heat",
+          "description": "中央扶手箱加热",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_media_entertainment": {
+    "name": "影音娱乐工具集",
+    "description": "全车影音媒体播放与音量控制",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_music_play",
+          "description": "播放指定类型音乐/歌单",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string",
+                "enum": [
+                  "light",
+                  "pop",
+                  "classic",
+                  "radio",
+                  "favorite"
+                ],
+                "description": "音乐类型"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_music_next",
+          "description": "切换下一首曲目",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_music_prev",
+          "description": "切换上一首曲目",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_volume_media",
+          "description": "媒体音量档位调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "音量档位"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_sound_mode",
+          "description": "音响音效模式",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "hifi",
+                  "vocal",
+                  "theater",
+                  "bass_boost"
+                ],
+                "description": "音效模式"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_radio_tune",
+          "description": "电台频率切换",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "frequency": {
+                "type": "string",
+                "enum": [
+                  "FM89.3",
+                  "FM91.5",
+                  "FM97.4",
+                  "FM103.9",
+                  "AM639",
+                  "AM1008"
+                ],
+                "description": "电台频率"
+              }
+            },
+            "required": [
+              "frequency"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_media_mute",
+          "description": "全局媒体静音开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭静音"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_rear_entertainment",
+          "description": "后排娱乐系统开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_navigation": {
+    "name": "导航出行工具集",
+    "description": "导航路径规划、POI搜索、路况与沿途服务查询",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_nav_start",
+          "description": "发起导航到指定目的地",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "destination": {
+                "type": "string",
+                "description": "目的地名称或地址"
+              }
+            },
+            "required": [
+              "destination"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_nav_stop",
+          "description": "结束当前导航",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_nav_route_pref",
+          "description": "导航路线偏好设置",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "fastest",
+                  "shortest",
+                  "no_highway",
+                  "no_toll"
+                ],
+                "description": "路线偏好"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_poi_nearby",
+          "description": "周边POI兴趣点搜索",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "description": "搜索关键词"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "gas",
+                  "charging",
+                  "restaurant",
+                  "parking"
+                ],
+                "description": "POI类型"
+              }
+            },
+            "required": [
+              "keyword",
+              "type"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_traffic_status",
+          "description": "当前行驶路线路况查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_charging_station",
+          "description": "沿途充电站推荐查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_route_charge_plan",
+          "description": "沿途充电规划",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "soc_threshold": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 30,
+                "description": "剩余电量阈值，单位%"
+              }
+            },
+            "required": [
+              "soc_threshold"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_vehicle_info": {
+    "name": "车辆信息工具集",
+    "description": "车辆运行状态、硬件数据的只读查询",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "query_vehicle_basic",
+          "description": "查询整车基础运行状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_battery_status",
+          "description": "动力电池状态查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_range_mileage",
+          "description": "查询剩余续航里程",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_energy_consumption",
+          "description": "能耗统计查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_tire_pressure",
+          "description": "查询四轮胎压状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_window_status",
+          "description": "查询全车车窗天窗状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_door_status",
+          "description": "查询全车门开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ]
+  },
+  "toolset_charging_management": {
+    "name": "充电管理工具集",
+    "description": "新能源车辆端充电控制与管理",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_charge_start",
+          "description": "开始交流/直流充电",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_charge_stop",
+          "description": "停止充电",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_charge_limit",
+          "description": "充电上限设置",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "percent": {
+                "type": "integer",
+                "enum": [
+                  50,
+                  60,
+                  70,
+                  80,
+                  90,
+                  100
+                ],
+                "description": "充电上限百分比"
+              }
+            },
+            "required": [
+              "percent"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_charge_schedule",
+          "description": "预约充电设置",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "start_time": {
+                "type": "string",
+                "description": "开始时间，格式HH:MM"
+              },
+              "end_time": {
+                "type": "string",
+                "description": "结束时间，格式HH:MM"
+              }
+            },
+            "required": [
+              "start_time",
+              "end_time"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_v2l_discharge",
+          "description": "VTOL对外放电开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭放电"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_charge_status",
+          "description": "充电状态查询",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ]
+  },
+  "toolset_communication": {
+    "name": "通讯通话工具集",
+    "description": "车载电话、短信、通讯录管理",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_phone_call",
+          "description": "拨打指定联系人/号码电话",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "contact": {
+                "type": "string",
+                "description": "联系人名或电话号码"
+              }
+            },
+            "required": [
+              "contact"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_phone_answer",
+          "description": "接听当前来电",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_phone_hangup",
+          "description": "挂断当前通话",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_contact_search",
+          "description": "通讯录匹配联系人查询",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "description": "姓名或号码关键词"
+              }
+            },
+            "required": [
+              "keyword"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_message_read",
+          "description": "播报未读短信/消息",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ]
+  },
+  "toolset_driving_assist": {
+    "name": "驾驶辅助工具集",
+    "description": "ADAS驾驶辅助、泊车控制、显示设置",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_cruise_control",
+          "description": "定速巡航开关与设置",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              },
+              "speed": {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 150,
+                "description": "巡航车速，单位km/h，可选"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_lane_keep",
+          "description": "车道保持辅助开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_acc_distance",
+          "description": "自适应巡航跟车距离调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "description": "跟车距离档位，1=最近"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_energy_recovery",
+          "description": "能量回收强度调节",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "one_pedal"
+                ],
+                "description": "回收强度模式"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_auto_park",
+          "description": "自动泊车启动",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "vertical",
+                  "parallel"
+                ],
+                "description": "车位类型：垂直/平行"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_remote_park",
+          "description": "遥控泊车控制",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "forward",
+                  "backward"
+                ],
+                "description": "行驶方向"
+              }
+            },
+            "required": [
+              "direction"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_hud_display",
+          "description": "HUD抬头显示开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "toolset_cabin_modes": {
+    "name": "座舱模式工具集",
+    "description": "高频场景一键触发，内部调用各工具集原子工具执行",
+    "execution_rules": [],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_car_wash_mode",
+          "description": "启动洗车模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_rest_mode",
+          "description": "启动休息模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_commute_mode",
+          "description": "启动通勤模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_child_mode",
+          "description": "启动儿童模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_charge_mode",
+          "description": "充电节能模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_camp_mode",
+          "description": "露营模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_pet_mode",
+          "description": "宠物模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "trigger_stealth_mode",
+          "description": "隐私模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ]
+  }
+}
