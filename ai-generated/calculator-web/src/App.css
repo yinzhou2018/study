@@ -114,6 +114,20 @@
   background: #fbbf24;
 }
 
+/* 0 按钮跨 2 列，符合标准计算器布局 */
+.btn-zero {
+  grid-column: span 2;
+}
+
+.btn.operator.active {
+  background: #818cf8;
+  color: #1e1b4b;
+}
+
+.btn.operator.active:hover {
+  background: #a5b4fc;
+}
+
 /* 响应式：移动端按钮增大 */
 @media (max-width: 480px) {
   .btn {

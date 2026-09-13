@@ -121,6 +121,41 @@ describe('calculatorReducer — P1 功能', () => {
   })
 })
 
+describe('calculatorReducer — 连续等号重复运算', () => {
+  it('5 + 3 = = → 8, 11', () => {
+    const s1 = run([digit('5'), op('+'), digit('3'), EQUALS])
+    expect(s1.display).toBe('8')
+    const s2 = run([digit('5'), op('+'), digit('3'), EQUALS, EQUALS])
+    expect(s2.display).toBe('11')
+  })
+
+  it('连续等号三次：5 + 3 = = = → 8, 11, 14', () => {
+    const s = run([
+      digit('5'), op('+'), digit('3'), EQUALS, EQUALS, EQUALS,
+    ])
+    expect(s.display).toBe('14')
+  })
+
+  it('连续等号减法：10 - 2 = = = → 8, 6, 4', () => {
+    const s = run([
+      digit('1'), digit('0'), op('-'), digit('2'), EQUALS, EQUALS, EQUALS,
+    ])
+    expect(s.display).toBe('4')
+  })
+
+  it('连续等号乘法：2 × 3 = = → 6, 18', () => {
+    const s = run([digit('2'), op('x'), digit('3'), EQUALS, EQUALS])
+    expect(s.display).toBe('18')
+  })
+
+  it('连续等号后按数字开始新输入', () => {
+    const s = run([digit('5'), op('+'), digit('3'), EQUALS, EQUALS, digit('7')])
+    expect(s.display).toBe('7')
+    expect(s.operand).toBeNull()
+    expect(s.operator).toBeNull()
+  })
+})
+
 describe('calculatorReducer — 边界情况', () => {
   it('前导零：00 → 0, 01 → 1', () => {
     expect(run([digit('0'), digit('0')]).display).toBe('0')
@@ -163,5 +198,32 @@ describe('calculatorReducer — 边界情况', () => {
     const s = run([...big, op('x'), ...big, EQUALS])
     expect(s.display.length).toBeLessThanOrEqual(12)
     expect(s.display).not.toBe('溢出')
+  })
+
+  it('溢出后按运算符进入 Error 状态（NaN 防护）', () => {
+    // 构造一个溢出到 "溢出" 的场景：需要结果科学计数法表示也超 12 字符
+    // 使用极大幂次连乘使 toExponential(6) 输出超长
+    // 1e308 × 1e308 = Infinity → formatDisplay 返回 "错误"，不是 "溢出"
+    // 改为直接测试：当 display 为 "溢出" 时按运算符进入 Error
+    const overflowState: CalcState = {
+      ...initialState,
+      display: '溢出',
+      hasError: false,
+    }
+    const afterOp = calculatorReducer(overflowState, op('+'))
+    expect(afterOp.hasError).toBe(true)
+    expect(afterOp.display).toBe('错误')
+
+    // 同理，溢出后按等号也进入 Error
+    const overflowWithOp: CalcState = {
+      ...initialState,
+      display: '溢出',
+      operand: 5,
+      operator: '+',
+      hasError: false,
+    }
+    const afterEq = calculatorReducer(overflowWithOp, EQUALS)
+    expect(afterEq.hasError).toBe(true)
+    expect(afterEq.display).toBe('错误')
   })
 })

@@ -6,6 +6,7 @@ export type CalcState = {
   display: string // 当前显示值（输入中的原始字符串，或计算结果格式化字符串）
   operand: number | null // 已暂存的操作数
   operator: Operator | null // 已暂存的运算符
+  lastOperand: number | null // 等号后保留的第二操作数（支持连续按等号重复运算）
   waitingForNext: boolean // 是否等待输入下一个操作数
   hasError: boolean // 错误状态（仅 AC 可恢复）
 }
@@ -27,6 +28,7 @@ export const initialState: CalcState = {
   display: '0',
   operand: null,
   operator: null,
+  lastOperand: null,
   waitingForNext: false,
   hasError: false,
 }
@@ -59,7 +61,18 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
       const d = action.digit
 
       if (state.waitingForNext) {
-        // 开始输入新操作数
+        // 等号后开始新输入：清除上一轮运算状态
+        if (state.lastOperand !== null) {
+          return {
+            ...state,
+            display: d,
+            operand: null,
+            operator: null,
+            lastOperand: null,
+            waitingForNext: false,
+          }
+        }
+        // 运算符后开始输入新操作数
         return { ...state, display: d, waitingForNext: false }
       }
 
@@ -81,6 +94,17 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
 
     case 'DECIMAL': {
       if (state.waitingForNext) {
+        // 等号后开始新输入：清除上一轮运算状态
+        if (state.lastOperand !== null) {
+          return {
+            ...state,
+            display: '0.',
+            operand: null,
+            operator: null,
+            lastOperand: null,
+            waitingForNext: false,
+          }
+        }
         // 小数点前导：直接按 "." → "0."
         return { ...state, display: '0.', waitingForNext: false }
       }
@@ -100,13 +124,20 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
 
     case 'OPERATOR': {
       const op = action.op
+      const currentNum = parseDisplay(state.display)
+
+      // 溢出后按运算符存入 NaN 的防护：直接进入 Error 状态
+      if (Number.isNaN(currentNum)) {
+        return { ...state, display: '错误', hasError: true }
+      }
 
       if (state.operand === null) {
         // 首次选择运算符：暂存当前显示值
         return {
           ...state,
-          operand: parseDisplay(state.display),
+          operand: currentNum,
           operator: op,
+          lastOperand: null,
           waitingForNext: true,
         }
       }
@@ -114,11 +145,12 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
       // 已有暂存运算符
       if (state.waitingForNext) {
         // 连续运算符输入：替换为最新运算符，不触发计算
-        return { ...state, operator: op }
+        // 等号后按运算符：清除 lastOperand，进入"运算符已选"状态
+        return { ...state, operator: op, lastOperand: null }
       }
 
       // 链式求值：执行前一步计算，暂存结果，记录新运算符
-      const result = compute(state.operand, state.operator!, parseDisplay(state.display))
+      const result = compute(state.operand, state.operator!, currentNum)
       if (result === null) {
         return { ...state, display: '错误', hasError: true }
       }
@@ -127,6 +159,7 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
         display: formatDisplay(result),
         operand: result,
         operator: op,
+        lastOperand: null,
         waitingForNext: true,
       }
     }
@@ -137,8 +170,18 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
         return state
       }
 
-      // 不完整表达式：waitingForNext 时重复最后操作数（即当前显示值）
-      const secondOperand = parseDisplay(state.display)
+      const currentNum = parseDisplay(state.display)
+
+      // 溢出后按等号存入 NaN 的防护：直接进入 Error 状态
+      if (Number.isNaN(currentNum)) {
+        return { ...state, display: '错误', hasError: true }
+      }
+
+      // 连续按等号：用上次结果作为第一操作数，保留的 lastOperand 作为第二操作数重复运算
+      // 首次按等号：使用当前显示值作为第二操作数并保留
+      const isFirstEquals = !state.waitingForNext || state.lastOperand === null
+      const secondOperand = isFirstEquals ? currentNum : state.lastOperand!
+
       const result = compute(state.operand, state.operator, secondOperand)
       if (result === null) {
         return { ...state, display: '错误', hasError: true }
@@ -146,8 +189,8 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
       return {
         ...state,
         display: formatDisplay(result),
-        operand: null,
-        operator: null,
+        operand: result,
+        lastOperand: secondOperand,
         waitingForNext: true,
       }
     }
@@ -170,10 +213,24 @@ export function calculatorReducer(state: CalcState, action: Action): CalcState {
       if (state.display === '0' || state.display === '错误') {
         return state
       }
-      if (state.display.startsWith('-')) {
-        return { ...state, display: state.display.slice(1) }
+
+      const nextDisplay = state.display.startsWith('-')
+        ? state.display.slice(1)
+        : '-' + state.display
+
+      // 等号后切换正负号：视为新计算的起始值
+      if (state.waitingForNext && state.lastOperand !== null) {
+        return {
+          ...state,
+          display: nextDisplay,
+          operand: null,
+          operator: null,
+          lastOperand: null,
+          waitingForNext: false,
+        }
       }
-      return { ...state, display: '-' + state.display }
+
+      return { ...state, display: nextDisplay }
     }
 
     default:

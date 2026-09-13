@@ -1,14 +1,19 @@
 import { Display } from './Display'
 import { ButtonPad } from './ButtonPad'
-import { useCalculator } from '../hooks/useCalculator'
+import type { Operator } from '../lib/compute'
 
-export function Calculator() {
-  const { displayValue, hasError, onAction } = useCalculator()
+interface CalculatorProps {
+  displayValue: string
+  hasError: boolean
+  activeOperator: Operator | null
+  onAction: (action: import('../lib/calculator').Action) => void
+}
 
+export function Calculator({ displayValue, hasError, activeOperator, onAction }: CalculatorProps) {
   return (
     <div className="calculator">
       <Display value={displayValue} hasError={hasError} />
-      <ButtonPad onAction={onAction} />
+      <ButtonPad onAction={onAction} activeOperator={activeOperator} />
     </div>
   )
 }

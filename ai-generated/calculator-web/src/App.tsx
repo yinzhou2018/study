@@ -8,6 +8,7 @@ export default function App() {
   const calc = useCalculator()
 
   // 键盘输入支持（P1）：全局监听 + preventDefault 阻止浏览器默认行为
+  // useCalculator 返回值经 useMemo 稳定，仅在相关状态变化时更新引用
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const { key } = e
@@ -72,7 +73,12 @@ export default function App() {
   return (
     <div className="app">
       <div className="calculator-shell">
-        <Calculator />
+        <Calculator
+          displayValue={calc.displayValue}
+          hasError={calc.hasError}
+          activeOperator={calc.activeOperator}
+          onAction={calc.onAction}
+        />
       </div>
     </div>
   )

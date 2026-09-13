@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react'
+import { useReducer, useCallback, useMemo } from 'react'
 import { calculatorReducer, initialState, type Action } from '../lib/calculator'
 import type { Operator } from '../lib/compute'
 
@@ -17,16 +17,35 @@ export function useCalculator() {
   const pressBackspace = useCallback(() => dispatch({ type: 'BACKSPACE' }), [])
   const toggleSign = useCallback(() => dispatch({ type: 'TOGGLE_SIGN' }), [])
 
-  return {
-    displayValue: state.display,
-    hasError: state.hasError,
-    onAction,
-    pressDigit,
-    pressDecimal,
-    pressOperator,
-    pressEquals,
-    pressClear,
-    pressBackspace,
-    toggleSign,
-  }
+  // 运算符高亮：等待下一操作数时，当前 operator 为活跃状态
+  const activeOperator = state.waitingForNext ? state.operator : null
+
+  return useMemo(
+    () => ({
+      displayValue: state.display,
+      hasError: state.hasError,
+      activeOperator,
+      onAction,
+      pressDigit,
+      pressDecimal,
+      pressOperator,
+      pressEquals,
+      pressClear,
+      pressBackspace,
+      toggleSign,
+    }),
+    [
+      state.display,
+      state.hasError,
+      activeOperator,
+      onAction,
+      pressDigit,
+      pressDecimal,
+      pressOperator,
+      pressEquals,
+      pressClear,
+      pressBackspace,
+      toggleSign,
+    ],
+  )
 }
