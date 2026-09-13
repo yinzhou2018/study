@@ -1,0 +1,122 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 16px;
+}
+
+.calculator-shell {
+  width: 100%;
+  max-width: 320px;
+  background: #0f0f1e;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.calculator {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 显示屏 */
+.display {
+  background: #1c1c2e;
+  border-radius: 12px;
+  padding: 24px 20px;
+  min-height: 88px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.display-value {
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+  font-weight: 600;
+  color: #ffffff;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.display-value.error {
+  color: #ff6b6b;
+}
+
+/* 按钮网格 */
+.button-pad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.btn {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.05s ease, background-color 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+.btn.number {
+  background: #2c2c44;
+  color: #ffffff;
+}
+
+.btn.number:hover {
+  background: #3a3a5c;
+}
+
+.btn.operator {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.btn.operator:hover {
+  background: #6366f1;
+}
+
+.btn.function {
+  background: #3d3d56;
+  color: #a5b4fc;
+}
+
+.btn.function:hover {
+  background: #4a4a6b;
+}
+
+.btn.equals {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.btn.equals:hover {
+  background: #fbbf24;
+}
+
+/* 响应式：移动端按钮增大 */
+@media (max-width: 480px) {
+  .btn {
+    font-size: 1.15rem;
+  }
+}
