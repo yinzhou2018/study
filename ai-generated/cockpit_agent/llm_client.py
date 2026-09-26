@@ -215,7 +215,7 @@ class OpenAICompatibleLLM:
 
   def chat_stream(self, messages, tools, temperature=0.1):
     """流式调用：逐token yield reasoning/content，结束时yield完整message"""
-    url = f"{self.base_url}/v1/chat/completions"
+    url = f"{self.base_url}/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {self.api_key}"
