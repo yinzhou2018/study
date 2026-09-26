@@ -4,7 +4,7 @@ The system SHALL provide a command-line interactive REPL entry point accessible 
 
 #### Scenario: Start interactive mode
 - **WHEN** user runs `python main.py --interactive`
-- **THEN** the system displays a welcome banner and a prompt, and waits for user input
+- **THEN** the system displays a welcome banner listing available commands including `/effort` and a prompt, and waits for user input
 
 #### Scenario: Start without arguments defaults to batch mode
 - **WHEN** user runs `python main.py` without `--interactive`
@@ -64,7 +64,7 @@ The system SHALL support Esc key interruption during LLM streaming or tool execu
 - **THEN** the system clears the current input line and re-displays the prompt without exiting
 
 ### Requirement: Session Commands
-The system SHALL support slash commands for session management: `/exit`, `/clear`, and `/history`.
+The system SHALL support slash commands for session management: `/exit`, `/clear`, `/history`, and `/effort`.
 
 #### Scenario: Clear conversation history
 - **WHEN** user types `/clear` at the prompt
@@ -73,6 +73,18 @@ The system SHALL support slash commands for session management: `/exit`, `/clear
 #### Scenario: View conversation history
 - **WHEN** user types `/history` at the prompt
 - **THEN** the system prints all messages in the conversation history with their role and a truncated content preview
+
+#### Scenario: Check current effort mode
+- **WHEN** user types `/effort` without arguments at the prompt
+- **THEN** the system prints the current effort mode and returns to the prompt
+
+#### Scenario: Switch effort mode
+- **WHEN** user types `/effort <mode>` where mode is one of `none`, `low`, `high`, `max`
+- **THEN** the system sets the agent's effort to the specified mode, prints a confirmation message, and returns to the prompt
+
+#### Scenario: Invalid effort mode
+- **WHEN** user types `/effort invalid` at the prompt
+- **THEN** the system prints an error message listing valid modes (`none`, `low`, `high`, `max`) and returns to the prompt
 
 #### Scenario: Unknown command
 - **WHEN** user types an unrecognized `/command`

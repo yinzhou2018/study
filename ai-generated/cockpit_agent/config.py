@@ -1,3 +1,17 @@
+# Effort 模式配置
+EFFORT_MODES = ("none", "low", "high", "max")
+DEFAULT_EFFORT = "high"
+
+
+def build_effort_payload(effort: str | None) -> dict:
+  """将effort模式映射为LLM请求payload字段"""
+  if effort is None:
+    return {}
+  if effort in ("none", "low", "high", "max"):
+    return {"reasoning_effort": effort}
+  raise ValueError(f"无效的effort模式: {effort}, 可选值: {', '.join(EFFORT_MODES)}")
+
+
 # 全程固定不变的System Prompt,最大化Prefix KV Cache收益
 # 全量工具集列表由 ToolsetManager 从 toolsets.json 动态生成,此处仅保留模板
 SYSTEM_PROMPT_TEMPLATE = """

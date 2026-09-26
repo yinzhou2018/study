@@ -3,6 +3,8 @@ import time
 
 import requests
 
+from config import build_effort_payload
+
 
 class MockLLMClient:
   """模拟LLM客户端，按预设逻辑返回工具调用，用于本地跑通全流程"""
@@ -10,7 +12,7 @@ class MockLLMClient:
   def __init__(self):
     pass  # 无状态
 
-  def chat(self, messages, tools, temperature=0.1):
+  def chat(self, messages, tools, temperature=0.1, effort=None):
     # 提取用户最后一句话
     user_msg = ""
     for m in reversed(messages):
@@ -106,9 +108,9 @@ class MockLLMClient:
     final_reply = self._generate_final_reply(user_msg, messages)
     return self._build_text_response(final_reply)
 
-  def chat_stream(self, messages, tools, temperature=0.1):
+  def chat_stream(self, messages, tools, temperature=0.1, effort=None):
     """模拟流式输出：复用chat()决策逻辑，逐token yield"""
-    response = self.chat(messages, tools, temperature)
+    response = self.chat(messages, tools, temperature, effort)
     msg = response["choices"][0]["message"]
 
     reasoning = self._generate_reasoning(messages, msg)
@@ -196,7 +198,7 @@ class OpenAICompatibleLLM:
     self.api_key = api_key
     self.model = model
 
-  def chat(self, messages, tools, temperature=0.1):
+  def chat(self, messages, tools, temperature=0.1, effort=None):
     url = f"{self.base_url}/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
@@ -207,13 +209,14 @@ class OpenAICompatibleLLM:
         "messages": messages,
         "tools": tools,
         "tool_choice": "auto",
-        "temperature": temperature
+        "temperature": temperature,
+        **build_effort_payload(effort)
     }
     resp = requests.post(url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
-  def chat_stream(self, messages, tools, temperature=0.1):
+  def chat_stream(self, messages, tools, temperature=0.1, effort=None):
     """流式调用：逐token yield reasoning/content，结束时yield完整message"""
     url = f"{self.base_url}/chat/completions"
     headers = {
@@ -226,7 +229,8 @@ class OpenAICompatibleLLM:
         "tools": tools,
         "tool_choice": "auto",
         "temperature": temperature,
-        "stream": True
+        "stream": True,
+        **build_effort_payload(effort)
     }
 
     resp = requests.post(url, headers=headers, json=payload, timeout=30, stream=True)

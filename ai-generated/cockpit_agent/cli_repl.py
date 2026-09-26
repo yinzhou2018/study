@@ -3,6 +3,8 @@ import sys
 import threading
 import time
 
+from config import EFFORT_MODES
+
 try:
   import termios
   import tty
@@ -110,7 +112,7 @@ class CockpitRePL:
     self.running = True
     print("=" * 50)
     print("  智能座舱车载助手 - 交互模式")
-    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史")
+    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度")
     print("  生成期间按 Esc 打断")
     print("=" * 50)
 
@@ -135,15 +137,30 @@ class CockpitRePL:
     print("\n再见！")
 
   def _handle_command(self, cmd):
-    if cmd == "/exit":
+    parts = cmd.split(maxsplit=1)
+    if parts[0] == "/exit":
       self.running = False
-    elif cmd == "/clear":
+    elif parts[0] == "/clear":
       self._clear_history()
-    elif cmd == "/history":
+    elif parts[0] == "/history":
       self._show_history()
+    elif parts[0] == "/effort":
+      self._handle_effort(parts[1] if len(parts) > 1 else None)
     else:
       print(f"未知命令: {cmd}")
-      print("可用命令: /exit /clear /history")
+      print("可用命令: /exit /clear /history /effort")
+
+  def _handle_effort(self, mode_arg):
+    if mode_arg is None:
+      print(f"当前思考深度: {self.agent.effort}")
+      print(f"可选值: {', '.join(EFFORT_MODES)}")
+      return
+    if mode_arg not in EFFORT_MODES:
+      print(f"无效的思考深度: {mode_arg}")
+      print(f"可选值: {', '.join(EFFORT_MODES)}")
+      return
+    self.agent.effort = mode_arg
+    print(f"思考深度已切换为: {mode_arg}")
 
   def _clear_history(self):
     from config import build_system_prompt

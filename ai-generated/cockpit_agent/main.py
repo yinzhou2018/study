@@ -1,7 +1,7 @@
 import argparse
 
 from cockpit_agent import CockpitAgent
-from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
+from config import EFFORT_MODES, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
 from llm_client import OpenAICompatibleLLM
 
 
@@ -15,11 +15,14 @@ def main():
   parser = argparse.ArgumentParser(description="智能座舱车载助手")
   parser.add_argument("-i", "--interactive", action="store_true",
                       help="启动交互式对话模式")
+  parser.add_argument("--effort", choices=EFFORT_MODES, default="high",
+                      help="设置思考深度模式 (默认: high)")
   args = parser.parse_args()
 
   agent = CockpitAgent(llm_client=OpenAICompatibleLLM(
       base_url=LLM_BASE_URL,
       api_key=LLM_API_KEY, model=LLM_MODEL_ID))
+  agent.effort = args.effort
 
   if args.interactive:
     run_interactive(agent)

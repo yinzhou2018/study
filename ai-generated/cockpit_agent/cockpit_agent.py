@@ -1,6 +1,7 @@
 import json
 
 from config import build_system_prompt
+from config import DEFAULT_EFFORT
 from llm_client import MockLLMClient
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
@@ -17,6 +18,7 @@ class CockpitAgent:
     ]
     self.max_turns = 8  # 单轮用户输入最多执行8轮工具调用，防止死循环
     self._interrupted = False
+    self.effort = DEFAULT_EFFORT
 
   def interrupt(self):
     """设置打断标志，由REPL的Esc监听器调用"""
@@ -43,7 +45,8 @@ class CockpitAgent:
       response = self.llm.chat(
           messages=self.messages,
           tools=current_tools,
-          temperature=0.1
+          temperature=0.1,
+          effort=self.effort
       )
 
       msg = response["choices"][0]["message"]
@@ -107,7 +110,8 @@ class CockpitAgent:
         for event in self.llm.chat_stream(
             messages=self.messages,
             tools=current_tools,
-            temperature=0.1
+            temperature=0.1,
+            effort=self.effort
         ):
           self._check_interrupt()
           if event["type"] == "reasoning":
