@@ -8,7 +8,7 @@ class MockLLMClient:
   """模拟LLM客户端，按预设逻辑返回工具调用，用于本地跑通全流程"""
 
   def __init__(self):
-    self.step = 0  # 对话步骤计数
+    pass  # 无状态
 
   def chat(self, messages, tools, temperature=0.1):
     # 提取用户最后一句话
@@ -117,8 +117,9 @@ class MockLLMClient:
         yield {"type": "reasoning", "text": reasoning[i:i + 4]}
         time.sleep(0.005)
 
-    if msg.get("content"):
-      text = msg["content"]
+    content = msg.get("content")
+    if content:
+      text = content
       step = 2
       for i in range(0, len(text), step):
         yield {"type": "content", "text": text[i:i + step]}
@@ -167,7 +168,7 @@ class MockLLMClient:
             results.append(data["message"])
           elif "range_km" in data:
             results.append(f"剩余续航{data['range_km']}公里")
-        except:
+        except Exception:
           pass
     if results:
       return "已为你完成操作：" + "、".join(results)
@@ -180,8 +181,9 @@ class MockLLMClient:
       if m["role"] == "user":
         user_msg = m["content"]
         break
-    if msg.get("tool_calls"):
-      tool_name = msg["tool_calls"][0]["function"]["name"]
+    tool_calls = msg.get("tool_calls")
+    if tool_calls:
+      tool_name = tool_calls[0]["function"]["name"]
       return f"用户说「{user_msg}」，需要调用{tool_name}来处理。"
     return f"用户说「{user_msg}」，直接回复即可。"
 

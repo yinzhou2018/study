@@ -53,14 +53,14 @@ class CockpitAgent:
       if not msg.get("tool_calls"):
         if verbose:
           print(f"模型最终回复: {msg['content']}")
-        return msg["content"]
+        return msg.get("content") or ""
 
       # 处理每一个工具调用
       for tool_call in msg["tool_calls"]:
         tool_name = tool_call["function"]["name"]
         try:
           arguments = json.loads(tool_call["function"]["arguments"])
-        except:
+        except Exception:
           arguments = {}
 
         if verbose:
@@ -135,7 +135,7 @@ class CockpitAgent:
           tool_name = tool_call["function"]["name"]
           try:
             arguments = json.loads(tool_call["function"]["arguments"])
-          except:
+          except Exception:
             arguments = {}
 
           if on_tool_call:
@@ -180,7 +180,7 @@ class CockpitAgent:
           data = json.loads(m["content"])
           if data.get("status") == "success" and "message" in data:
             summary_lines.append(data["message"])
-        except:
+        except Exception:
           pass
 
     summary_msg = {

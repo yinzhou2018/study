@@ -22,9 +22,9 @@ class EscListener:
 
   def __init__(self, on_esc):
     self.on_esc = on_esc
-    self._thread = None
+    self._thread: threading.Thread | None = None
     self._stop = threading.Event()
-    self._old_settings = None
+    self._old_settings: list | None = None
     self._is_tty = hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
 
   def start(self):
@@ -161,48 +161,52 @@ class CockpitRePL:
     listener.start()
 
     task_start = time.time()
-    # current: None / "reasoning" / "reply"
-    # start: 当前流式区域开始时间
-    # tool_start: 当前工具执行开始时间
-    section = {"current": None, "start": None, "tool_start": None}
-    stats = {"llm": 0.0, "tool": 0.0}
+    # 使用独立变量替代dict，避免混合类型导致类型推断警告
+    cur_section: str | None = None  # None / "reasoning" / "reply"
+    sec_start = 0.0       # 当前流式区域开始时间
+    tool_start = 0.0      # 当前工具执行开始时间
+    llm_time = 0.0       # LLM累计耗时
+    tool_time = 0.0       # 工具累计耗时
 
     def _close_streaming():
-      if section["current"] is not None:
-        elapsed = time.time() - section["start"]
+      nonlocal cur_section, sec_start, llm_time
+      if cur_section is not None:
+        elapsed = time.time() - sec_start
         cumulative = time.time() - task_start
-        stats["llm"] += elapsed
+        llm_time += elapsed
         print(f" (耗时: {elapsed:.2f}s, 累积: {cumulative:.2f}s)")
-        section["current"] = None
-        section["start"] = None
+        cur_section = None
 
-    def on_reasoning(text):
-      if section["current"] != "reasoning":
+    def on_reasoning(text: str):
+      nonlocal cur_section, sec_start
+      if cur_section != "reasoning":
         _close_streaming()
-        section["start"] = time.time()
+        sec_start = time.time()
         print("[思考中] ", end="", flush=True)
-        section["current"] = "reasoning"
+        cur_section = "reasoning"
       print(text, end="", flush=True)
 
-    def on_content(text):
-      if section["current"] != "reply":
+    def on_content(text: str):
+      nonlocal cur_section, sec_start
+      if cur_section != "reply":
         _close_streaming()
-        section["start"] = time.time()
+        sec_start = time.time()
         print("[回复中] ", end="", flush=True)
-        section["current"] = "reply"
+        cur_section = "reply"
       print(text, end="", flush=True)
 
-    def on_tool_call(name, args):
+    def on_tool_call(name: str, args: dict):
+      nonlocal cur_section, tool_start
       _close_streaming()
-      section["tool_start"] = time.time()
+      tool_start = time.time()
       print(f"[工具调用] {name}({json.dumps(args, ensure_ascii=False)})")
 
-    def on_tool_result(name, result):
-      elapsed = time.time() - section["tool_start"]
+    def on_tool_result(name: str, result: dict):
+      nonlocal tool_start, tool_time
+      elapsed = time.time() - tool_start
       cumulative = time.time() - task_start
-      stats["tool"] += elapsed
+      tool_time += elapsed
       print(f"[工具结果] {name}: {json.dumps(result, ensure_ascii=False)} (耗时: {elapsed:.2f}s, 累积: {cumulative:.2f}s)")
-      section["tool_start"] = None
 
     try:
       reply = self.agent.chat_stream(
@@ -212,13 +216,16 @@ class CockpitRePL:
           on_tool_call=on_tool_call,
           on_tool_result=on_tool_result
       )
+      had_streaming = cur_section is not None
       _close_streaming()
+      if not had_streaming:
+        print(f"[回复中] {reply}")
       total = time.time() - task_start
-      print(f"[耗时] LLM: {stats['llm']:.2f}s | 工具: {stats['tool']:.2f}s | 总计: {total:.2f}s")
+      print(f"[耗时] LLM: {llm_time:.2f}s | 工具: {tool_time:.2f}s | 总计: {total:.2f}s")
     except InterruptedError:
       _close_streaming()
       total = time.time() - task_start
       print(f"[已打断] (耗时: {total:.2f}s)")
     finally:
-      section["current"] = None
+      cur_section = None
       listener.stop()
