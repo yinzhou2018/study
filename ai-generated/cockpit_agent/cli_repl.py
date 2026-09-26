@@ -57,9 +57,14 @@ class EscListener:
               self.on_esc()
               return
       elif HAS_MSVCRT:
+        kbhit = getattr(msvcrt, "kbhit", None)
+        getch = getattr(msvcrt, "getch", None)
         while not self._stop.is_set():
-          if msvcrt.kbhit():
-            ch = msvcrt.getch()
+          if kbhit is not None and kbhit():
+            if getch is not None:
+              ch = getch()
+            else:
+              ch = b""
             if ch == b"\x1b":
               self.on_esc()
               return
@@ -85,8 +90,11 @@ class EscListener:
       if HAS_TERMIOS:
         termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
       elif HAS_MSVCRT:
-        while msvcrt.kbhit():
-          msvcrt.getch()
+        kbhit = getattr(msvcrt, "kbhit", None)
+        getch = getattr(msvcrt, "getch", None)
+        while kbhit is not None and kbhit():
+          if getch is not None:
+            getch()
     except Exception:
       pass
 
