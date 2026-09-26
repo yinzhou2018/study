@@ -119,22 +119,22 @@ class CockpitAgent:
         if msg is None:
           raise RuntimeError("LLM流式响应缺少done事件")
 
-        self.messages.append(msg)
+        self.messages.append(msg) # type: ignore
 
         # 没有工具调用，任务结束
-        if not msg.get("tool_calls"):
-          final_reply = msg.get("content") or ""
+        if not msg.get("tool_calls"): # type: ignore
+          final_reply = msg.get("content") or "" # type: ignore
           if on_done:
             on_done(final_reply)
           return final_reply
 
         # 处理每一个工具调用
-        for tool_call in msg["tool_calls"]:
+        for tool_call in msg["tool_calls"]: # type: ignore
           self._check_interrupt()
 
-          tool_name = tool_call["function"]["name"]
+          tool_name = tool_call["function"]["name"] # type: ignore
           try:
-            arguments = json.loads(tool_call["function"]["arguments"])
+            arguments = json.loads(tool_call["function"]["arguments"]) # type: ignore
           except Exception:
             arguments = {}
 
@@ -149,7 +149,7 @@ class CockpitAgent:
 
           self.messages.append({
               "role": "tool",
-              "tool_call_id": tool_call["id"],
+              "tool_call_id": tool_call["id"], # type: ignore
               "content": json.dumps(result, ensure_ascii=False)
           })
 
