@@ -169,52 +169,64 @@ class CockpitRePL:
     listener.start()
 
     task_start = time.time()
-    # 使用独立变量替代dict，避免混合类型导致类型推断警告
-    cur_section: str | None = None  # None / "reasoning" / "reply"
-    sec_start = 0.0       # 当前流式区域开始时间
+
+    cur_turn = 0
+    cur_turn_start = 0.0
+    cur_turn_prefilled = False
+    cur_turn_prefill_time = 0.0
+    cur_turn_content_started = False
+    cur_turn_reasoning_started = False
     tool_start = 0.0      # 当前工具执行开始时间
     llm_time = 0.0       # LLM累计耗时
     tool_time = 0.0       # 工具累计耗时
 
-    def _close_streaming():
-      nonlocal cur_section, sec_start, llm_time
-      if cur_section is not None:
-        elapsed = time.time() - sec_start
-        cumulative = time.time() - task_start
-        llm_time += elapsed
-        print(f" (耗时: {elapsed:.2f}s, 累积: {cumulative:.2f}s)")
-        cur_section = None
+    def on_call_llm(turn: int, start: bool):
+      nonlocal cur_turn, cur_turn_start, cur_turn_prefilled, cur_turn_prefill_time
+      nonlocal llm_time, cur_turn_content_started, cur_turn_reasoning_started
+      if start:
+        cur_turn_start = time.time()
+        cur_turn = turn
+        cur_turn_prefilled = False
+        cur_turn_prefill_time = 0.0
+        cur_turn_reasoning_started = False
+        cur_turn_content_started = False
+        print(f"\n\n第{cur_turn}轮llm推理开始...")
+      else:
+        cur_turn_end = time.time()
+        cur_turn_llm_time = cur_turn_end - cur_turn_start
+        llm_time += cur_turn_llm_time
+        print(f"\n\n第{turn}轮llm推理结束, prefill耗时:{cur_turn_prefill_time - cur_turn_start:.2f}s, 总耗时:{cur_turn_llm_time:.2f}s")
 
     def on_reasoning(text: str):
-      nonlocal cur_section, sec_start
-      if cur_section != "reasoning":
-        _close_streaming()
-        sec_start = time.time()
-        print("[思考中] ", end="", flush=True)
-        cur_section = "reasoning"
+      nonlocal cur_turn_prefilled, cur_turn_prefill_time, cur_turn_reasoning_started, cur_turn
+      if not cur_turn_prefilled:
+        cur_turn_prefilled = True
+        cur_turn_prefill_time = time.time()
+      if not cur_turn_reasoning_started:
+        cur_turn_reasoning_started = True
+        print(f"\n\n[第{cur_turn}轮思考中] ", end="", flush=True)
       print(text, end="", flush=True)
 
     def on_content(text: str):
-      nonlocal cur_section, sec_start
-      if cur_section != "reply":
-        _close_streaming()
-        sec_start = time.time()
-        print("[回复中] ", end="", flush=True)
-        cur_section = "reply"
+      nonlocal cur_turn_prefilled, cur_turn_prefill_time, cur_turn_content_started, cur_turn
+      if not cur_turn_prefilled:
+        cur_turn_prefilled = True
+        cur_turn_prefill_time = time.time()
+      if not cur_turn_content_started:
+        cur_turn_content_started = True
+        print(f"\n\n[第{cur_turn}轮回复中] ", end="", flush=True)
       print(text, end="", flush=True)
 
     def on_tool_call(name: str, args: dict):
-      nonlocal cur_section, tool_start
-      _close_streaming()
+      nonlocal tool_start, cur_turn
       tool_start = time.time()
-      print(f"[工具调用] {name}({json.dumps(args, ensure_ascii=False)})")
+      print(f"\n\n[第{cur_turn}轮工具调用] {name}({json.dumps(args, ensure_ascii=False)})")
 
     def on_tool_result(name: str, result: dict):
-      nonlocal tool_start, tool_time
+      nonlocal tool_start, tool_time, cur_turn
       elapsed = time.time() - tool_start
-      cumulative = time.time() - task_start
       tool_time += elapsed
-      print(f"[工具结果] {name}: {json.dumps(result, ensure_ascii=False)} (耗时: {elapsed:.2f}s, 累积: {cumulative:.2f}s)")
+      print(f"[第{cur_turn}轮工具结果] {name}: {json.dumps(result, ensure_ascii=False)} (耗时: {elapsed:.2f}s)")
 
     try:
       reply = self.agent.chat_stream(
@@ -222,18 +234,13 @@ class CockpitRePL:
           on_reasoning=on_reasoning,
           on_content=on_content,
           on_tool_call=on_tool_call,
-          on_tool_result=on_tool_result
+          on_tool_result=on_tool_result,
+          on_call_llm=on_call_llm
       )
-      had_streaming = cur_section is not None
-      _close_streaming()
-      if not had_streaming:
-        print(f"[回复中] {reply}")
       total = time.time() - task_start
-      print(f"[耗时] LLM: {llm_time:.2f}s | 工具: {tool_time:.2f}s | 总计: {total:.2f}s")
+      print(f"\n\n[耗时(共{cur_turn}轮)] LLM: {llm_time:.2f}s | 工具: {tool_time:.2f}s | 总计: {total:.2f}s")
     except InterruptedError:
-      _close_streaming()
       total = time.time() - task_start
-      print(f"[已打断] (耗时: {total:.2f}s)")
+      print(f"\n\n[已打断] (耗时: {total:.2f}s)")
     finally:
-      cur_section = None
       listener.stop()

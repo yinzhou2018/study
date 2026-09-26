@@ -89,7 +89,7 @@ class CockpitAgent:
     return "操作执行完毕。"
 
   def chat_stream(self, user_query, on_content=None, on_tool_call=None,
-                  on_reasoning=None, on_tool_result=None, on_done=None):
+                  on_reasoning=None, on_tool_result=None, on_call_llm=None, on_done=None):
     """流式对话：逐token回调思考内容和回复，工具调用实时回调，支持打断"""
     self._interrupted = False
     self.messages.append({"role": "user", "content": user_query})
@@ -98,9 +98,12 @@ class CockpitAgent:
       for turn in range(self.max_turns):
         self._check_interrupt()
 
-        current_tools = self.toolset_manager.get_current_tools()
+        if on_call_llm:
+          on_call_llm(turn + 1, True)
 
         msg = None
+
+        current_tools = self.toolset_manager.get_current_tools()
         for event in self.llm.chat_stream(
             messages=self.messages,
             tools=current_tools,
@@ -116,25 +119,28 @@ class CockpitAgent:
           elif event["type"] == "done":
             msg = event["message"]
 
+        if on_call_llm:
+          on_call_llm(turn + 1, False)
+
         if msg is None:
           raise RuntimeError("LLM流式响应缺少done事件")
 
-        self.messages.append(msg) # type: ignore
+        self.messages.append(msg)  # type: ignore
 
         # 没有工具调用，任务结束
-        if not msg.get("tool_calls"): # type: ignore
-          final_reply = msg.get("content") or "" # type: ignore
+        if not msg.get("tool_calls"):  # type: ignore
+          final_reply = msg.get("content") or ""  # type: ignore
           if on_done:
             on_done(final_reply)
           return final_reply
 
         # 处理每一个工具调用
-        for tool_call in msg["tool_calls"]: # type: ignore
+        for tool_call in msg["tool_calls"]:  # type: ignore
           self._check_interrupt()
 
-          tool_name = tool_call["function"]["name"] # type: ignore
+          tool_name = tool_call["function"]["name"]  # type: ignore
           try:
-            arguments = json.loads(tool_call["function"]["arguments"]) # type: ignore
+            arguments = json.loads(tool_call["function"]["arguments"])  # type: ignore
           except Exception:
             arguments = {}
 
@@ -149,7 +155,7 @@ class CockpitAgent:
 
           self.messages.append({
               "role": "tool",
-              "tool_call_id": tool_call["id"], # type: ignore
+              "tool_call_id": tool_call["id"],  # type: ignore
               "content": json.dumps(result, ensure_ascii=False)
           })
 
