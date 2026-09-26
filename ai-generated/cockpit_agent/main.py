@@ -1,16 +1,33 @@
+import argparse
+
 from cockpit_agent import CockpitAgent
 from llm_client import OpenAICompatibleLLM
 
 
+def run_interactive(agent):
+  from cli_repl import CockpitRePL
+  repl = CockpitRePL(agent)
+  repl.run()
+
+
 def main():
+  parser = argparse.ArgumentParser(description="智能座舱车载助手")
+  parser.add_argument("-i", "--interactive", action="store_true",
+                      help="启动交互式对话模式")
+  args = parser.parse_args()
+
+  agent = CockpitAgent(llm_client=OpenAICompatibleLLM(
+      base_url="https://voyahgpt-gateway.voyah.cn/api/gateway",
+      api_key="8a9d500a237d4926a1457fb8c5409026"))
+
+  if args.interactive:
+    run_interactive(agent)
+    return
+
   print("=" * 50)
   print("  智能座舱车载助手 Agent 演示")
   print("  特性：固定System Prompt | 工具集批量加载 | LRU淘汰 | 安全校验")
   print("=" * 50)
-
-  # 使用模拟LLM，无需真实模型即可跑通
-  agent = CockpitAgent(llm_client=OpenAICompatibleLLM(
-      base_url="https://voyahgpt-gateway.voyah.cn/api/gateway", api_key="8a9d500a237d4926a1457fb8c5409026"))
 
   # ===== 演示多轮对话 =====
   demo_queries = [

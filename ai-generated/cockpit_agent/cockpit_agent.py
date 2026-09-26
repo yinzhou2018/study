@@ -16,6 +16,15 @@ class CockpitAgent:
         {"role": "system", "content": build_system_prompt(self.toolset_manager.get_toolset_listing())}
     ]
     self.max_turns = 8  # 单轮用户输入最多执行8轮工具调用，防止死循环
+    self._interrupted = False
+
+  def interrupt(self):
+    """设置打断标志，由REPL的Esc监听器调用"""
+    self._interrupted = True
+
+  def _check_interrupt(self):
+    if self._interrupted:
+      raise InterruptedError("用户打断")
 
   def chat(self, user_query: str, verbose: bool = True) -> str:
     """用户输入一句话，执行完整的工具调用链路，返回最终回复"""
@@ -78,6 +87,81 @@ class CockpitAgent:
           print(f"工具返回: {result}")
 
     return "操作执行完毕。"
+
+  def chat_stream(self, user_query, on_content=None, on_tool_call=None,
+                  on_reasoning=None, on_tool_result=None, on_done=None):
+    """流式对话：逐token回调思考内容和回复，工具调用实时回调，支持打断"""
+    self._interrupted = False
+    self.messages.append({"role": "user", "content": user_query})
+
+    try:
+      for turn in range(self.max_turns):
+        self._check_interrupt()
+
+        current_tools = self.toolset_manager.get_current_tools()
+
+        msg = None
+        for event in self.llm.chat_stream(
+            messages=self.messages,
+            tools=current_tools,
+            temperature=0.1
+        ):
+          self._check_interrupt()
+          if event["type"] == "reasoning":
+            if on_reasoning:
+              on_reasoning(event["text"])
+          elif event["type"] == "content":
+            if on_content:
+              on_content(event["text"])
+          elif event["type"] == "done":
+            msg = event["message"]
+
+        if msg is None:
+          raise RuntimeError("LLM流式响应缺少done事件")
+
+        self.messages.append(msg)
+
+        # 没有工具调用，任务结束
+        if not msg.get("tool_calls"):
+          final_reply = msg.get("content") or ""
+          if on_done:
+            on_done(final_reply)
+          return final_reply
+
+        # 处理每一个工具调用
+        for tool_call in msg["tool_calls"]:
+          self._check_interrupt()
+
+          tool_name = tool_call["function"]["name"]
+          try:
+            arguments = json.loads(tool_call["function"]["arguments"])
+          except:
+            arguments = {}
+
+          if on_tool_call:
+            on_tool_call(tool_name, arguments)
+
+          if tool_name == "load_toolsets":
+            toolset_ids = arguments.get("toolset_ids", [])
+            result = self.toolset_manager.load_toolsets(toolset_ids)
+          else:
+            result = self.tool_gateway.execute(tool_name, arguments)
+
+          self.messages.append({
+              "role": "tool",
+              "tool_call_id": tool_call["id"],
+              "content": json.dumps(result, ensure_ascii=False)
+          })
+
+          if on_tool_result:
+            on_tool_result(tool_name, result)
+
+      final_reply = "操作执行完毕。"
+      if on_done:
+        on_done(final_reply)
+      return final_reply
+    except InterruptedError:
+      raise
 
   def compress_history(self):
     """历史压缩：将工具执行细节压缩为摘要，保留核心语义"""
