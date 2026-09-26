@@ -1,6 +1,7 @@
 import argparse
 
 from cockpit_agent import CockpitAgent
+from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
 from llm_client import OpenAICompatibleLLM
 
 
@@ -17,8 +18,8 @@ def main():
   args = parser.parse_args()
 
   agent = CockpitAgent(llm_client=OpenAICompatibleLLM(
-      base_url="https://voyahgpt-gateway.voyah.cn/api/gateway",
-      api_key="8a9d500a237d4926a1457fb8c5409026"))
+      base_url=LLM_BASE_URL,
+      api_key=LLM_API_KEY, model=LLM_MODEL_ID))
 
   if args.interactive:
     run_interactive(agent)

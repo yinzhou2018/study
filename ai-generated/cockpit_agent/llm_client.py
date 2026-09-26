@@ -240,9 +240,9 @@ class OpenAICompatibleLLM:
       for line in resp.iter_lines(decode_unicode=True):
         if not line:
           continue
-        if line.startswith("data: "):
+        if line.startswith("data: "): # type: ignore
           data_str = line[6:]
-        elif line.startswith("data:"):
+        elif line.startswith("data:"): # type: ignore
           data_str = line[5:]
         else:
           continue
