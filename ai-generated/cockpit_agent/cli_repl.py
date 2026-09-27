@@ -5,6 +5,14 @@ import time
 
 from config import EFFORT_MODES
 
+# 导入 readline 让内置 input() 使用其行编辑器：终端原生行编辑按字节退格，
+# 无法正确清除中文等宽字符，会在屏幕上残留半个字符。
+try:
+  import readline  # noqa: F401
+  HAS_READLINE = True
+except ImportError:
+  HAS_READLINE = False
+
 try:
   import termios
   import tty
