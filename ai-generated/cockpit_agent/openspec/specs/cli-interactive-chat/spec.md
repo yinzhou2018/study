@@ -100,3 +100,14 @@ The system SHALL preserve the existing `CockpitAgent.chat()` method signature an
 #### Scenario: chat() method still works
 - **WHEN** `CockpitAgent.chat(user_query, verbose=True)` is called directly
 - **THEN** it returns the final reply string as before, with verbose output to stdout
+
+### Requirement: Multi-zone simulation in REPL
+The interactive REPL SHALL allow the user to select or switch the simulated audio zone for subsequent input. The REPL SHALL automatically prefix user input with the selected zone and `user=guest`, and SHALL display the target zone parsed from assistant replies.
+
+#### Scenario: Switch simulated zone
+- **WHEN** the user switches the simulated zone to `front_passenger`
+- **THEN** subsequent user messages are prefixed with `[zone=front_passenger,user=guest]`
+
+#### Scenario: Display routed reply
+- **WHEN** the assistant returns a reply prefixed with `[zone=driver]`
+- **THEN** the REPL displays the reply as targeted to the driver zone

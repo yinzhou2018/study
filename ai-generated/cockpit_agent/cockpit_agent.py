@@ -1,10 +1,10 @@
 import json
 
-from config import build_system_prompt
-from config import DEFAULT_EFFORT
+from config import DEFAULT_EFFORT, DEFAULT_USER_ID, DEFAULT_ZONE, build_system_prompt
 from llm_client import MockLLMClient
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
+from zone_context import parse_user_tag, tag_user_message
 
 
 class CockpitAgent:
@@ -28,9 +28,13 @@ class CockpitAgent:
     if self._interrupted:
       raise InterruptedError("用户打断")
 
-  def chat(self, user_query: str, verbose: bool = True) -> str:
+  def chat(self, user_query: str, verbose: bool = True,
+           zone_id: str = DEFAULT_ZONE, user_id: str = DEFAULT_USER_ID) -> str:
     """用户输入一句话，执行完整的工具调用链路，返回最终回复"""
-    self.messages.append({"role": "user", "content": user_query})
+    self.messages.append({
+        "role": "user",
+        "content": tag_user_message(user_query, zone_id, user_id)
+    })
 
     for turn in range(self.max_turns):
       # 动态获取当前工具列表
@@ -74,10 +78,10 @@ class CockpitAgent:
           toolset_ids = arguments.get("toolset_ids", [])
           result = self.toolset_manager.load_toolsets(toolset_ids)
         elif tool_name == "list_active_toolsets":
-          result = self.tool_gateway.execute(tool_name, arguments)
+          result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
         else:
           # 普通业务工具，走网关执行
-          result = self.tool_gateway.execute(tool_name, arguments)
+          result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
 
         # 回填工具结果
         self.messages.append({
@@ -92,10 +96,14 @@ class CockpitAgent:
     return "操作执行完毕。"
 
   def chat_stream(self, user_query, on_content=None, on_tool_call=None,
-                  on_reasoning=None, on_tool_result=None, on_call_llm=None, on_done=None):
+                  on_reasoning=None, on_tool_result=None, on_call_llm=None, on_done=None,
+                  zone_id: str = DEFAULT_ZONE, user_id: str = DEFAULT_USER_ID):
     """流式对话：逐token回调思考内容和回复，工具调用实时回调，支持打断"""
     self._interrupted = False
-    self.messages.append({"role": "user", "content": user_query})
+    self.messages.append({
+        "role": "user",
+        "content": tag_user_message(user_query, zone_id, user_id)
+    })
 
     try:
       for turn in range(self.max_turns):
@@ -155,7 +163,7 @@ class CockpitAgent:
             toolset_ids = arguments.get("toolset_ids", [])
             result = self.toolset_manager.load_toolsets(toolset_ids)
           else:
-            result = self.tool_gateway.execute(tool_name, arguments)
+            result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
 
           self.messages.append({
               "role": "tool",
@@ -184,12 +192,17 @@ class CockpitAgent:
 
     # 生成执行摘要
     summary_lines = []
+    current_zone = "unknown"
     for m in self.messages[1:-4]:
-      if m["role"] == "tool":
+      if m["role"] == "user":
+        zone, _, _ = parse_user_tag(str(m.get("content", "")))
+        if zone:
+          current_zone = zone
+      elif m["role"] == "tool":
         try:
           data = json.loads(m["content"])
           if data.get("status") == "success" and "message" in data:
-            summary_lines.append(data["message"])
+            summary_lines.append(f"[{current_zone}] {data['message']}")
         except Exception:
           pass
 

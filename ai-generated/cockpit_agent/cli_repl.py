@@ -3,7 +3,8 @@ import sys
 import threading
 import time
 
-from config import EFFORT_MODES
+from config import AUDIO_ZONES, DEFAULT_USER_ID, DEFAULT_ZONE, EFFORT_MODES
+from zone_context import parse_reply_prefix
 
 # 导入 readline 让内置 input() 使用其行编辑器：终端原生行编辑按字节退格，
 # 无法正确清除中文等宽字符，会在屏幕上残留半个字符。
@@ -115,18 +116,19 @@ class CockpitRePL:
   def __init__(self, agent):
     self.agent = agent
     self.running = False
+    self.zone = DEFAULT_ZONE
 
   def run(self):
     self.running = True
     print("=" * 50)
     print("  智能座舱车载助手 - 交互模式")
-    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度")
+    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /zone [driver|front_passenger|rear_left|rear_right] 查看或切换音区")
     print("  生成期间按 Esc 打断")
     print("=" * 50)
 
     while self.running:
       try:
-        user_input = input("\n你: ").strip()
+        user_input = input(f"\n你[{self.zone}]: ").strip()
       except EOFError:
         break
       except KeyboardInterrupt:
@@ -154,9 +156,11 @@ class CockpitRePL:
       self._show_history()
     elif parts[0] == "/effort":
       self._handle_effort(parts[1] if len(parts) > 1 else None)
+    elif parts[0] == "/zone":
+      self._handle_zone(parts[1] if len(parts) > 1 else None)
     else:
       print(f"未知命令: {cmd}")
-      print("可用命令: /exit /clear /history /effort")
+      print("可用命令: /exit /clear /history /effort /zone")
 
   def _handle_effort(self, mode_arg):
     if mode_arg is None:
@@ -169,6 +173,18 @@ class CockpitRePL:
       return
     self.agent.effort = mode_arg
     print(f"思考深度已切换为: {mode_arg}")
+
+  def _handle_zone(self, zone_arg):
+    if zone_arg is None:
+      print(f"当前音区: {self.zone}")
+      print(f"可选值: {', '.join(AUDIO_ZONES)}")
+      return
+    if zone_arg not in AUDIO_ZONES:
+      print(f"无效的音区: {zone_arg}")
+      print(f"可选值: {', '.join(AUDIO_ZONES)}")
+      return
+    self.zone = zone_arg
+    print(f"音区已切换为: {zone_arg}")
 
   def _clear_history(self):
     from config import build_system_prompt
@@ -260,8 +276,13 @@ class CockpitRePL:
           on_content=on_content,
           on_tool_call=on_tool_call,
           on_tool_result=on_tool_result,
-          on_call_llm=on_call_llm
+          on_call_llm=on_call_llm,
+          zone_id=self.zone,
+          user_id=DEFAULT_USER_ID
       )
+      target_zone, _ = parse_reply_prefix(reply)
+      if target_zone:
+        print(f"\n[目标音区: {target_zone}]")
       total = time.time() - task_start
       print(f"\n\n[耗时(共{cur_turn}轮)] LLM: {llm_time:.2f}s | 工具: {tool_time:.2f}s | 总计: {total:.2f}s")
     except InterruptedError:

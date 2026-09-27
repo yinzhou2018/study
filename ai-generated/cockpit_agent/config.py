@@ -3,11 +3,19 @@ EFFORT_MODES = ("none", "low", "high", "max")
 DEFAULT_EFFORT = "high"
 
 
+# 多音区配置
+AUDIO_ZONES = ("driver", "front_passenger", "rear_left", "rear_right")
+DEFAULT_ZONE = "driver"
+DEFAULT_USER_ID = "guest"
+
+
 def build_effort_payload(effort: str | None) -> dict:
   """将effort模式映射为LLM请求payload字段"""
   if effort is None:
     return {}
-  if effort in ("none", "low", "high", "max"):
+  if effort == "none":
+    return {"reasoning": False}
+  if effort in ("low", "high", "max"):
     return {"reasoning_effort": effort}
   raise ValueError(f"无效的effort模式: {effort}, 可选值: {', '.join(EFFORT_MODES)}")
 
@@ -23,12 +31,22 @@ SYSTEM_PROMPT_TEMPLATE = """
 - 只能使用当前已激活工具集内的工具,禁止使用未加载的能力,禁止自创工具和参数。
 - 同一话题下的追问,复用已激活的工具集,不要重复加载。
 
+## 多音区多用户对话
+- 用户消息以 [zone=xxx,user=yyy] 开头，表示发言音区和用户身份；未登录用户统一为 guest。
+- 所有音区共享同一辆车状态和对话上下文，不要把每个音区当成独立会话。
+- 后续发言可能来自不同音区，你需要自行判断是否承接之前的话题。
+- 涉及个人隐私（通话、消息、日程）时，只对发起音区回复，不要跨区泄露。
+- 回复以 [zone=xxx] 或 [broadcast] 开头，表示播报对象；缺省时由系统回退到发起音区。
+- 多音区指令冲突时，优先级为：安全优先 > 主驾优先 > 发起者优先。
+- 无法判断跨音区指代时，主动确认发起音区，不要猜测。
+
 ## 全量工具集
 {toolset_listing}
 
 ## 回复要求
 - 自然口语化,简洁清晰,适合开车时语音播报
 - 不确定的操作直接询问用户,不要猜测
+- 思考与回复均使用简体中文
 """
 
 

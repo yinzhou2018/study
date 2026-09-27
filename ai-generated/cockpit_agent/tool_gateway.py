@@ -1,4 +1,20 @@
-from config import MOCK_VEHICLE_STATE
+from config import AUDIO_ZONES, DEFAULT_ZONE, MOCK_VEHICLE_STATE
+
+
+# 这些能力涉及行车安全、车辆门锁或对外放电，不允许非主驾音区直接触发。
+DRIVER_ONLY_TOOLS = {
+    "ctrl_door_lock",
+    "ctrl_child_lock",
+    "ctrl_tailgate",
+    "ctrl_door_soft_close",
+    "ctrl_cruise_control",
+    "ctrl_lane_keep",
+    "ctrl_auto_park",
+    "ctrl_remote_park",
+    "ctrl_charge_start",
+    "ctrl_charge_stop",
+    "ctrl_v2l_discharge",
+}
 
 
 class ToolGateway:
@@ -28,11 +44,25 @@ class ToolGateway:
 
     return True, "安全校验通过"
 
-  def execute(self, tool_name: str, arguments: dict) -> dict:
+  def check_permission(self, tool_name: str, requesting_zone: str) -> tuple:
+    """校验发起音区是否有权限调用该工具"""
+    if requesting_zone not in AUDIO_ZONES:
+      return False, f"未知音区: {requesting_zone}"
+    if requesting_zone != "driver" and tool_name in DRIVER_ONLY_TOOLS:
+      return False, f"{requesting_zone}音区无权限调用{tool_name}"
+    return True, "权限校验通过"
+
+  def execute(self, tool_name: str, arguments: dict,
+              requesting_zone: str = DEFAULT_ZONE) -> dict:
     """执行工具，返回结果"""
     # 先校验白名单
     if not self.check_whitelist(tool_name):
       return {"status": "failed", "message": "工具不在当前激活工具集白名单内"}
+
+    # 再校验音区权限
+    allowed, permission_msg = self.check_permission(tool_name, requesting_zone)
+    if not allowed:
+      return {"status": "failed", "message": permission_msg}
 
     # 再校验安全规则
     safe, msg = self.check_security(tool_name, arguments)
