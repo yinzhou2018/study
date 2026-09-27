@@ -79,15 +79,6 @@ def build_system_tools(toolset_ids: list) -> list:
       }
   ]
 
-
-# LLM 网关配置
-LLM_BASE_URL = "https://voyahgpt-gateway.voyah.cn/api/gateway/v1"
-LLM_API_KEY = "9ba92492a52c425ba4718dcd85e56ddb"
-LLM_MODEL_ID = "deepseek-v4"
-# LLM_BASE_URL = "https://api.deepseek.com"
-# LLM_API_KEY = "sk-13961dc050a04e018285083847b491ed"
-# LLM_MODEL_ID = "deepseek-flash"
-
 # 最大同时激活工具集数量
 MAX_ACTIVE_TOOLSETS = 3
 

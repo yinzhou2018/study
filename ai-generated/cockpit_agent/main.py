@@ -1,8 +1,9 @@
 import argparse
 
 from cockpit_agent import CockpitAgent
-from config import EFFORT_MODES, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
+from config import EFFORT_MODES
 from llm_client import OpenAICompatibleLLM
+from llm_config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
 
 
 def run_interactive(agent):
