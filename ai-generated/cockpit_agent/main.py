@@ -1,9 +1,9 @@
 import argparse
+import sys
 
 from cockpit_agent import CockpitAgent
-from config import EFFORT_MODES
 from llm_client import OpenAICompatibleLLM
-from llm_config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID
+from llm_config import DEFAULT_PROVIDER_ID, EFFORT_MODES, PROVIDERS, get_provider
 
 
 def run_interactive(agent):
@@ -18,11 +18,21 @@ def main():
                       help="启动交互式对话模式")
   parser.add_argument("--effort", choices=EFFORT_MODES, default="high",
                       help="设置思考深度模式 (默认: high)")
+  parser.add_argument("--provider", default=DEFAULT_PROVIDER_ID,
+                      choices=list(PROVIDERS.keys()),
+                      help="选择 LLM 供应商 (默认: %(default)s)")
   args = parser.parse_args()
 
-  agent = CockpitAgent(llm_client=OpenAICompatibleLLM(
-      base_url=LLM_BASE_URL,
-      api_key=LLM_API_KEY, model=LLM_MODEL_ID))
+  profile = get_provider(args.provider)
+  agent = CockpitAgent(
+      llm_client=OpenAICompatibleLLM(
+          base_url=profile["base_url"],
+          api_key=profile["api_key"],
+          model=profile["model"],
+          provider_id=args.provider,
+      ),
+      provider_id=args.provider,
+  )
   agent.effort = args.effort
 
   if args.interactive:

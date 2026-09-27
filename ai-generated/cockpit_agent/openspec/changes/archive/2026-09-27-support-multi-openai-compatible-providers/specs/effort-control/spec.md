@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: Effort Mode Definition
 The system SHALL define four effort modes: `none`, `low`, `high`, and `max`, where `none` disables reasoning entirely, `low` enables brief reasoning, `high` enables standard-depth reasoning, and `max` enables maximum-depth reasoning. The default effort mode SHALL be `high`. The system SHALL map each effort mode to an LLM request payload according to the active provider's `build_effort_payload` function.
 
@@ -47,10 +49,6 @@ Both `OpenAICompatibleLLM` and `MockLLMClient` SHALL accept an optional `effort`
 - **WHEN** `effort="high"` is passed to `OpenAICompatibleLLM.chat_stream` and no `provider_id` is provided
 - **THEN** the request payload includes `"reasoning_effort": "high"`
 
-#### Scenario: Effort none disables reasoning
-- **WHEN** `effort="none"` is passed to `OpenAICompatibleLLM.chat_stream` and the client uses `provider_id="voyah"`
-- **THEN** the request payload includes `"reasoning": false` and does not include `reasoning_effort`
-
 #### Scenario: Effort None means no reasoning field
 - **WHEN** `effort` is `None` (not set) is passed to `OpenAICompatibleLLM.chat_stream`
 - **THEN** the request payload does not include `reasoning_effort` or `reasoning` fields, leaving the API default behavior
@@ -58,18 +56,3 @@ Both `OpenAICompatibleLLM` and `MockLLMClient` SHALL accept an optional `effort`
 #### Scenario: MockLLMClient accepts effort parameter
 - **WHEN** `effort="low"` is passed to `MockLLMClient.chat_stream`
 - **THEN** the mock client accepts the parameter without error and proceeds with its mock logic unchanged
-
-### Requirement: Startup Effort Override
-The system SHALL support a `--effort` command-line argument in `main.py` that overrides the default effort mode at startup.
-
-#### Scenario: Start with low effort
-- **WHEN** user runs `python main.py --interactive --effort low`
-- **THEN** the REPL starts with effort mode set to `low`
-
-#### Scenario: Invalid effort at startup
-- **WHEN** user runs `python main.py --interactive --effort invalid`
-- **THEN** the system prints an error message listing valid modes and exits
-
-#### Scenario: No effort flag uses default
-- **WHEN** user runs `python main.py --interactive` without `--effort`
-- **THEN** the effort mode defaults to `high`

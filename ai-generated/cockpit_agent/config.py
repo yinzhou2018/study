@@ -1,23 +1,7 @@
-# Effort 模式配置
-EFFORT_MODES = ("none", "low", "high", "max")
-DEFAULT_EFFORT = "high"
-
-
 # 多音区配置
 AUDIO_ZONES = ("driver", "front_passenger", "rear_left", "rear_right")
 DEFAULT_ZONE = "driver"
 DEFAULT_USER_ID = "guest"
-
-
-def build_effort_payload(effort: str | None) -> dict:
-  """将effort模式映射为LLM请求payload字段"""
-  if effort is None:
-    return {}
-  if effort == "none":
-    return {"reasoning": False}
-  if effort in ("low", "high", "max"):
-    return {"reasoning_effort": effort}
-  raise ValueError(f"无效的effort模式: {effort}, 可选值: {', '.join(EFFORT_MODES)}")
 
 
 # 全程固定不变的System Prompt,最大化Prefix KV Cache收益

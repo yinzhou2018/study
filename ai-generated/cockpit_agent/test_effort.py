@@ -1,7 +1,7 @@
 """effort命令行思考深度控制单元测试"""
 import unittest
 
-from config import DEFAULT_EFFORT, build_effort_payload
+from llm_config import DEFAULT_EFFORT, build_effort_payload, get_provider
 from cockpit_agent import CockpitAgent
 from llm_client import MockLLMClient, OpenAICompatibleLLM
 
@@ -39,11 +39,47 @@ class BuildEffortPayloadTest(unittest.TestCase):
       build_effort_payload("invalid")
 
 
+class ProviderEffortPayloadTest(unittest.TestCase):
+
+  def test_voyah_payload(self):
+    """voyah 供应商使用 reasoning_effort 表达思考深度"""
+    provider = "voyah"
+    self.assertEqual(build_effort_payload("none", provider), {"reasoning": False})
+    self.assertEqual(build_effort_payload("low", provider), {"reasoning_effort": "low"})
+    self.assertEqual(build_effort_payload("high", provider), {"reasoning_effort": "high"})
+    self.assertEqual(build_effort_payload("max", provider), {"reasoning_effort": "max"})
+
+  def test_deepseek_payload(self):
+    """deepseek 供应商使用 enable_thinking + thinking_budget 表达思考深度"""
+    provider = "deepseek"
+    self.assertEqual(build_effort_payload("none", provider), {"enable_thinking": False})
+    self.assertEqual(build_effort_payload("low", provider),
+                     {"enable_thinking": True, "thinking_budget": 512})
+    self.assertEqual(build_effort_payload("high", provider),
+                     {"enable_thinking": True, "thinking_budget": 2048})
+    self.assertEqual(build_effort_payload("max", provider),
+                     {"enable_thinking": True, "thinking_budget": 4096})
+
+  def test_provider_none_uses_default_provider(self):
+    """provider=None 时使用默认供应商的映射"""
+    self.assertEqual(build_effort_payload("high", None), {"reasoning_effort": "high"})
+
+  def test_unknown_provider_falls_back(self):
+    """未知供应商回退到默认供应商的映射"""
+    self.assertEqual(build_effort_payload("high", "nonexistent"), {"reasoning_effort": "high"})
+
+  def test_provider_profile_uses_registered_payload_function(self):
+    """provider profile 中的 build_effort_payload 函数直接生效"""
+    profile = get_provider("deepseek")
+    self.assertEqual(build_effort_payload("high", profile),
+                     {"enable_thinking": True, "thinking_budget": 2048})
+
+
 class OpenAICompatibleEffortTest(unittest.TestCase):
 
-  def _capture_payload(self, method, effort):
+  def _capture_payload(self, method, effort, client=None):
     """辅助：拦截requests.post并返回payload"""
-    client = OpenAICompatibleLLM(base_url="http://fake", api_key="fake")
+    client = client or OpenAICompatibleLLM(base_url="http://fake", api_key="fake")
     captured = {}
 
     class FakeResponse:
@@ -95,6 +131,13 @@ class OpenAICompatibleEffortTest(unittest.TestCase):
     """chat_stream() payload包含reasoning_effort=max"""
     payload = self._capture_payload("stream", "max")
     self.assertEqual(payload["reasoning_effort"], "max")
+
+  def test_deepseek_chat_uses_enable_thinking(self):
+    """deepseek 供应商 client 的 payload 使用 enable_thinking + thinking_budget"""
+    client = OpenAICompatibleLLM(base_url="http://fake", api_key="fake", provider_id="deepseek")
+    payload = self._capture_payload("chat", "high", client=client)
+    self.assertTrue(payload["enable_thinking"])
+    self.assertEqual(payload["thinking_budget"], 2048)
 
   def test_chat_stream_none_effort_no_field(self):
     """chat_stream() effort=None时payload不含effort字段"""

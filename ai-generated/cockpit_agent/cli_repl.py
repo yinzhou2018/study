@@ -3,7 +3,8 @@ import sys
 import threading
 import time
 
-from config import AUDIO_ZONES, DEFAULT_USER_ID, DEFAULT_ZONE, EFFORT_MODES
+from config import AUDIO_ZONES, DEFAULT_USER_ID, DEFAULT_ZONE
+from llm_config import EFFORT_MODES, PROVIDERS
 from zone_context import parse_reply_prefix
 
 # 导入 readline 让内置 input() 使用其行编辑器：终端原生行编辑按字节退格，
@@ -122,7 +123,7 @@ class CockpitRePL:
     self.running = True
     print("=" * 50)
     print("  智能座舱车载助手 - 交互模式")
-    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /zone [driver|front_passenger|rear_left|rear_right] 查看或切换音区")
+    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /provider [id] 查看或切换 LLM 供应商 | /zone [driver|front_passenger|rear_left|rear_right] 查看或切换音区")
     print("  生成期间按 Esc 打断")
     print("=" * 50)
 
@@ -158,9 +159,11 @@ class CockpitRePL:
       self._handle_effort(parts[1] if len(parts) > 1 else None)
     elif parts[0] == "/zone":
       self._handle_zone(parts[1] if len(parts) > 1 else None)
+    elif parts[0] == "/provider":
+      self._handle_provider(parts[1] if len(parts) > 1 else None)
     else:
       print(f"未知命令: {cmd}")
-      print("可用命令: /exit /clear /history /effort /zone")
+      print("可用命令: /exit /clear /history /effort /provider /zone")
 
   def _handle_effort(self, mode_arg):
     if mode_arg is None:
@@ -185,6 +188,20 @@ class CockpitRePL:
       return
     self.zone = zone_arg
     print(f"音区已切换为: {zone_arg}")
+
+  def _handle_provider(self, provider_arg):
+    if provider_arg is None:
+      print(f"当前供应商: {self.agent.provider_id}")
+      print(f"可选值: {', '.join(PROVIDERS.keys())}")
+      return
+    try:
+      self.agent.set_provider(provider_arg)
+    except ValueError:
+      print(f"无效的供应商: {provider_arg}")
+      print(f"可选值: {', '.join(PROVIDERS.keys())}")
+      return
+    model = getattr(self.agent.llm, "model", "mock")
+    print(f"供应商已切换为: {provider_arg} (模型: {model})")
 
   def _clear_history(self):
     from config import build_system_prompt

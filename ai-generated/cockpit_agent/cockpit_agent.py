@@ -1,14 +1,15 @@
 import json
 
-from config import DEFAULT_EFFORT, DEFAULT_USER_ID, DEFAULT_ZONE, build_system_prompt
-from llm_client import MockLLMClient
+from config import DEFAULT_USER_ID, DEFAULT_ZONE, build_system_prompt
+from llm_client import MockLLMClient, OpenAICompatibleLLM
+from llm_config import DEFAULT_EFFORT, DEFAULT_PROVIDER_ID, PROVIDERS
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
 from zone_context import parse_user_tag, tag_user_message
 
 
 class CockpitAgent:
-  def __init__(self, llm_client=None):
+  def __init__(self, llm_client=None, provider_id=None):
     self.llm = llm_client or MockLLMClient()
     self.toolset_manager = ToolsetManager()
     self.tool_gateway = ToolGateway(self.toolset_manager)
@@ -19,6 +20,24 @@ class CockpitAgent:
     self.max_turns = 8  # 单轮用户输入最多执行8轮工具调用，防止死循环
     self._interrupted = False
     self.effort = DEFAULT_EFFORT
+    self.provider_id = provider_id or DEFAULT_PROVIDER_ID
+
+  def set_provider(self, provider_id):
+    """运行期切换 LLM 供应商，保留对话历史"""
+    if provider_id not in PROVIDERS:
+      raise ValueError(
+          f"未知的供应商: {provider_id}, 可选值: {', '.join(PROVIDERS.keys())}"
+      )
+    self.provider_id = provider_id
+    profile = PROVIDERS[provider_id]
+    # OpenAICompatibleLLM 支持运行期重配置；MockLLMClient 等无 configure 方法时仅更新 id
+    if hasattr(self.llm, "configure"):
+      self.llm.configure(
+          profile["base_url"],
+          profile["api_key"],
+          profile["model"],
+          provider_id=provider_id,
+      )
 
   def interrupt(self):
     """设置打断标志，由REPL的Esc监听器调用"""

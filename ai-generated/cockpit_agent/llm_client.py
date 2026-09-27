@@ -1,9 +1,14 @@
 import json
 import time
+import types
 
-import requests
+try:
+  import requests
+except ModuleNotFoundError:
+  # 测试环境可能未安装 requests；此处占位以便 monkeypatch llm_client.requests.post
+  requests = types.SimpleNamespace(post=None)
 
-from config import build_effort_payload
+from llm_config import build_effort_payload
 
 
 class MockLLMClient:
@@ -193,13 +198,19 @@ class MockLLMClient:
 class OpenAICompatibleLLM:
   """真实OpenAI兼容接口客户端（Ollama/vLLM/云端接口通用）"""
 
-  def __init__(self, base_url, api_key="sk-xxx", model="deepseek-v4-flash"):
-    self.base_url = base_url.rstrip("/")
+  def __init__(self, base_url, api_key="sk-xxx", model="deepseek-v4-flash",
+               provider_id=None):
+    self.configure(base_url, api_key, model, provider_id)
+
+  def configure(self, base_url, api_key, model, provider_id=None):
+    """运行期重新配置供应商参数"""
     self.api_key = api_key
     self.model = model
+    self.provider_id = provider_id
+    self.base_url = base_url
 
   def chat(self, messages, tools, temperature=0.1, effort=None):
-    url = f"{self.base_url}/v1/chat/completions"
+    url = f"{self.base_url}/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {self.api_key}"
@@ -210,7 +221,7 @@ class OpenAICompatibleLLM:
         "tools": tools,
         "tool_choice": "auto",
         "temperature": temperature,
-        **build_effort_payload(effort)
+        **build_effort_payload(effort, self.provider_id)
     }
     resp = requests.post(url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
@@ -230,7 +241,7 @@ class OpenAICompatibleLLM:
         "tool_choice": "auto",
         "temperature": temperature,
         "stream": True,
-        **build_effort_payload(effort)
+        **build_effort_payload(effort, self.provider_id)
     }
 
     resp = requests.post(url, headers=headers, json=payload, timeout=30, stream=True)
@@ -244,9 +255,9 @@ class OpenAICompatibleLLM:
       for line in resp.iter_lines(decode_unicode=True):
         if not line:
           continue
-        if line.startswith("data: "): # type: ignore
+        if line.startswith("data: "):  # type: ignore
           data_str = line[6:]
-        elif line.startswith("data:"): # type: ignore
+        elif line.startswith("data:"):  # type: ignore
           data_str = line[5:]
         else:
           continue

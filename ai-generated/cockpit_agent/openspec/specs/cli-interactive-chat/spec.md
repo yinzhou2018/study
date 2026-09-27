@@ -4,7 +4,7 @@ The system SHALL provide a command-line interactive REPL entry point accessible 
 
 #### Scenario: Start interactive mode
 - **WHEN** user runs `python main.py --interactive`
-- **THEN** the system displays a welcome banner listing available commands including `/effort` and a prompt, and waits for user input
+- **THEN** the system displays a welcome banner listing available commands including `/effort`, `/provider`, and `/zone`, and waits for user input
 
 #### Scenario: Start without arguments defaults to batch mode
 - **WHEN** user runs `python main.py` without `--interactive`
@@ -64,7 +64,7 @@ The system SHALL support Esc key interruption during LLM streaming or tool execu
 - **THEN** the system clears the current input line and re-displays the prompt without exiting
 
 ### Requirement: Session Commands
-The system SHALL support slash commands for session management: `/exit`, `/clear`, `/history`, and `/effort`.
+The system SHALL support slash commands for session management: `/exit`, `/clear`, `/history`, `/effort`, `/provider`, and `/zone`.
 
 #### Scenario: Clear conversation history
 - **WHEN** user types `/clear` at the prompt
@@ -85,6 +85,18 @@ The system SHALL support slash commands for session management: `/exit`, `/clear
 #### Scenario: Invalid effort mode
 - **WHEN** user types `/effort invalid` at the prompt
 - **THEN** the system prints an error message listing valid modes (`none`, `low`, `high`, `max`) and returns to the prompt
+
+#### Scenario: Check current provider
+- **WHEN** user types `/provider` without arguments at the prompt
+- **THEN** the system prints the current provider id and all available provider ids and returns to the prompt
+
+#### Scenario: Switch provider
+- **WHEN** user types `/provider <provider_id>` where provider_id is a registered provider
+- **THEN** the system switches the agent's active provider, prints a confirmation including the new model, and returns to the prompt
+
+#### Scenario: Invalid provider
+- **WHEN** user types `/provider invalid` at the prompt
+- **THEN** the system prints an error message listing available provider ids and returns to the prompt without changing the active provider
 
 #### Scenario: Unknown command
 - **WHEN** user types an unrecognized `/command`
