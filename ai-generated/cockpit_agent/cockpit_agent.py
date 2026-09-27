@@ -32,7 +32,7 @@ class CockpitAgent:
     profile = PROVIDERS[provider_id]
     # OpenAICompatibleLLM 支持运行期重配置；MockLLMClient 等无 configure 方法时仅更新 id
     if hasattr(self.llm, "configure"):
-      self.llm.configure(
+      self.llm.configure( # type: ignore
           profile["base_url"],
           profile["api_key"],
           profile["model"],
