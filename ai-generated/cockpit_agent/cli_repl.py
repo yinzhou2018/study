@@ -5,6 +5,7 @@ import time
 
 from config import AUDIO_ZONES, DEFAULT_USER_ID, DEFAULT_ZONE
 from llm_config import EFFORT_MODES, PROVIDERS
+from prefs import update_pref
 from zone_context import parse_reply_prefix
 
 # 导入 readline 让内置 input() 使用其行编辑器：终端原生行编辑按字节退格，
@@ -165,6 +166,13 @@ class CockpitRePL:
       print(f"未知命令: {cmd}")
       print("可用命令: /exit /clear /history /effort /provider /zone")
 
+  def _save_pref(self, key, value):
+    """持久化偏好,失败仅警告,不影响内存切换"""
+    try:
+      update_pref(key, value)
+    except OSError as e:
+      print(f"[警告] 偏好持久化失败: {e}")
+
   def _handle_effort(self, mode_arg):
     if mode_arg is None:
       print(f"当前思考深度: {self.agent.effort}")
@@ -175,6 +183,7 @@ class CockpitRePL:
       print(f"可选值: {', '.join(EFFORT_MODES)}")
       return
     self.agent.effort = mode_arg
+    self._save_pref("effort", mode_arg)
     print(f"思考深度已切换为: {mode_arg}")
 
   def _handle_zone(self, zone_arg):
@@ -200,6 +209,7 @@ class CockpitRePL:
       print(f"无效的供应商: {provider_arg}")
       print(f"可选值: {', '.join(PROVIDERS.keys())}")
       return
+    self._save_pref("provider", provider_arg)
     model = getattr(self.agent.llm, "model", "mock")
     print(f"供应商已切换为: {provider_arg} (模型: {model})")
 

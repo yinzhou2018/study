@@ -3,6 +3,7 @@ import io
 import unittest
 from contextlib import redirect_stdout
 
+import cli_repl
 from cli_repl import CockpitRePL
 from cockpit_agent import CockpitAgent
 from llm_client import MockLLMClient, OpenAICompatibleLLM
@@ -79,8 +80,14 @@ class ProviderCommandTest(unittest.TestCase):
   def _capture(self, agent, arg):
     repl = CockpitRePL(agent)
     buf = io.StringIO()
-    with redirect_stdout(buf):
-      repl._handle_provider(arg)
+    # 拦截持久化写入,避免污染真实偏好文件
+    orig = cli_repl.update_pref
+    cli_repl.update_pref = lambda key, value: None
+    try:
+      with redirect_stdout(buf):
+        repl._handle_provider(arg)
+    finally:
+      cli_repl.update_pref = orig
     return buf.getvalue()
 
   def test_check_current_provider(self):

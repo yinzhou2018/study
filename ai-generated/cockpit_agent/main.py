@@ -3,7 +3,9 @@ import sys
 
 from cockpit_agent import CockpitAgent
 from llm_client import OpenAICompatibleLLM
-from llm_config import DEFAULT_PROVIDER_ID, EFFORT_MODES, PROVIDERS, get_provider
+from llm_config import (DEFAULT_EFFORT, DEFAULT_PROVIDER_ID, EFFORT_MODES,
+                        PROVIDERS, get_provider)
+from prefs import load_prefs, resolve_pref
 
 
 def run_interactive(agent):
@@ -16,24 +18,31 @@ def main():
   parser = argparse.ArgumentParser(description="智能座舱车载助手")
   parser.add_argument("-i", "--interactive", action="store_true",
                       help="启动交互式对话模式")
-  parser.add_argument("--effort", choices=EFFORT_MODES, default="high",
-                      help="设置思考深度模式 (默认: high)")
-  parser.add_argument("--provider", default=DEFAULT_PROVIDER_ID,
+  parser.add_argument("--effort", choices=EFFORT_MODES, default=None,
+                      help="设置思考深度模式 (缺省读取上次选择,初始为 high)")
+  parser.add_argument("--provider", default=None,
                       choices=list(PROVIDERS.keys()),
-                      help="选择 LLM 供应商 (默认: %(default)s)")
+                      help="选择 LLM 供应商 (缺省读取上次选择)")
   args = parser.parse_args()
 
-  profile = get_provider(args.provider)
+  # 优先级:命令行显式参数 > 持久化偏好 > 代码默认值
+  prefs = load_prefs()
+  provider = resolve_pref(args.provider, prefs, "provider",
+                          set(PROVIDERS.keys()), DEFAULT_PROVIDER_ID)
+  effort = resolve_pref(args.effort, prefs, "effort",
+                       set(EFFORT_MODES), DEFAULT_EFFORT)
+
+  profile = get_provider(provider)
   agent = CockpitAgent(
       llm_client=OpenAICompatibleLLM(
           base_url=profile["base_url"],
           api_key=profile["api_key"],
           model=profile["model"],
-          provider_id=args.provider,
+          provider_id=provider,
       ),
-      provider_id=args.provider,
+      provider_id=provider,
   )
-  agent.effort = args.effort
+  agent.effort = effort
 
   if args.interactive:
     run_interactive(agent)
