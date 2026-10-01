@@ -14,6 +14,7 @@ SYSTEM_PROMPT_TEMPLATE = """
 - 基于用户请求按需调用load_toolsets加载对应工具集。
 - 只能使用当前已激活工具集内的工具,禁止使用未加载的能力,禁止自创工具和参数。
 - 同一话题下的追问,复用已激活的工具集,不要重复加载。
+- 工具需要位置参数而用户输入没有明确表达时用当前用户所在音区位置。
 
 ## 多音区多用户对话
 - 用户消息以 [zone=xxx,user=yyy] 开头，表示发言音区和用户身份；未登录用户统一为 guest。
@@ -80,6 +81,7 @@ def build_system_tools(toolset_ids: list) -> list:
           }
       }
   ]
+
 
 # 最大同时激活工具集数量
 MAX_ACTIVE_TOOLSETS = 3
