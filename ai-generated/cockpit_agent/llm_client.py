@@ -101,13 +101,13 @@ class MockLLMClient:
         return self._build_function_response("ctrl_ac_temperature", {"temperature": 25})
 
     # ========== 模拟逻辑：已加载车况查询工具集 ==========
-    if "query_range" in tool_names:
+    if "query_range_mileage" in tool_names:
       has_range_result = any(
           m["role"] == "tool" and "range_km" in m["content"]
           for m in messages
       )
       if not has_range_result:
-        return self._build_function_response("query_range", {})
+        return self._build_function_response("query_range_mileage", {})
 
     # 所有工具执行完毕，返回最终回复
     final_reply = self._generate_final_reply(user_msg, messages)

@@ -86,18 +86,46 @@ MAX_ACTIVE_TOOLSETS = 3
 
 # 模拟车辆实时状态（真实环境从车机总线获取）
 MOCK_VEHICLE_STATE = {
+    # 行驶基础
     "speed": 42,  # km/h
     "outside_temp": 28,
     "inside_temp": 26,
     "range": 380,  # km
+    "battery_soc": 80,  # %
+
+    # 车身控制
     "window_front_left": 0,
     "window_front_right": 0,
     "window_rear_left": 0,
     "window_rear_right": 0,
     "sunroof_tilt": "off",
-    "ac_circulation": "inner",
-    "ac_power": "off",
-    "ac_temperature": 24,
+    "sunroof_open": 0,
+    "sunroof_shade": 0,
+    "door_lock": "lock",
+    "child_lock": "off",
+    "tailgate": "close",
+    "door_handle_front_left": "retract",
+    "door_handle_front_right": "retract",
+    "mirror_fold": "unfold",
+    "wiper_front": "off",
+    "wiper_rear": "off",
+
+    # 灯光照明
+    "headlight_mode": "auto",
+    "drl": "on",
+    "fog_light": "off",
+    "ambient_light_color": "white",
+    "ambient_light_brightness": 50,
+    "ambient_scene": "driving",
+    "welcome_light": "off",
+    "star_roof_brightness": 0,
+    "star_roof_mode": "static",
+    "interior_reading_front_left": "off",
+    "interior_reading_front_right": "off",
+    "interior_reading_rear": "off",
+
+    # 座椅系统
+    "seat_memory": 1,
     "seat_heat_front_left": 0,
     "seat_heat_front_right": 0,
     "seat_heat_rear": 0,
@@ -106,7 +134,59 @@ MOCK_VEHICLE_STATE = {
     "seat_vent_rear": 0,
     "seat_massage_front_left": "off",
     "seat_massage_front_right": "off",
-    "wiper_front": "off",
-    "wiper_rear": "off",
-    "media_volume": 15
+    "seat_lumbar": 3,
+    "seat_boss_key": "off",
+    "seat_recline": 2,
+
+    # 空调温控
+    "ac_power": "off",
+    "ac_temperature": 24,
+    "ac_fan_speed": 2,
+    "ac_circulation": "inner",
+    "ac_vent_mode": "face",
+    "air_purifier": "off",
+    "ionizer": "off",
+
+    # 座舱舒适
+    "fridge_mode": "off",
+    "fridge_temp": 5,
+    "aroma_scent": "tea",
+    "aroma_intensity": "low",
+    "panoramic_shade": 0,
+    "armrest_heat": "off",
+
+    # 影音娱乐
+    "music_category": None,
+    "music_track": 0,
+    "volume_media": 15,
+    "sound_mode": "hifi",
+    "radio_frequency": None,
+    "media_mute": "off",
+    "rear_entertainment": "off",
+
+    # 导航
+    "nav_active": False,
+    "nav_destination": None,
+    "nav_route_pref": "fastest",
+
+    # 充电
+    "charge_active": False,
+    "charge_limit": 80,
+    "charge_schedule_start": None,
+    "charge_schedule_end": None,
+    "v2l_discharge": "off",
+
+    # 通讯
+    "phone_call_state": None,
+    "message_unread": 2,
+
+    # 驾驶辅助
+    "cruise_control": "off",
+    "cruise_speed": None,
+    "lane_keep": "off",
+    "acc_distance": 2,
+    "energy_recovery": "medium",
+    "auto_park": None,
+    "remote_park": None,
+    "hud_display": "on",
 }

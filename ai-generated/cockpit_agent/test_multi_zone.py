@@ -142,7 +142,7 @@ class HistoryCompressionTest(unittest.TestCase):
         {"role": "assistant", "content": None, "tool_calls": [{"id": "1", "function": {"name": "ctrl_window", "arguments": "{\"position\":\"front_left\",\"openness\":25}"}}]},
         {"role": "tool", "tool_call_id": "1", "content": '{"status":"success","message":"左前车窗已开"}'},
         {"role": "user", "content": "[zone=front_right,user=guest] 调低音量"},
-        {"role": "assistant", "content": None, "tool_calls": [{"id": "2", "function": {"name": "ctrl_volume_set", "arguments": "{}"}}]},
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "2", "function": {"name": "ctrl_volume_media", "arguments": "{}"}}]},
         {"role": "tool", "tool_call_id": "2", "content": '{"status":"success","message":"音量已调低"}'},
         {"role": "assistant", "content": "已处理"},
         {"role": "assistant", "content": "状态正常"},
