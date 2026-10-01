@@ -7,99 +7,53 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_window_left_front",
-          "description": "左前车窗玻璃开度调节",
+          "name": "ctrl_window",
+          "description": "车窗玻璃开度调节，按位置单独或全车联动控制",
           "parameters": {
             "type": "object",
             "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "front_left",
+                  "front_right",
+                  "rear_left",
+                  "rear_right",
+                  "all"
+                ],
+                "description": "控制位置：左前/右前/左后/右后/全车"
+              },
               "openness": {
                 "type": "integer",
                 "enum": [
                   0,
+                  5,
+                  10,
+                  15,
+                  20,
                   25,
+                  30,
+                  35,
+                  40,
+                  45,
                   50,
+                  55,
+                  60,
+                  65,
+                  70,
+                  75,
+                  80,
+                  85,
+                  90,
+                  95,
                   100
                 ],
-                "description": "车窗开度百分比，0=全关，100=全开"
+                "default": 50,
+                "description": "车窗开度百分比，0=全关，100=全开，步长5%"
               }
             },
             "required": [
-              "openness"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_window_right_front",
-          "description": "右前车窗玻璃开度调节",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "openness": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  25,
-                  50,
-                  100
-                ],
-                "description": "车窗开度百分比"
-              }
-            },
-            "required": [
-              "openness"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_window_rear",
-          "description": "后排车窗玻璃开度调节（左右联动）",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "openness": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  25,
-                  50,
-                  100
-                ],
-                "description": "车窗开度百分比"
-              }
-            },
-            "required": [
-              "openness"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_window_all",
-          "description": "全车车窗一键同步控制",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "openness": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  25,
-                  50,
-                  100
-                ],
-                "description": "车窗开度百分比"
-              }
-            },
-            "required": [
-              "openness"
+              "position"
             ]
           }
         }
@@ -139,15 +93,32 @@
                 "type": "integer",
                 "enum": [
                   0,
+                  5,
+                  10,
+                  15,
+                  20,
+                  25,
+                  30,
+                  35,
+                  40,
+                  45,
                   50,
+                  55,
+                  60,
+                  65,
+                  70,
+                  75,
+                  80,
+                  85,
+                  90,
+                  95,
                   100
                 ],
-                "description": "天窗开启百分比"
+                "default": 50,
+                "description": "天窗开启百分比，步长5%"
               }
             },
-            "required": [
-              "openness"
-            ]
+            "required": []
           }
         }
       },
@@ -163,15 +134,32 @@
                 "type": "integer",
                 "enum": [
                   0,
+                  5,
+                  10,
+                  15,
+                  20,
+                  25,
+                  30,
+                  35,
+                  40,
+                  45,
                   50,
+                  55,
+                  60,
+                  65,
+                  70,
+                  75,
+                  80,
+                  85,
+                  90,
+                  95,
                   100
                 ],
-                "description": "遮阳帘开度百分比"
+                "default": 50,
+                "description": "遮阳帘开度百分比，步长5%"
               }
             },
-            "required": [
-              "openness"
-            ]
+            "required": []
           }
         }
       },
@@ -252,18 +240,18 @@
           "parameters": {
             "type": "object",
             "properties": {
-              "door": {
+              "position": {
                 "type": "string",
                 "enum": [
-                  "left_front",
-                  "right_front",
+                  "front_left",
+                  "front_right",
                   "tailgate"
                 ],
-                "description": "指定车门"
+                "description": "控制位置：左前/右前/尾门"
               }
             },
             "required": [
-              "door"
+              "position"
             ]
           }
         }
@@ -276,13 +264,13 @@
           "parameters": {
             "type": "object",
             "properties": {
-              "door": {
+              "position": {
                 "type": "string",
                 "enum": [
-                  "left_front",
-                  "right_front"
+                  "front_left",
+                  "front_right"
                 ],
-                "description": "指定车门"
+                "description": "控制位置：左前/右前"
               },
               "status": {
                 "type": "string",
@@ -294,7 +282,7 @@
               }
             },
             "required": [
-              "door",
+              "position",
               "status"
             ]
           }
@@ -326,11 +314,19 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_wiper_front",
-          "description": "前风挡雨刮档位控制",
+          "name": "ctrl_wiper",
+          "description": "前后风挡雨刮档位控制",
           "parameters": {
             "type": "object",
             "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "front",
+                  "rear"
+                ],
+                "description": "控制位置：前/后风挡"
+              },
               "level": {
                 "type": "string",
                 "enum": [
@@ -344,30 +340,8 @@
               }
             },
             "required": [
+              "position",
               "level"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_wiper_rear",
-          "description": "后风挡雨刮开关",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "status": {
-                "type": "string",
-                "enum": [
-                  "on",
-                  "off"
-                ],
-                "description": "开启/关闭"
-              }
-            },
-            "required": [
-              "status"
             ]
           }
         }
@@ -571,14 +545,15 @@
           "parameters": {
             "type": "object",
             "properties": {
-              "zone": {
+              "position": {
                 "type": "string",
                 "enum": [
-                  "driver",
-                  "passenger",
-                  "rear_all"
+                  "front_left",
+                  "front_right",
+                  "rear",
+                  "all"
                 ],
-                "description": "控制区域"
+                "description": "控制位置：左前/右前/后排/全车"
               },
               "status": {
                 "type": "string",
@@ -591,7 +566,7 @@
               }
             },
             "required": [
-              "zone",
+              "position",
               "status"
             ]
           }
@@ -631,11 +606,20 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_seat_driver_heat",
-          "description": "主驾座椅加热档位",
+          "name": "ctrl_seat_heat",
+          "description": "座椅加热档位控制",
           "parameters": {
             "type": "object",
             "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "front_left",
+                  "front_right",
+                  "rear"
+                ],
+                "description": "控制位置：主驾/副驾/后排"
+              },
               "level": {
                 "type": "integer",
                 "enum": [
@@ -648,6 +632,7 @@
               }
             },
             "required": [
+              "position",
               "level"
             ]
           }
@@ -656,11 +641,20 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_seat_driver_vent",
-          "description": "主驾座椅通风档位",
+          "name": "ctrl_seat_vent",
+          "description": "座椅通风档位控制",
           "parameters": {
             "type": "object",
             "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "front_left",
+                  "front_right",
+                  "rear"
+                ],
+                "description": "控制位置：主驾/副驾/后排"
+              },
               "level": {
                 "type": "integer",
                 "enum": [
@@ -673,6 +667,7 @@
               }
             },
             "required": [
+              "position",
               "level"
             ]
           }
@@ -681,11 +676,19 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_seat_driver_massage",
-          "description": "主驾座椅按摩",
+          "name": "ctrl_seat_massage",
+          "description": "座椅按摩控制",
           "parameters": {
             "type": "object",
             "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "front_left",
+                  "front_right"
+                ],
+                "description": "控制位置：主驾/副驾"
+              },
               "mode": {
                 "type": "string",
                 "enum": [
@@ -707,6 +710,7 @@
               }
             },
             "required": [
+              "position",
               "mode",
               "level"
             ]
@@ -742,91 +746,6 @@
       {
         "type": "function",
         "function": {
-          "name": "ctrl_seat_passenger_heat",
-          "description": "副驾座椅加热档位",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "level": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1,
-                  2,
-                  3
-                ],
-                "description": "加热档位，0=关闭"
-              }
-            },
-            "required": [
-              "level"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_seat_passenger_vent",
-          "description": "副驾座椅通风档位",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "level": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1,
-                  2,
-                  3
-                ],
-                "description": "通风档位，0=关闭"
-              }
-            },
-            "required": [
-              "level"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_seat_passenger_massage",
-          "description": "副驾座椅按摩",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "mode": {
-                "type": "string",
-                "enum": [
-                  "off",
-                  "waist",
-                  "full_body",
-                  "pulse"
-                ],
-                "description": "按摩模式"
-              },
-              "level": {
-                "type": "integer",
-                "enum": [
-                  1,
-                  2,
-                  3
-                ],
-                "description": "强度档位"
-              }
-            },
-            "required": [
-              "mode",
-              "level"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
           "name": "ctrl_seat_boss_key",
           "description": "老板键（副驾座椅前移）",
           "parameters": {
@@ -843,56 +762,6 @@
             },
             "required": [
               "status"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_seat_rear_heat",
-          "description": "后排座椅加热档位",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "level": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1,
-                  2,
-                  3
-                ],
-                "description": "加热档位，0=关闭"
-              }
-            },
-            "required": [
-              "level"
-            ]
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "ctrl_seat_rear_vent",
-          "description": "后排座椅通风档位",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "level": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1,
-                  2,
-                  3
-                ],
-                "description": "通风档位，0=关闭"
-              }
-            },
-            "required": [
-              "level"
             ]
           }
         }
@@ -930,6 +799,29 @@
     "description": "空调系统核心温湿度控制与空气净化",
     "execution_rules": [],
     "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ctrl_ac_power",
+          "description": "空调系统总电源开关",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "description": "开启/关闭空调"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      },
       {
         "type": "function",
         "function": {

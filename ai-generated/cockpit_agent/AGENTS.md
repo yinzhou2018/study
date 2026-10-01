@@ -9,8 +9,8 @@
 核心设计目标：
 
 - **固定 System Prompt**：最大化服务端 Prefix KV Cache 命中率，降低首字延迟。
-- **工具集按需加载**：全量工具集（12 个，共 95 个工具）过大，模型按用户意图调用 `load_toolsets` 激活子集，最多同时激活 3 个，LRU 淘汰。
-- **多音区多用户**：driver / front_passenger / rear_left / rear_right 共享同一辆车状态与对话上下文，按音区做权限隔离。
+- **工具集按需加载**：全量工具集过大，模型按用户意图调用 `load_toolsets` 激活子集，最多同时激活 3 个，LRU 淘汰。
+- **多音区多用户**：front_left / front_right / rear_left / rear_right 共享同一辆车状态与对话上下文，按音区做权限隔离。
 - **安全校验**：行车安全限制（如高速下车窗开度）、主驾专属权限（门锁、放电、泊车等）在网关层强制拦截。
 - **多供应商 + 思考深度（effort）**：运行期可切换供应商与 effort（none/low/high/max），各供应商映射为各自的 payload 字段。
 
@@ -47,7 +47,7 @@ cockpit_agent/
 
 ```
 用户输入
-  │  zone_context.tag_user_message  →  [zone=driver,user=guest] 有点闷
+  │  zone_context.tag_user_message  →  [zone=front_left,user=guest] 有点闷
   ▼
 CockpitAgent.chat / chat_stream
   │  ┌─ messages 历史（System Prompt 在前，全程不变）
@@ -116,7 +116,7 @@ python3 main.py -i
 - 一个函数只做一件事，关注一个点，有效代码行建议 ≤20行，最大禁止超过40行
 - 一个类只做一件事，关注一个点，成员变量禁止超过7个
 - 需求不清楚时跟人类澄清，不要自作聪明
-- 除非非常简单的局部修改，否则必须先有设计并跟人类确认后再做实际编码
+- 除非非常简单的局部修改，否则必须先有设计并跟人类确认（每次提出了修改意见都必须重新发起确认确保理解正确）再做实际编码
 - 除非非常简单的局部修改，否则必须写测试代码并保证新增用例以及受影响的用例全部测试通过
 
 ## 9. 安全与合规要点

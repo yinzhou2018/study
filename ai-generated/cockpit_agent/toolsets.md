@@ -2,10 +2,10 @@
 
 | Toolset | Name | Tools | Description |
 |---|---|---:|---|
-| `toolset_body_control` | 车身控制工具集 | 15 | 车身机械执行部件的运动控制，包含车窗、天窗、门锁、雨刮、后视镜等 |
+| `toolset_body_control` | 车身控制工具集 | 11 | 车身机械执行部件的运动控制，包含车窗、天窗、门锁、雨刮、后视镜等 |
 | `toolset_lighting_control` | 灯光照明工具集 | 8 | 全车内外灯光系统控制，包含大灯、氛围灯、迎宾灯、星空顶等 |
-| `toolset_seat_system` | 座椅系统工具集 | 12 | 全车座椅全维度调节与舒适功能，包含加热、通风、按摩、记忆等 |
-| `toolset_climate_control` | 空调温控工具集 | 7 | 空调系统核心温湿度控制与空气净化 |
+| `toolset_seat_system` | 座椅系统工具集 | 7 | 全车座椅全维度调节与舒适功能，包含加热、通风、按摩、记忆等 |
+| `toolset_climate_control` | 空调温控工具集 | 8 | 空调系统核心温湿度控制与空气净化 |
 | `toolset_cabin_comfort` | 座舱舒适配置工具集 | 5 | 座舱专属舒适配置，包含冰箱、香氛、天幕遮阳等独立功能 |
 | `toolset_media_entertainment` | 影音娱乐工具集 | 8 | 全车影音媒体播放与音量控制 |
 | `toolset_navigation` | 导航出行工具集 | 7 | 导航路径规划、POI搜索、路况与沿途服务查询 |
@@ -22,10 +22,7 @@
 
 | Function | Description |
 |---|---|
-| `ctrl_window_left_front` | 左前车窗玻璃开度调节 |
-| `ctrl_window_right_front` | 右前车窗玻璃开度调节 |
-| `ctrl_window_rear` | 后排车窗玻璃开度调节（左右联动） |
-| `ctrl_window_all` | 全车车窗一键同步控制 |
+| `ctrl_window` | 车窗玻璃开度调节，按位置单独或全车联动控制 |
 | `ctrl_sunroof_tilt` | 天窗翘角通风模式开关 |
 | `ctrl_sunroof_open` | 天窗全开滑动控制 |
 | `ctrl_sunroof_shade` | 天窗遮阳帘开度控制 |
@@ -35,42 +32,18 @@
 | `ctrl_door_soft_close` | 电吸门辅助关闭 |
 | `ctrl_door_handle` | 电动门把手弹出/收回 |
 | `ctrl_mirror_fold` | 外后视镜折叠控制 |
-| `ctrl_wiper_front` | 前风挡雨刮档位控制 |
-| `ctrl_wiper_rear` | 后风挡雨刮开关 |
+| `ctrl_wiper` | 前后风挡雨刮档位控制 |
 
 ### Tool details
 
-#### `ctrl_window_left_front`
+#### `ctrl_window`
 
-左前车窗玻璃开度调节
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `25`, `50`, `100` | `` | 车窗开度百分比，0=全关，100=全开 |
-
-#### `ctrl_window_right_front`
-
-右前车窗玻璃开度调节
+车窗玻璃开度调节，按位置单独或全车联动控制
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `25`, `50`, `100` | `` | 车窗开度百分比 |
-
-#### `ctrl_window_rear`
-
-后排车窗玻璃开度调节（左右联动）
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `25`, `50`, `100` | `` | 车窗开度百分比 |
-
-#### `ctrl_window_all`
-
-全车车窗一键同步控制
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `25`, `50`, `100` | `` | 车窗开度百分比 |
+| `position` | `string` | Yes | `front_left`, `front_right`, `rear_left`, `rear_right`, `all` | `` | 控制位置：左前/右前/左后/右后/全车 |
+| `openness` | `integer` | No | `0`, `5`, `10`, `15`, `20`, `25`, `30`, `35`, `40`, `45`, `50`, `55`, `60`, `65`, `70`, `75`, `80`, `85`, `90`, `95`, `100` | `50` | 车窗开度百分比，0=全关，100=全开，步长5% |
 
 #### `ctrl_sunroof_tilt`
 
@@ -86,7 +59,7 @@
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `50`, `100` | `` | 天窗开启百分比 |
+| `openness` | `integer` | No | `0`, `5`, `10`, `15`, `20`, `25`, `30`, `35`, `40`, `45`, `50`, `55`, `60`, `65`, `70`, `75`, `80`, `85`, `90`, `95`, `100` | `50` | 天窗开启百分比，步长5% |
 
 #### `ctrl_sunroof_shade`
 
@@ -94,7 +67,7 @@
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `openness` | `integer` | Yes | `0`, `50`, `100` | `` | 遮阳帘开度百分比 |
+| `openness` | `integer` | No | `0`, `5`, `10`, `15`, `20`, `25`, `30`, `35`, `40`, `45`, `50`, `55`, `60`, `65`, `70`, `75`, `80`, `85`, `90`, `95`, `100` | `50` | 遮阳帘开度百分比，步长5% |
 
 #### `ctrl_door_lock`
 
@@ -126,7 +99,7 @@
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `door` | `string` | Yes | `left_front`, `right_front`, `tailgate` | `` | 指定车门 |
+| `position` | `string` | Yes | `front_left`, `front_right`, `tailgate` | `` | 控制位置：左前/右前/尾门 |
 
 #### `ctrl_door_handle`
 
@@ -134,7 +107,7 @@
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `door` | `string` | Yes | `left_front`, `right_front` | `` | 指定车门 |
+| `position` | `string` | Yes | `front_left`, `front_right` | `` | 控制位置：左前/右前 |
 | `status` | `string` | Yes | `pop`, `retract` | `` | 弹出/收回 |
 
 #### `ctrl_mirror_fold`
@@ -145,21 +118,14 @@
 |---|---|:---:|---|---|---|
 | `status` | `string` | Yes | `fold`, `unfold` | `` | 折叠/展开 |
 
-#### `ctrl_wiper_front`
+#### `ctrl_wiper`
 
-前风挡雨刮档位控制
+前后风挡雨刮档位控制
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
+| `position` | `string` | Yes | `front`, `rear` | `` | 控制位置：前/后风挡 |
 | `level` | `string` | Yes | `off`, `1`, `2`, `3`, `auto` | `` | 雨刮档位 |
-
-#### `ctrl_wiper_rear`
-
-后风挡雨刮开关
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `status` | `string` | Yes | `on`, `off` | `` | 开启/关闭 |
 
 ## 灯光照明工具集
 
@@ -243,7 +209,7 @@
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `zone` | `string` | Yes | `driver`, `passenger`, `rear_all` | `` | 控制区域 |
+| `position` | `string` | Yes | `front_left`, `front_right`, `rear`, `all` | `` | 控制位置：左前/右前/后排/全车 |
 | `status` | `string` | Yes | `on`, `off`, `auto` | `` | 开关状态 |
 
 ## 座椅系统工具集
@@ -254,16 +220,11 @@
 | Function | Description |
 |---|---|
 | `ctrl_seat_driver_memory` | 主驾座椅记忆位置调用 |
-| `ctrl_seat_driver_heat` | 主驾座椅加热档位 |
-| `ctrl_seat_driver_vent` | 主驾座椅通风档位 |
-| `ctrl_seat_driver_massage` | 主驾座椅按摩 |
+| `ctrl_seat_heat` | 座椅加热档位控制 |
+| `ctrl_seat_vent` | 座椅通风档位控制 |
+| `ctrl_seat_massage` | 座椅按摩控制 |
 | `ctrl_seat_driver_lumbar` | 主驾腰托调节 |
-| `ctrl_seat_passenger_heat` | 副驾座椅加热档位 |
-| `ctrl_seat_passenger_vent` | 副驾座椅通风档位 |
-| `ctrl_seat_passenger_massage` | 副驾座椅按摩 |
 | `ctrl_seat_boss_key` | 老板键（副驾座椅前移） |
-| `ctrl_seat_rear_heat` | 后排座椅加热档位 |
-| `ctrl_seat_rear_vent` | 后排座椅通风档位 |
 | `ctrl_seat_rear_recline` | 后排座椅靠背角度调节 |
 
 ### Tool details
@@ -276,28 +237,31 @@
 |---|---|:---:|---|---|---|
 | `slot` | `integer` | Yes | `1`, `2`, `3` | `` | 记忆档位 |
 
-#### `ctrl_seat_driver_heat`
+#### `ctrl_seat_heat`
 
-主驾座椅加热档位
+座椅加热档位控制
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
+| `position` | `string` | Yes | `front_left`, `front_right`, `rear` | `` | 控制位置：主驾/副驾/后排 |
 | `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 加热档位，0=关闭 |
 
-#### `ctrl_seat_driver_vent`
+#### `ctrl_seat_vent`
 
-主驾座椅通风档位
+座椅通风档位控制
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
+| `position` | `string` | Yes | `front_left`, `front_right`, `rear` | `` | 控制位置：主驾/副驾/后排 |
 | `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 通风档位，0=关闭 |
 
-#### `ctrl_seat_driver_massage`
+#### `ctrl_seat_massage`
 
-主驾座椅按摩
+座椅按摩控制
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
+| `position` | `string` | Yes | `front_left`, `front_right` | `` | 控制位置：主驾/副驾 |
 | `mode` | `string` | Yes | `off`, `waist`, `full_body`, `pulse` | `` | 按摩模式 |
 | `level` | `integer` | Yes | `1`, `2`, `3` | `` | 强度档位 |
 
@@ -309,31 +273,6 @@
 |---|---|:---:|---|---|---|
 | `level` | `integer` | Yes | `1`, `2`, `3`, `4`, `5` | `` | 腰托支撑档位 |
 
-#### `ctrl_seat_passenger_heat`
-
-副驾座椅加热档位
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 加热档位，0=关闭 |
-
-#### `ctrl_seat_passenger_vent`
-
-副驾座椅通风档位
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 通风档位，0=关闭 |
-
-#### `ctrl_seat_passenger_massage`
-
-副驾座椅按摩
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `mode` | `string` | Yes | `off`, `waist`, `full_body`, `pulse` | `` | 按摩模式 |
-| `level` | `integer` | Yes | `1`, `2`, `3` | `` | 强度档位 |
-
 #### `ctrl_seat_boss_key`
 
 老板键（副驾座椅前移）
@@ -341,22 +280,6 @@
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
 | `status` | `string` | Yes | `on`, `off` | `` | 开启/关闭 |
-
-#### `ctrl_seat_rear_heat`
-
-后排座椅加热档位
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 加热档位，0=关闭 |
-
-#### `ctrl_seat_rear_vent`
-
-后排座椅通风档位
-
-| Parameter | Type | Required | Enum | Default | Description |
-|---|---|:---:|---|---|---|
-| `level` | `integer` | Yes | `0`, `1`, `2`, `3` | `` | 通风档位，0=关闭 |
 
 #### `ctrl_seat_rear_recline`
 
@@ -373,6 +296,7 @@
 
 | Function | Description |
 |---|---|
+| `ctrl_ac_power` | 空调系统总电源开关 |
 | `ctrl_ac_temperature` | 全车空调温度设置 |
 | `ctrl_ac_fan_speed` | 空调风量档位调节 |
 | `ctrl_ac_circulation` | 空调内外循环模式切换 |
@@ -382,6 +306,14 @@
 | `query_air_quality` | 车内空气质量查询 |
 
 ### Tool details
+
+#### `ctrl_ac_power`
+
+空调系统总电源开关
+
+| Parameter | Type | Required | Enum | Default | Description |
+|---|---|:---:|---|---|---|
+| `status` | `string` | Yes | `on`, `off` | `` | 开启/关闭空调 |
 
 #### `ctrl_ac_temperature`
 

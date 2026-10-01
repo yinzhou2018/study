@@ -66,7 +66,7 @@ class MockLLMClient:
           for m in messages
       )
       if not has_window_result:
-        return self._build_function_response("ctrl_window_left_front", {"openness": 25})
+        return self._build_function_response("ctrl_window", {"position": "front_left", "openness": 25})
 
       has_sunroof_result = any(
           m["role"] == "tool" and "天窗" in m["content"]

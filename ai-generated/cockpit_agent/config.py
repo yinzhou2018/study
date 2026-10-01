@@ -1,6 +1,6 @@
 # 多音区配置
-AUDIO_ZONES = ("driver", "front_passenger", "rear_left", "rear_right")
-DEFAULT_ZONE = "driver"
+AUDIO_ZONES = ("front_left", "front_right", "rear_left", "rear_right")
+DEFAULT_ZONE = "front_left"
 DEFAULT_USER_ID = "guest"
 
 
@@ -90,9 +90,23 @@ MOCK_VEHICLE_STATE = {
     "outside_temp": 28,
     "inside_temp": 26,
     "range": 380,  # km
-    "window_left_front": 0,
+    "window_front_left": 0,
+    "window_front_right": 0,
+    "window_rear_left": 0,
+    "window_rear_right": 0,
     "sunroof_tilt": "off",
     "ac_circulation": "inner",
+    "ac_power": "off",
     "ac_temperature": 24,
+    "seat_heat_front_left": 0,
+    "seat_heat_front_right": 0,
+    "seat_heat_rear": 0,
+    "seat_vent_front_left": 0,
+    "seat_vent_front_right": 0,
+    "seat_vent_rear": 0,
+    "seat_massage_front_left": "off",
+    "seat_massage_front_right": "off",
+    "wiper_front": "off",
+    "wiper_rear": "off",
     "media_volume": 15
 }

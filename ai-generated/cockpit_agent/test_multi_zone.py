@@ -19,7 +19,7 @@ class FakeLLMClient:
   def chat_stream(self, messages, tools, temperature=0.1, effort=None):
     self.seen_messages = messages
     yield {"type": "done",
-           "message": {"role": "assistant", "content": "[zone=driver] 好的"}}
+           "message": {"role": "assistant", "content": "[zone=front_left] 好的"}}
 
 
 class FakeAgent:
@@ -37,7 +37,7 @@ class FakeAgent:
   def chat_stream(self, user_input, **kwargs):
     self.last_zone = kwargs.get("zone_id")
     self.last_input = user_input
-    return "[zone=driver] 好的"
+    return "[zone=front_left] 好的"
 
 
 class ZoneContextTest(unittest.TestCase):
@@ -45,14 +45,14 @@ class ZoneContextTest(unittest.TestCase):
   def test_tag_user_message(self):
     """用户消息拼接为 [zone=xxx,user=guest] 前缀"""
     self.assertEqual(
-        tag_user_message("有点闷", "driver", "guest"),
-        "[zone=driver,user=guest] 有点闷"
+        tag_user_message("有点闷", "front_left", "guest"),
+        "[zone=front_left,user=guest] 有点闷"
     )
 
   def test_parse_user_tag(self):
     """解析用户消息前缀"""
-    zone, user, text = parse_user_tag("[zone=front_passenger,user=guest] 把音量调大")
-    self.assertEqual(zone, "front_passenger")
+    zone, user, text = parse_user_tag("[zone=front_right,user=guest] 把音量调大")
+    self.assertEqual(zone, "front_right")
     self.assertEqual(user, "guest")
     self.assertEqual(text, "把音量调大")
 
@@ -65,8 +65,8 @@ class ZoneContextTest(unittest.TestCase):
 
   def test_parse_reply_prefix_zone(self):
     """解析 [zone=xxx] 回复前缀"""
-    target, body = parse_reply_prefix("[zone=driver] 已处理")
-    self.assertEqual(target, "driver")
+    target, body = parse_reply_prefix("[zone=front_left] 已处理")
+    self.assertEqual(target, "front_left")
     self.assertEqual(body, "已处理")
 
   def test_parse_reply_prefix_broadcast(self):
@@ -87,23 +87,23 @@ class AgentSharedHistoryTest(unittest.TestCase):
   def test_chat_stream_tags_user_message(self):
     """chat_stream写入的用户消息带音区标签"""
     agent = CockpitAgent(llm_client=FakeLLMClient())
-    reply = agent.chat_stream("有点闷", zone_id="driver", user_id="guest")
+    reply = agent.chat_stream("有点闷", zone_id="front_left", user_id="guest")
 
-    self.assertEqual(reply, "[zone=driver] 好的")
+    self.assertEqual(reply, "[zone=front_left] 好的")
     user_msg = agent.messages[1]
     self.assertEqual(user_msg["role"], "user")
-    self.assertTrue(user_msg["content"].startswith("[zone=driver,user=guest] "))
+    self.assertTrue(user_msg["content"].startswith("[zone=front_left,user=guest] "))
 
   def test_shared_history_across_zones(self):
     """多音区写入同一条历史"""
     agent = CockpitAgent(llm_client=FakeLLMClient())
-    agent.chat_stream("有点闷", zone_id="driver")
-    agent.chat_stream("再开大一点", zone_id="front_passenger")
+    agent.chat_stream("有点闷", zone_id="front_left")
+    agent.chat_stream("再开大一点", zone_id="front_right")
 
     user_msgs = [m for m in agent.messages if m["role"] == "user"]
     self.assertEqual(len(user_msgs), 2)
-    self.assertTrue(user_msgs[0]["content"].startswith("[zone=driver,user=guest] "))
-    self.assertTrue(user_msgs[1]["content"].startswith("[zone=front_passenger,user=guest] "))
+    self.assertTrue(user_msgs[0]["content"].startswith("[zone=front_left,user=guest] "))
+    self.assertTrue(user_msgs[1]["content"].startswith("[zone=front_right,user=guest] "))
 
 
 class ZoneAwareToolPermissionTest(unittest.TestCase):
@@ -117,7 +117,7 @@ class ZoneAwareToolPermissionTest(unittest.TestCase):
     """副驾可以调用普通媒体工具"""
     result = self.gateway.execute(
         "ctrl_music_play", {"category": "light"},
-        requesting_zone="front_passenger"
+        requesting_zone="front_right"
     )
     self.assertEqual(result["status"], "success")
 
@@ -125,7 +125,7 @@ class ZoneAwareToolPermissionTest(unittest.TestCase):
     """副驾不能调用主驾专属工具"""
     result = self.gateway.execute(
         "ctrl_door_lock", {"status": "lock"},
-        requesting_zone="front_passenger"
+        requesting_zone="front_right"
     )
     self.assertEqual(result["status"], "failed")
     self.assertIn("无权限", result["message"])
@@ -138,23 +138,23 @@ class HistoryCompressionTest(unittest.TestCase):
     agent = CockpitAgent(llm_client=FakeLLMClient())
     agent.messages = [
         {"role": "system", "content": "system"},
-        {"role": "user", "content": "[zone=driver,user=guest] 有点闷"},
-        {"role": "assistant", "content": None, "tool_calls": [{"id": "1", "function": {"name": "ctrl_window_left_front", "arguments": "{}"}}]},
+        {"role": "user", "content": "[zone=front_left,user=guest] 有点闷"},
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "1", "function": {"name": "ctrl_window", "arguments": "{\"position\":\"front_left\",\"openness\":25}"}}]},
         {"role": "tool", "tool_call_id": "1", "content": '{"status":"success","message":"左前车窗已开"}'},
-        {"role": "user", "content": "[zone=front_passenger,user=guest] 调低音量"},
+        {"role": "user", "content": "[zone=front_right,user=guest] 调低音量"},
         {"role": "assistant", "content": None, "tool_calls": [{"id": "2", "function": {"name": "ctrl_volume_set", "arguments": "{}"}}]},
         {"role": "tool", "tool_call_id": "2", "content": '{"status":"success","message":"音量已调低"}'},
         {"role": "assistant", "content": "已处理"},
         {"role": "assistant", "content": "状态正常"},
         {"role": "assistant", "content": "继续"},
         {"role": "assistant", "content": "结束"},
-        {"role": "user", "content": "[zone=driver,user=guest] 继续"},
+        {"role": "user", "content": "[zone=front_left,user=guest] 继续"},
     ]
     agent.compress_history()
 
     summary = agent.messages[1]["content"]
-    self.assertIn("[driver]", summary)
-    self.assertIn("[front_passenger]", summary)
+    self.assertIn("[front_left]", summary)
+    self.assertIn("[front_right]", summary)
 
 
 class ReplZoneTest(unittest.TestCase):
@@ -162,11 +162,11 @@ class ReplZoneTest(unittest.TestCase):
   def test_switch_zone(self):
     """/zone命令切换模拟音区"""
     repl = CockpitRePL(FakeAgent())
-    self.assertEqual(repl.zone, "driver")
+    self.assertEqual(repl.zone, "front_left")
 
     with redirect_stdout(io.StringIO()):
-      repl._handle_command("/zone front_passenger")
-    self.assertEqual(repl.zone, "front_passenger")
+      repl._handle_command("/zone front_right")
+    self.assertEqual(repl.zone, "front_right")
 
   def test_invalid_zone(self):
     """无效音区不变更"""
@@ -174,21 +174,21 @@ class ReplZoneTest(unittest.TestCase):
     buf = io.StringIO()
     with redirect_stdout(buf):
       repl._handle_command("/zone invalid")
-    self.assertEqual(repl.zone, "driver")
+    self.assertEqual(repl.zone, "front_left")
     self.assertIn("无效的音区", buf.getvalue())
 
   def test_chat_passes_zone_to_agent(self):
     """_chat把当前音区传给agent"""
     fake_agent = FakeAgent()
     repl = CockpitRePL(fake_agent)
-    repl.zone = "front_passenger"
+    repl.zone = "front_right"
 
     buf = io.StringIO()
     with redirect_stdout(buf):
       repl._chat("把音量调大")
 
-    self.assertEqual(fake_agent.last_zone, "front_passenger")
-    self.assertIn("[目标音区: driver]", buf.getvalue())
+    self.assertEqual(fake_agent.last_zone, "front_right")
+    self.assertIn("[目标音区: front_left]", buf.getvalue())
 
 
 if __name__ == "__main__":

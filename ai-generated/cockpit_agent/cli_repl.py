@@ -124,7 +124,7 @@ class CockpitRePL:
     self.running = True
     print("=" * 50)
     print("  智能座舱车载助手 - 交互模式")
-    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /provider [id] 查看或切换 LLM 供应商 | /zone [driver|front_passenger|rear_left|rear_right] 查看或切换音区")
+    print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /provider [id] 查看或切换 LLM 供应商 | /zone [front_left|front_right|rear_left|rear_right] 查看或切换音区")
     print("  生成期间按 Esc 打断")
     print("=" * 50)
 
