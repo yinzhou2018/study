@@ -32,7 +32,7 @@ cockpit_agent/
 ├── config.py              # System Prompt 模板、系统工具定义、音区/车辆状态常量
 ├── toolset_manager.py     # ToolsetManager：加载/LRU淘汰/动态组装工具列表/生成 toolset listing
 ├── tool_gateway.py        # ToolGateway：白名单→权限→安全→执行，集中拦截
-├── zone_context.py        # 多音区消息标签的打包/解析（[zone=xx,user=yy] / [broadcast]）
+├── zone_context.py        # 多音区用户消息标签的打包/解析（[zone=xx,user=yy]）
 ├── cli_repl.py            # CockpitRePL：交互式 REPL + Esc 打断监听 + 耗时统计
 ├── prefs.py               # provider/effort 偏好持久化：~/.cockpit_agent/prefs.json 读写与启动优先级解析
 ├── toolsets.json          # 全量工具集定义（12 个工具集，工具 ID 与 enum 的唯一真相源）
@@ -72,7 +72,7 @@ CockpitAgent.chat / chat_stream
 | `config.py`          | System Prompt 模板、`build_system_prompt`、`build_system_tools`（系统工具的 enum 动态来自 toolsets.json）、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设        |
 | `toolset_manager.py` | 从 `toolsets.json` 加载全量配置；`load_toolsets` 实现 LRU 淘汰；`get_current_tools` 动态拼装；`get_toolset_listing` 生成 System Prompt 中的工具集清单              | 工具集 ID 是 enum 真相源，新增/删除工具集必须同步 `toolsets.json`   |
 | `tool_gateway.py`    | 三段校验（白名单→权限→安全）后执行；`DRIVER_ONLY_TOOLS` 定义主驾专属工具                                                                                           | 新增涉及行车安全/门锁/放电/泊车的工具，务必加入 `DRIVER_ONLY_TOOLS` |
-| `zone_context.py`    | 用户消息打 `[zone=,user=]` 前缀，助手回复解析 `[zone=]`/`[broadcast]`                                                                                              | 多音区规则见 System Prompt「多音区多用户对话」段                    |
+| `zone_context.py`    | 用户消息打 `[zone=,user=]` 前缀，解析用户消息音区标签                                                                                                            | 多音区规则见 System Prompt「多音区多用户对话」段                    |
 | `llm_client.py`      | `MockLLMClient` 关键词匹配模拟工具调用链；`OpenAICompatibleLLM` 支持运行期 `configure` 重配供应商                                                                  | 流式需正确合并 `tool_calls` 增量（按 index 累加 name/arguments）    |
 | `llm_config.py`      | `PROVIDERS` 注册表，每供应商绑定 `build_effort_payload`；`build_effort_payload(effort, provider)` 统一入口                                                         | **已 gitignore**，含真实 api_key；改动需本地保留，勿提交            |
 | `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史压缩、`set_provider` 运行期切换                                                                                            | `load_toolsets` 走 manager，其余工具走 gateway                      |

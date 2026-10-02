@@ -6,7 +6,6 @@ import time
 from config import AUDIO_ZONES, DEFAULT_USER_ID, DEFAULT_ZONE
 from llm_config import EFFORT_MODES, PROVIDERS
 from prefs import update_pref
-from zone_context import parse_reply_prefix
 
 # 导入 readline 让内置 input() 使用其行编辑器：终端原生行编辑按字节退格，
 # 无法正确清除中文等宽字符，会在屏幕上残留半个字符。
@@ -297,7 +296,7 @@ class CockpitRePL:
       print(f"[第{cur_turn}轮工具结果] {name}: {json.dumps(result, ensure_ascii=False)} (耗时: {elapsed:.2f}s)")
 
     try:
-      reply = self.agent.chat_stream(
+      self.agent.chat_stream(
           user_input,
           on_reasoning=on_reasoning,
           on_content=on_content,
@@ -307,9 +306,6 @@ class CockpitRePL:
           zone_id=self.zone,
           user_id=DEFAULT_USER_ID
       )
-      target_zone, _ = parse_reply_prefix(reply)
-      if target_zone:
-        print(f"\n[目标音区: {target_zone}]")
       total = time.time() - task_start
       print(f"\n\n[耗时(共{cur_turn}轮)] LLM: {llm_time:.2f}s | 工具: {tool_time:.2f}s | 总计: {total:.2f}s")
     except InterruptedError:

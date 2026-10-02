@@ -7,11 +7,11 @@ from cli_repl import CockpitRePL
 from cockpit_agent import CockpitAgent
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
-from zone_context import parse_reply_prefix, parse_user_tag, tag_user_message
+from zone_context import parse_user_tag, tag_user_message
 
 
 class FakeLLMClient:
-  """记录消息并返回带音区前缀的固定回复"""
+  """记录消息并返回固定回复"""
 
   def __init__(self):
     self.seen_messages = None
@@ -19,7 +19,7 @@ class FakeLLMClient:
   def chat_stream(self, messages, tools, temperature=0.1, effort=None):
     self.seen_messages = messages
     yield {"type": "done",
-           "message": {"role": "assistant", "content": "[zone=front_left] 好的"}}
+           "message": {"role": "assistant", "content": "好的"}}
 
 
 class FakeAgent:
@@ -37,7 +37,7 @@ class FakeAgent:
   def chat_stream(self, user_input, **kwargs):
     self.last_zone = kwargs.get("zone_id")
     self.last_input = user_input
-    return "[zone=front_left] 好的"
+    return "好的"
 
 
 class ZoneContextTest(unittest.TestCase):
@@ -63,24 +63,6 @@ class ZoneContextTest(unittest.TestCase):
     self.assertIsNone(user)
     self.assertEqual(text, "普通文本")
 
-  def test_parse_reply_prefix_zone(self):
-    """解析 [zone=xxx] 回复前缀"""
-    target, body = parse_reply_prefix("[zone=front_left] 已处理")
-    self.assertEqual(target, "front_left")
-    self.assertEqual(body, "已处理")
-
-  def test_parse_reply_prefix_broadcast(self):
-    """解析 [broadcast] 回复前缀"""
-    target, body = parse_reply_prefix("[broadcast] 导航开始")
-    self.assertEqual(target, "broadcast")
-    self.assertEqual(body, "导航开始")
-
-  def test_parse_reply_prefix_missing(self):
-    """无前缀时返回None和原文，用于回退路由"""
-    target, body = parse_reply_prefix("好的")
-    self.assertIsNone(target)
-    self.assertEqual(body, "好的")
-
 
 class AgentSharedHistoryTest(unittest.TestCase):
 
@@ -89,7 +71,7 @@ class AgentSharedHistoryTest(unittest.TestCase):
     agent = CockpitAgent(llm_client=FakeLLMClient())
     reply = agent.chat_stream("有点闷", zone_id="front_left", user_id="guest")
 
-    self.assertEqual(reply, "[zone=front_left] 好的")
+    self.assertEqual(reply, "好的")
     user_msg = agent.messages[1]
     self.assertEqual(user_msg["role"], "user")
     self.assertTrue(user_msg["content"].startswith("[zone=front_left,user=guest] "))
@@ -188,7 +170,6 @@ class ReplZoneTest(unittest.TestCase):
       repl._chat("把音量调大")
 
     self.assertEqual(fake_agent.last_zone, "front_right")
-    self.assertIn("[目标音区: front_left]", buf.getvalue())
 
 
 if __name__ == "__main__":
