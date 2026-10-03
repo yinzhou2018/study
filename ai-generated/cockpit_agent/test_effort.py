@@ -9,9 +9,9 @@ from llm_client import MockLLMClient, OpenAICompatibleLLM
 class BuildEffortPayloadTest(unittest.TestCase):
 
   def test_none_mode(self):
-    """none模式返回reasoning=False"""
+    """none模式返回enable_thinking=False"""
     payload = build_effort_payload("none")
-    self.assertEqual(payload, {"reasoning": False})
+    self.assertEqual(payload, {"enable_thinking": False})
 
   def test_low_mode(self):
     """low模式返回reasoning_effort=low"""
@@ -28,10 +28,10 @@ class BuildEffortPayloadTest(unittest.TestCase):
     payload = build_effort_payload("max")
     self.assertEqual(payload, {"reasoning_effort": "max"})
 
-  def test_none_value_returns_empty(self):
-    """effort=None时不添加任何字段"""
-    payload = build_effort_payload(None)
-    self.assertEqual(payload, {})
+  def test_none_value_raises(self):
+    """effort=None时抛出ValueError"""
+    with self.assertRaises(ValueError):
+      build_effort_payload(None)
 
   def test_invalid_mode_raises(self):
     """无效模式抛出ValueError"""
@@ -42,23 +42,20 @@ class BuildEffortPayloadTest(unittest.TestCase):
 class ProviderEffortPayloadTest(unittest.TestCase):
 
   def test_voyah_payload(self):
-    """voyah 供应商使用 reasoning_effort 表达思考深度"""
+    """voyah 供应商使用 enable_thinking / reasoning_effort 表达思考深度"""
     provider = "voyah"
-    self.assertEqual(build_effort_payload("none", provider), {"reasoning": False})
+    self.assertEqual(build_effort_payload("none", provider), {"enable_thinking": False})
     self.assertEqual(build_effort_payload("low", provider), {"reasoning_effort": "low"})
     self.assertEqual(build_effort_payload("high", provider), {"reasoning_effort": "high"})
     self.assertEqual(build_effort_payload("max", provider), {"reasoning_effort": "max"})
 
   def test_deepseek_payload(self):
-    """deepseek 供应商使用 enable_thinking + thinking_budget 表达思考深度"""
+    """deepseek 供应商所有effort均使用 reasoning_effort 表达思考深度"""
     provider = "deepseek"
-    self.assertEqual(build_effort_payload("none", provider), {"enable_thinking": False})
-    self.assertEqual(build_effort_payload("low", provider),
-                     {"enable_thinking": True, "thinking_budget": 512})
-    self.assertEqual(build_effort_payload("high", provider),
-                     {"enable_thinking": True, "thinking_budget": 2048})
-    self.assertEqual(build_effort_payload("max", provider),
-                     {"enable_thinking": True, "thinking_budget": 4096})
+    self.assertEqual(build_effort_payload("none", provider), {"reasoning_effort": "none"})
+    self.assertEqual(build_effort_payload("low", provider), {"reasoning_effort": "low"})
+    self.assertEqual(build_effort_payload("high", provider), {"reasoning_effort": "high"})
+    self.assertEqual(build_effort_payload("max", provider), {"reasoning_effort": "max"})
 
   def test_provider_none_uses_default_provider(self):
     """provider=None 时使用默认供应商的映射"""
@@ -72,7 +69,13 @@ class ProviderEffortPayloadTest(unittest.TestCase):
     """provider profile 中的 build_effort_payload 函数直接生效"""
     profile = get_provider("deepseek")
     self.assertEqual(build_effort_payload("high", profile),
-                     {"enable_thinking": True, "thinking_budget": 2048})
+                     {"reasoning_effort": "high"})
+
+  def test_provider_profile_none_effort_raises(self):
+    """profile 的映射函数对非法 effort 同样校验报错"""
+    profile = get_provider("voyah")
+    with self.assertRaises(ValueError):
+      build_effort_payload("bogus", profile)
 
 
 class OpenAICompatibleEffortTest(unittest.TestCase):
@@ -121,10 +124,10 @@ class OpenAICompatibleEffortTest(unittest.TestCase):
     payload = self._capture_payload("chat", "low")
     self.assertEqual(payload["reasoning_effort"], "low")
 
-  def test_chat_none_mode_sets_reasoning_false(self):
-    """chat() none模式设置reasoning=False且不含reasoning_effort"""
+  def test_chat_none_mode_sets_enable_thinking_false(self):
+    """chat() none模式设置enable_thinking=False且不含reasoning_effort"""
     payload = self._capture_payload("chat", "none")
-    self.assertFalse(payload["reasoning"])
+    self.assertFalse(payload["enable_thinking"])
     self.assertNotIn("reasoning_effort", payload)
 
   def test_chat_stream_includes_reasoning_effort_max(self):
@@ -132,18 +135,17 @@ class OpenAICompatibleEffortTest(unittest.TestCase):
     payload = self._capture_payload("stream", "max")
     self.assertEqual(payload["reasoning_effort"], "max")
 
-  def test_deepseek_chat_uses_enable_thinking(self):
-    """deepseek 供应商 client 的 payload 使用 enable_thinking + thinking_budget"""
+  def test_deepseek_chat_uses_reasoning_effort(self):
+    """deepseek 供应商 client 的 payload 使用 reasoning_effort"""
     client = OpenAICompatibleLLM(base_url="http://fake", api_key="fake", provider_id="deepseek")
     payload = self._capture_payload("chat", "high", client=client)
-    self.assertTrue(payload["enable_thinking"])
-    self.assertEqual(payload["thinking_budget"], 2048)
+    self.assertEqual(payload["reasoning_effort"], "high")
 
-  def test_chat_stream_none_effort_no_field(self):
-    """chat_stream() effort=None时payload不含effort字段"""
-    payload = self._capture_payload("stream", None)
-    self.assertNotIn("reasoning_effort", payload)
-    self.assertNotIn("reasoning", payload)
+  def test_chat_stream_none_effort_raises(self):
+    """chat_stream() effort=None时抛出ValueError"""
+    client = OpenAICompatibleLLM(base_url="http://fake", api_key="fake")
+    with self.assertRaises(ValueError):
+      self._capture_payload("stream", None, client=client)
 
 
 class MockClientEffortTest(unittest.TestCase):

@@ -345,6 +345,126 @@
             ]
           }
         }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_window_status",
+          "description": "查询四门车窗玻璃当前开度百分比",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_sunroof_tilt",
+          "description": "查询天窗翘角通风模式状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_sunroof_open",
+          "description": "查询天窗滑动开启百分比",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_sunroof_shade",
+          "description": "查询天窗遮阳帘开度百分比",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_door_lock_status",
+          "description": "查询全车中控门锁锁定状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_child_lock_status",
+          "description": "查询后排儿童锁开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_tailgate_status",
+          "description": "查询电动尾门当前状态（开/关）",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_door_handle_status",
+          "description": "查询前左/前右电动门把手弹出状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_mirror_fold_status",
+          "description": "查询外后视镜折叠状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_wiper_status",
+          "description": "查询前/后风挡雨刮当前档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
       }
     ]
   },
@@ -571,6 +691,102 @@
             ]
           }
         }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_headlight_mode",
+          "description": "查询大灯当前工作模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_drl_status",
+          "description": "查询日行灯开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_fog_light_status",
+          "description": "查询雾灯开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ambient_light_status",
+          "description": "查询氛围灯当前颜色/亮度",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ambient_scene",
+          "description": "查询氛围灯当前场景模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_welcome_light_status",
+          "description": "查询迎宾灯开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_star_roof_status",
+          "description": "查询星空顶当前亮度/动态模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_reading_light_status",
+          "description": "查询前左/前右/后排阅读灯各位置状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
       }
     ]
   },
@@ -791,6 +1007,78 @@
             ]
           }
         }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_heat_status",
+          "description": "查询主驾/副驾/后排座椅加热当前档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_vent_status",
+          "description": "查询主驾/副驾/后排座椅通风当前档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_massage_status",
+          "description": "查询主驾/副驾按摩当前模式与强度",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_lumbar_status",
+          "description": "查询主驾腰托支撑当前档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_boss_key_status",
+          "description": "查询老板键开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_seat_recline_status",
+          "description": "查询后排座椅靠背当前角度档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
       }
     ]
   },
@@ -976,6 +1264,90 @@
             "required": []
           }
         }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ac_power_status",
+          "description": "查询空调电源开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ac_temperature",
+          "description": "查询空调当前设定温度",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ac_fan_speed",
+          "description": "查询空调当前风量档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ac_circulation",
+          "description": "查询空调当前内外循环模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ac_vent_mode",
+          "description": "查询空调当前出风模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_air_purifier_status",
+          "description": "查询空气净化器开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_ionizer_status",
+          "description": "查询负离子发生器开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
       }
     ]
   },
@@ -1116,6 +1488,66 @@
             "required": [
               "status"
             ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_fridge_status",
+          "description": "查询车载冰箱当前工作模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_fridge_temp",
+          "description": "查询车载冰箱当前设定温度",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_aroma_status",
+          "description": "查询香氛系统当前香型/浓度",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_panoramic_shade_status",
+          "description": "查询全景天幕遮阳帘当前开度百分比",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_armrest_heat_status",
+          "description": "查询中央扶手箱加热开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
           }
         }
       }
@@ -1294,6 +1726,66 @@
             ]
           }
         }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_music_status",
+          "description": "查询当前播放音乐类型及曲目序号",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_volume_media",
+          "description": "查询媒体音量当前档位及静音状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_sound_mode_status",
+          "description": "查询音响当前音效模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_radio_status",
+          "description": "查询收音机当前锁定频率",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_rear_entertainment_status",
+          "description": "查询后排娱乐系统开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
       }
     ]
   },
@@ -1432,26 +1924,26 @@
             ]
           }
         }
-      }
-    ]
-  },
-  "toolset_vehicle_info": {
-    "name": "车辆信息工具集",
-    "description": "车辆运行状态、硬件数据的只读查询",
-    "execution_rules": [],
-    "tools": [
+      },
       {
         "type": "function",
         "function": {
-          "name": "query_vehicle_basic",
-          "description": "查询整车基础运行状态",
+          "name": "query_nav_status",
+          "description": "查询当前导航是否激活及目的地名称",
           "parameters": {
             "type": "object",
             "properties": {},
             "required": []
           }
         }
-      },
+      }
+    ]
+  },
+  "toolset_vehicle_info": {
+    "name": "车辆信息工具集",
+    "description": "车辆内外各类只读状态信息查询",
+    "execution_rules": [],
+    "tools": [
       {
         "type": "function",
         "function": {
@@ -1493,30 +1985,6 @@
         "function": {
           "name": "query_tire_pressure",
           "description": "查询四轮胎压状态",
-          "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "query_window_status",
-          "description": "查询全车车窗天窗状态",
-          "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-          }
-        }
-      },
-      {
-        "type": "function",
-        "function": {
-          "name": "query_door_status",
-          "description": "查询全车门开关状态",
           "parameters": {
             "type": "object",
             "properties": {},
@@ -1897,6 +2365,66 @@
             "required": [
               "status"
             ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_cruise_control_status",
+          "description": "查询定速巡航开关状态及设定车速",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_lane_keep_status",
+          "description": "查询车道保持辅助开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_acc_distance_status",
+          "description": "查询自适应巡航当前跟车距离档位",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_energy_recovery_status",
+          "description": "查询能量回收当前强度模式",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "query_hud_status",
+          "description": "查询HUD抬头显示开关状态",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
           }
         }
       }

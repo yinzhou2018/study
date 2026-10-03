@@ -105,8 +105,6 @@ python3 main.py -i
 - 运行：`python3 -m unittest discover -p 'test_*.py'`
 - 测试通过 `monkeypatch llm_client.requests.post` 或 `FakeLLMClient` 注入，**不发起真实网络请求**。
 
-> ⚠️ **已知：当前测试与 `llm_config.py` 实现不同步。** 部分测试（`test_effort.py`、`test_llm_stream.py`）断言的 effort payload 字段（如 `{"reasoning": False}`、`{"enable_thinking": True, "thinking_budget": ...}`）与当前实现不一致，存在 failures/errors。改动 `llm_config.py` 的 effort 映射时，**务必同步修正对应测试**，或确认测试预期为新契约后再提交。
-
 ## 8. 编码规范
 
 - 缩进 2 空格；中文字符串与注释使用简体中文。

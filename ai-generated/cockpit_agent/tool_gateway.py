@@ -130,6 +130,53 @@ def _h_wiper(state, args):
   return _ok(f"{label}雨刮已调至{level}档")
 
 
+def _q_window_status(state, args):
+  return {"status": "success",
+          "front_left": state["window_front_left"],
+          "front_right": state["window_front_right"],
+          "rear_left": state["window_rear_left"],
+          "rear_right": state["window_rear_right"]}
+
+
+def _q_sunroof_tilt(state, args):
+  return {"status": "success", "tilt": state["sunroof_tilt"]}
+
+
+def _q_sunroof_open(state, args):
+  return {"status": "success", "openness": state["sunroof_open"]}
+
+
+def _q_sunroof_shade(state, args):
+  return {"status": "success", "openness": state["sunroof_shade"]}
+
+
+def _q_door_lock_status(state, args):
+  return {"status": "success", "door_lock": state["door_lock"]}
+
+
+def _q_child_lock_status(state, args):
+  return {"status": "success", "child_lock": state["child_lock"]}
+
+
+def _q_tailgate_status(state, args):
+  return {"status": "success", "tailgate": state["tailgate"]}
+
+
+def _q_door_handle_status(state, args):
+  return {"status": "success",
+          "front_left": state["door_handle_front_left"],
+          "front_right": state["door_handle_front_right"]}
+
+
+def _q_mirror_fold_status(state, args):
+  return {"status": "success", "mirror_fold": state["mirror_fold"]}
+
+
+def _q_wiper_status(state, args):
+  return {"status": "success", "front": state["wiper_front"],
+          "rear": state["wiper_rear"]}
+
+
 # ===== 灯光照明工具集 =====
 
 def _h_headlight_mode(state, args):
@@ -182,6 +229,43 @@ def _h_interior_reading(state, args):
   return _ok(f"{label}阅读灯已{status}")
 
 
+def _q_headlight_mode(state, args):
+  return {"status": "success", "headlight_mode": state["headlight_mode"]}
+
+
+def _q_drl_status(state, args):
+  return {"status": "success", "drl": state["drl"]}
+
+
+def _q_fog_light_status(state, args):
+  return {"status": "success", "fog_light": state["fog_light"]}
+
+
+def _q_ambient_light_status(state, args):
+  return {"status": "success", "color": state["ambient_light_color"],
+          "brightness": state["ambient_light_brightness"]}
+
+
+def _q_ambient_scene(state, args):
+  return {"status": "success", "scene": state["ambient_scene"]}
+
+
+def _q_welcome_light_status(state, args):
+  return {"status": "success", "welcome_light": state["welcome_light"]}
+
+
+def _q_star_roof_status(state, args):
+  return {"status": "success", "brightness": state["star_roof_brightness"],
+          "mode": state["star_roof_mode"]}
+
+
+def _q_reading_light_status(state, args):
+  return {"status": "success",
+          "front_left": state["interior_reading_front_left"],
+          "front_right": state["interior_reading_front_right"],
+          "rear": state["interior_reading_rear"]}
+
+
 # ===== 座椅系统工具集 =====
 
 def _h_seat_memory(state, args):
@@ -214,6 +298,7 @@ def _h_seat_massage(state, args):
   mode = args["mode"]
   level = args["level"]
   state[f"seat_massage_{position}"] = mode
+  state[f"seat_massage_level_{position}"] = level
   label = SEAT_POSITION_LABELS[position]
   if mode == "off":
     return _ok(f"{label}座椅按摩已关闭")
@@ -233,6 +318,40 @@ def _h_boss_key(state, args):
 def _h_seat_recline(state, args):
   state["seat_recline"] = args["angle"]
   return _ok(f"后排座椅靠背已调至{args['angle']}档")
+
+
+def _q_seat_heat_status(state, args):
+  return {"status": "success",
+          "front_left": state["seat_heat_front_left"],
+          "front_right": state["seat_heat_front_right"],
+          "rear": state["seat_heat_rear"]}
+
+
+def _q_seat_vent_status(state, args):
+  return {"status": "success",
+          "front_left": state["seat_vent_front_left"],
+          "front_right": state["seat_vent_front_right"],
+          "rear": state["seat_vent_rear"]}
+
+
+def _q_seat_massage_status(state, args):
+  return {"status": "success",
+          "front_left": {"mode": state["seat_massage_front_left"],
+                         "level": state.get("seat_massage_level_front_left")},
+          "front_right": {"mode": state["seat_massage_front_right"],
+                          "level": state.get("seat_massage_level_front_right")}}
+
+
+def _q_seat_lumbar_status(state, args):
+  return {"status": "success", "level": state["seat_lumbar"]}
+
+
+def _q_seat_boss_key_status(state, args):
+  return {"status": "success", "boss_key": state["seat_boss_key"]}
+
+
+def _q_seat_recline_status(state, args):
+  return {"status": "success", "angle": state["seat_recline"]}
 
 
 # ===== 空调温控工具集 =====
@@ -278,6 +397,34 @@ def _q_air_quality(state, args):
           "purifier": state["air_purifier"], "ionizer": state["ionizer"]}
 
 
+def _q_ac_power_status(state, args):
+  return {"status": "success", "ac_power": state["ac_power"]}
+
+
+def _q_ac_temperature(state, args):
+  return {"status": "success", "temperature": state["ac_temperature"]}
+
+
+def _q_ac_fan_speed(state, args):
+  return {"status": "success", "fan_speed": state["ac_fan_speed"]}
+
+
+def _q_ac_circulation(state, args):
+  return {"status": "success", "circulation": state["ac_circulation"]}
+
+
+def _q_ac_vent_mode(state, args):
+  return {"status": "success", "vent_mode": state["ac_vent_mode"]}
+
+
+def _q_air_purifier_status(state, args):
+  return {"status": "success", "air_purifier": state["air_purifier"]}
+
+
+def _q_ionizer_status(state, args):
+  return {"status": "success", "ionizer": state["ionizer"]}
+
+
 # ===== 座舱舒适工具集 =====
 
 def _h_fridge(state, args):
@@ -306,6 +453,27 @@ def _h_panoramic_shade(state, args):
 def _h_armrest_heat(state, args):
   state["armrest_heat"] = args["status"]
   return _ok(f"中央扶手箱加热已{'开启' if args['status'] == 'on' else '关闭'}")
+
+
+def _q_fridge_status(state, args):
+  return {"status": "success", "mode": state["fridge_mode"]}
+
+
+def _q_fridge_temp(state, args):
+  return {"status": "success", "temperature": state["fridge_temp"]}
+
+
+def _q_aroma_status(state, args):
+  return {"status": "success", "scent": state["aroma_scent"],
+          "intensity": state["aroma_intensity"]}
+
+
+def _q_panoramic_shade_status(state, args):
+  return {"status": "success", "openness": state["panoramic_shade"]}
+
+
+def _q_armrest_heat_status(state, args):
+  return {"status": "success", "armrest_heat": state["armrest_heat"]}
 
 
 # ===== 影音娱乐工具集 =====
@@ -354,6 +522,28 @@ def _h_rear_entertainment(state, args):
   return _ok(f"后排娱乐系统已{'开启' if args['status'] == 'on' else '关闭'}")
 
 
+def _q_music_status(state, args):
+  return {"status": "success", "category": state["music_category"],
+          "track": state["music_track"]}
+
+
+def _q_volume_media(state, args):
+  return {"status": "success", "level": state["volume_media"],
+          "mute": state["media_mute"]}
+
+
+def _q_sound_mode_status(state, args):
+  return {"status": "success", "mode": state["sound_mode"]}
+
+
+def _q_radio_status(state, args):
+  return {"status": "success", "frequency": state["radio_frequency"]}
+
+
+def _q_rear_entertainment_status(state, args):
+  return {"status": "success", "enabled": state["rear_entertainment"]}
+
+
 # ===== 导航出行工具集 =====
 
 def _h_nav_start(state, args):
@@ -373,6 +563,12 @@ def _h_nav_route_pref(state, args):
   pref_map = {"fastest": "最快", "shortest": "最短",
               "no_highway": "避高速", "no_toll": "避收费"}
   return _ok(f"路线偏好已设为{pref_map[args['mode']]}")
+
+
+def _q_nav_status(state, args):
+  return {"status": "success", "active": state["nav_active"],
+          "destination": state["nav_destination"],
+          "route_pref": state["nav_route_pref"]}
 
 
 def _q_poi_nearby(state, args):
@@ -398,12 +594,6 @@ def _q_route_charge_plan(state, args):
 
 # ===== 车辆信息工具集 =====
 
-def _q_vehicle_basic(state, args):
-  return {"status": "success", "speed": state["speed"],
-          "range": state["range"], "battery_soc": state["battery_soc"],
-          "outside_temp": state["outside_temp"], "inside_temp": state["inside_temp"]}
-
-
 def _q_battery_status(state, args):
   return {"status": "success", "soc": state["battery_soc"],
           "charging": state["charge_active"], "limit": state["charge_limit"]}
@@ -422,23 +612,6 @@ def _q_energy_consumption(state, args):
 def _q_tire_pressure(state, args):
   return {"status": "success", "tires": {
       "左前": 2.4, "右前": 2.4, "左后": 2.3, "右后": 2.3}}
-
-
-def _q_window_status(state, args):
-  return {"status": "success",
-          "window": {k.replace("window_", ""): state[k]
-                     for k in ["window_front_left", "window_front_right",
-                               "window_rear_left", "window_rear_right"]},
-          "sunroof_tilt": state["sunroof_tilt"],
-          "sunroof_open": state["sunroof_open"],
-          "sunroof_shade": state["sunroof_shade"]}
-
-
-def _q_door_status(state, args):
-  return {"status": "success", "door_lock": state["door_lock"],
-          "child_lock": state["child_lock"], "tailgate": state["tailgate"],
-          "door_handle_front_left": state["door_handle_front_left"],
-          "door_handle_front_right": state["door_handle_front_right"]}
 
 
 # ===== 充电管理工具集 =====
@@ -544,6 +717,27 @@ def _h_hud_display(state, args):
   return _ok(f"HUD抬头显示已{'开启' if args['status'] == 'on' else '关闭'}")
 
 
+def _q_cruise_control_status(state, args):
+  return {"status": "success", "enabled": state["cruise_control"],
+          "speed": state["cruise_speed"]}
+
+
+def _q_lane_keep_status(state, args):
+  return {"status": "success", "lane_keep": state["lane_keep"]}
+
+
+def _q_acc_distance_status(state, args):
+  return {"status": "success", "level": state["acc_distance"]}
+
+
+def _q_energy_recovery_status(state, args):
+  return {"status": "success", "mode": state["energy_recovery"]}
+
+
+def _q_hud_status(state, args):
+  return {"status": "success", "hud_display": state["hud_display"]}
+
+
 # ===== 座舱模式工具集（内部联动若干 ctrl） =====
 
 def _trigger(name, state, args):
@@ -615,44 +809,77 @@ TOOL_HANDLERS = {
     "ctrl_tailgate": _h_tailgate, "ctrl_door_soft_close": _h_door_soft_close,
     "ctrl_door_handle": _h_door_handle, "ctrl_mirror_fold": _h_mirror_fold,
     "ctrl_wiper": _h_wiper,
+    "query_window_status": _q_window_status,
+    "query_sunroof_tilt": _q_sunroof_tilt, "query_sunroof_open": _q_sunroof_open,
+    "query_sunroof_shade": _q_sunroof_shade,
+    "query_door_lock_status": _q_door_lock_status,
+    "query_child_lock_status": _q_child_lock_status,
+    "query_tailgate_status": _q_tailgate_status,
+    "query_door_handle_status": _q_door_handle_status,
+    "query_mirror_fold_status": _q_mirror_fold_status,
+    "query_wiper_status": _q_wiper_status,
     # 灯光照明
     "ctrl_headlight_mode": _h_headlight_mode, "ctrl_drl": _h_drl,
     "ctrl_fog_light": _h_fog_light, "ctrl_ambient_light": _h_ambient_light,
     "ctrl_ambient_scene": _h_ambient_scene, "ctrl_welcome_light": _h_welcome_light,
     "ctrl_star_roof": _h_star_roof, "ctrl_interior_reading": _h_interior_reading,
+    "query_headlight_mode": _q_headlight_mode, "query_drl_status": _q_drl_status,
+    "query_fog_light_status": _q_fog_light_status,
+    "query_ambient_light_status": _q_ambient_light_status,
+    "query_ambient_scene": _q_ambient_scene,
+    "query_welcome_light_status": _q_welcome_light_status,
+    "query_star_roof_status": _q_star_roof_status,
+    "query_reading_light_status": _q_reading_light_status,
     # 座椅系统
     "ctrl_seat_driver_memory": _h_seat_memory, "ctrl_seat_heat": _h_seat_heat,
     "ctrl_seat_vent": _h_seat_vent, "ctrl_seat_massage": _h_seat_massage,
     "ctrl_seat_driver_lumbar": _h_seat_lumbar, "ctrl_seat_boss_key": _h_boss_key,
     "ctrl_seat_rear_recline": _h_seat_recline,
+    "query_seat_heat_status": _q_seat_heat_status,
+    "query_seat_vent_status": _q_seat_vent_status,
+    "query_seat_massage_status": _q_seat_massage_status,
+    "query_seat_lumbar_status": _q_seat_lumbar_status,
+    "query_seat_boss_key_status": _q_seat_boss_key_status,
+    "query_seat_recline_status": _q_seat_recline_status,
     # 空调温控
     "ctrl_ac_power": _h_ac_power, "ctrl_ac_temperature": _h_ac_temperature,
     "ctrl_ac_fan_speed": _h_ac_fan_speed, "ctrl_ac_circulation": _h_ac_circulation,
     "ctrl_ac_vent_mode": _h_ac_vent_mode, "ctrl_air_purifier": _h_air_purifier,
     "ctrl_ionizer": _h_ionizer, "query_air_quality": _q_air_quality,
+    "query_ac_power_status": _q_ac_power_status,
+    "query_ac_temperature": _q_ac_temperature, "query_ac_fan_speed": _q_ac_fan_speed,
+    "query_ac_circulation": _q_ac_circulation, "query_ac_vent_mode": _q_ac_vent_mode,
+    "query_air_purifier_status": _q_air_purifier_status,
+    "query_ionizer_status": _q_ionizer_status,
     # 座舱舒适
     "ctrl_fridge": _h_fridge, "ctrl_fridge_temp": _h_fridge_temp,
     "ctrl_aroma_system": _h_aroma, "ctrl_panoramic_shade": _h_panoramic_shade,
     "ctrl_armrest_heat": _h_armrest_heat,
+    "query_fridge_status": _q_fridge_status, "query_fridge_temp": _q_fridge_temp,
+    "query_aroma_status": _q_aroma_status,
+    "query_panoramic_shade_status": _q_panoramic_shade_status,
+    "query_armrest_heat_status": _q_armrest_heat_status,
     # 影音娱乐
     "ctrl_music_play": _h_music_play, "ctrl_music_next": _h_music_next,
     "ctrl_music_prev": _h_music_prev, "ctrl_volume_media": _h_volume_media,
     "ctrl_sound_mode": _h_sound_mode, "ctrl_radio_tune": _h_radio_tune,
     "ctrl_media_mute": _h_media_mute, "ctrl_rear_entertainment": _h_rear_entertainment,
+    "query_music_status": _q_music_status, "query_volume_media": _q_volume_media,
+    "query_sound_mode_status": _q_sound_mode_status,
+    "query_radio_status": _q_radio_status,
+    "query_rear_entertainment_status": _q_rear_entertainment_status,
     # 导航出行
     "ctrl_nav_start": _h_nav_start, "ctrl_nav_stop": _h_nav_stop,
     "ctrl_nav_route_pref": _h_nav_route_pref, "query_poi_nearby": _q_poi_nearby,
     "query_traffic_status": _q_traffic_status,
     "query_charging_station": _q_charging_station,
     "query_route_charge_plan": _q_route_charge_plan,
+    "query_nav_status": _q_nav_status,
     # 车辆信息
-    "query_vehicle_basic": _q_vehicle_basic,
     "query_battery_status": _q_battery_status,
     "query_range_mileage": _q_range_mileage,
     "query_energy_consumption": _q_energy_consumption,
     "query_tire_pressure": _q_tire_pressure,
-    "query_window_status": _q_window_status,
-    "query_door_status": _q_door_status,
     # 充电管理
     "ctrl_charge_start": _h_charge_start, "ctrl_charge_stop": _h_charge_stop,
     "ctrl_charge_limit": _h_charge_limit, "ctrl_charge_schedule": _h_charge_schedule,
@@ -666,6 +893,11 @@ TOOL_HANDLERS = {
     "ctrl_acc_distance": _h_acc_distance, "ctrl_energy_recovery": _h_energy_recovery,
     "ctrl_auto_park": _h_auto_park, "ctrl_remote_park": _h_remote_park,
     "ctrl_hud_display": _h_hud_display,
+    "query_cruise_control_status": _q_cruise_control_status,
+    "query_lane_keep_status": _q_lane_keep_status,
+    "query_acc_distance_status": _q_acc_distance_status,
+    "query_energy_recovery_status": _q_energy_recovery_status,
+    "query_hud_status": _q_hud_status,
     # 座舱模式
     "trigger_car_wash_mode": _h_car_wash_mode, "trigger_rest_mode": _h_rest_mode,
     "trigger_commute_mode": _h_commute_mode, "trigger_child_mode": _h_child_mode,

@@ -1,4 +1,4 @@
-"""全量工具执行覆盖测试：87 工具 happy path + 状态自洽 + trigger 联动"""
+"""全量工具执行覆盖测试：131 工具 happy path + 状态自洽 + trigger 联动"""
 import json
 import unittest
 
@@ -21,6 +21,16 @@ PARAMS = {
     "ctrl_door_handle": {"position": "front_left", "status": "pop"},
     "ctrl_mirror_fold": {"status": "fold"},
     "ctrl_wiper": {"position": "front", "level": "1"},
+    "query_window_status": {},
+    "query_sunroof_tilt": {},
+    "query_sunroof_open": {},
+    "query_sunroof_shade": {},
+    "query_door_lock_status": {},
+    "query_child_lock_status": {},
+    "query_tailgate_status": {},
+    "query_door_handle_status": {},
+    "query_mirror_fold_status": {},
+    "query_wiper_status": {},
     # 灯光照明
     "ctrl_headlight_mode": {"mode": "low_beam"},
     "ctrl_drl": {"status": "on"},
@@ -30,6 +40,14 @@ PARAMS = {
     "ctrl_welcome_light": {"status": "on"},
     "ctrl_star_roof": {"brightness": 60, "mode": "breathe"},
     "ctrl_interior_reading": {"position": "front_left", "status": "on"},
+    "query_headlight_mode": {},
+    "query_drl_status": {},
+    "query_fog_light_status": {},
+    "query_ambient_light_status": {},
+    "query_ambient_scene": {},
+    "query_welcome_light_status": {},
+    "query_star_roof_status": {},
+    "query_reading_light_status": {},
     # 座椅系统
     "ctrl_seat_driver_memory": {"slot": 2},
     "ctrl_seat_heat": {"position": "front_left", "level": 2},
@@ -38,6 +56,12 @@ PARAMS = {
     "ctrl_seat_driver_lumbar": {"level": 4},
     "ctrl_seat_boss_key": {"status": "on"},
     "ctrl_seat_rear_recline": {"angle": 3},
+    "query_seat_heat_status": {},
+    "query_seat_vent_status": {},
+    "query_seat_massage_status": {},
+    "query_seat_lumbar_status": {},
+    "query_seat_boss_key_status": {},
+    "query_seat_recline_status": {},
     # 空调温控
     "ctrl_ac_power": {"status": "on"},
     "ctrl_ac_temperature": {"temperature": 22},
@@ -47,12 +71,24 @@ PARAMS = {
     "ctrl_air_purifier": {"status": "on"},
     "ctrl_ionizer": {"status": "on"},
     "query_air_quality": {},
+    "query_ac_power_status": {},
+    "query_ac_temperature": {},
+    "query_ac_fan_speed": {},
+    "query_ac_circulation": {},
+    "query_ac_vent_mode": {},
+    "query_air_purifier_status": {},
+    "query_ionizer_status": {},
     # 座舱舒适
     "ctrl_fridge": {"mode": "cold"},
     "ctrl_fridge_temp": {"temperature": 3},
     "ctrl_aroma_system": {"scent": "wood", "intensity": "high"},
     "ctrl_panoramic_shade": {"openness": 50},
     "ctrl_armrest_heat": {"status": "on"},
+    "query_fridge_status": {},
+    "query_fridge_temp": {},
+    "query_aroma_status": {},
+    "query_panoramic_shade_status": {},
+    "query_armrest_heat_status": {},
     # 影音娱乐
     "ctrl_music_play": {"category": "pop"},
     "ctrl_music_next": {},
@@ -62,6 +98,11 @@ PARAMS = {
     "ctrl_radio_tune": {"frequency": "FM97.4"},
     "ctrl_media_mute": {"status": "on"},
     "ctrl_rear_entertainment": {"status": "on"},
+    "query_music_status": {},
+    "query_volume_media": {},
+    "query_sound_mode_status": {},
+    "query_radio_status": {},
+    "query_rear_entertainment_status": {},
     # 导航出行
     "ctrl_nav_start": {"destination": "公司"},
     "ctrl_nav_stop": {},
@@ -70,14 +111,12 @@ PARAMS = {
     "query_traffic_status": {},
     "query_charging_station": {},
     "query_route_charge_plan": {"soc_threshold": 20},
+    "query_nav_status": {},
     # 车辆信息
-    "query_vehicle_basic": {},
     "query_battery_status": {},
     "query_range_mileage": {},
     "query_energy_consumption": {},
     "query_tire_pressure": {},
-    "query_window_status": {},
-    "query_door_status": {},
     # 充电管理
     "ctrl_charge_start": {},
     "ctrl_charge_stop": {},
@@ -99,6 +138,11 @@ PARAMS = {
     "ctrl_auto_park": {"mode": "vertical"},
     "ctrl_remote_park": {"direction": "forward"},
     "ctrl_hud_display": {"status": "off"},
+    "query_cruise_control_status": {},
+    "query_lane_keep_status": {},
+    "query_acc_distance_status": {},
+    "query_energy_recovery_status": {},
+    "query_hud_status": {},
     # 座舱模式
     "trigger_car_wash_mode": {},
     "trigger_rest_mode": {},
@@ -112,7 +156,7 @@ PARAMS = {
 
 
 class FullCoverageTest(unittest.TestCase):
-  """87 工具全部执行成功（每工具集独立加载，规避 LRU 上限）"""
+  """131 工具全部执行成功（每工具集独立加载，规避 LRU 上限）"""
 
   def test_all_tools_success(self):
     for toolset_id, cfg in TOOLSETS.items():
@@ -129,26 +173,51 @@ class FullCoverageTest(unittest.TestCase):
 
 
 class StateConsistencyTest(unittest.TestCase):
-  """控制类落库后，查询类能读到当前状态"""
+  """控制类落库后，查询类能读到当前状态（闭环验证）"""
 
-  def setUp(self):
-    self.tm = ToolsetManager()
-    self.tm.load_toolsets(["toolset_body_control", "toolset_vehicle_info"])
-    self.gateway = ToolGateway(self.tm)
+  def _gateway_with(self, *toolsets):
+    tm = ToolsetManager()
+    tm.load_toolsets(list(toolsets))
+    return ToolGateway(tm)
+
+  def test_control_then_query_charge(self):
+    """ctrl_charge_start 开启充电后 query_battery_status 读到新值"""
+    gateway = self._gateway_with("toolset_charging_management",
+                                 "toolset_vehicle_info")
+    gateway.execute("ctrl_charge_start", {})
+    result = gateway.execute("query_battery_status", {})
+    self.assertEqual(result["charging"], True)
 
   def test_control_then_query_window(self):
     """ctrl_window 改变后 query_window_status 读到新值"""
-    self.gateway.execute("ctrl_window", {"position": "front_left", "openness": 30})
-    self.gateway.execute("ctrl_window", {"position": "rear_right", "openness": 70})
-    result = self.gateway.execute("query_window_status", {})
-    self.assertEqual(result["window"]["front_left"], 30)
-    self.assertEqual(result["window"]["rear_right"], 70)
+    gateway = self._gateway_with("toolset_body_control")
+    gateway.execute("ctrl_window", {"position": "front_left", "openness": 30})
+    result = gateway.execute("query_window_status", {})
+    self.assertEqual(result["front_left"], 30)
 
-  def test_control_then_query_door(self):
-    """ctrl_door_lock 改变后 query_door_status 读到新值"""
-    self.gateway.execute("ctrl_door_lock", {"status": "unlock"})
-    result = self.gateway.execute("query_door_status", {})
-    self.assertEqual(result["door_lock"], "unlock")
+  def test_control_then_query_ac_temperature(self):
+    """ctrl_ac_temperature 改变后 query_ac_temperature 读到新值"""
+    gateway = self._gateway_with("toolset_climate_control")
+    gateway.execute("ctrl_ac_temperature", {"temperature": 22})
+    result = gateway.execute("query_ac_temperature", {})
+    self.assertEqual(result["temperature"], 22)
+
+  def test_control_then_query_seat_massage(self):
+    """ctrl_seat_massage 改变后 query_seat_massage_status 读到模式与强度"""
+    gateway = self._gateway_with("toolset_seat_system")
+    gateway.execute("ctrl_seat_massage",
+                    {"position": "front_left", "mode": "waist", "level": 2})
+    result = gateway.execute("query_seat_massage_status", {})
+    self.assertEqual(result["front_left"]["mode"], "waist")
+    self.assertEqual(result["front_left"]["level"], 2)
+
+  def test_control_then_query_nav(self):
+    """ctrl_nav_start 后 query_nav_status 读到目的地"""
+    gateway = self._gateway_with("toolset_navigation")
+    gateway.execute("ctrl_nav_start", {"destination": "公司"})
+    result = gateway.execute("query_nav_status", {})
+    self.assertEqual(result["active"], True)
+    self.assertEqual(result["destination"], "公司")
 
 
 class TriggerLinkageTest(unittest.TestCase):

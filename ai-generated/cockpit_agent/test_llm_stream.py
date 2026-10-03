@@ -103,7 +103,7 @@ class OpenAICompatibleStreamTest(unittest.TestCase):
     orig_post = llm_client.requests.post
     llm_client.requests.post = lambda *a, **kw: FakeSSEResponse(sse_lines)
     try:
-      events = list(client.chat_stream([], []))
+      events = list(client.chat_stream([], [], effort="high"))
     finally:
       llm_client.requests.post = orig_post
 
@@ -130,7 +130,7 @@ class OpenAICompatibleStreamTest(unittest.TestCase):
     orig_post = llm_client.requests.post
     llm_client.requests.post = lambda *a, **kw: FakeSSEResponse(sse_lines)
     try:
-      events = list(client.chat_stream([], []))
+      events = list(client.chat_stream([], [], effort="low"))
     finally:
       llm_client.requests.post = orig_post
 
@@ -160,7 +160,7 @@ class OpenAICompatibleStreamTest(unittest.TestCase):
     orig_post = llm_client.requests.post
     llm_client.requests.post = lambda *a, **kw: FakeSSEResponse(sse_lines)
     try:
-      events = list(client.chat_stream([], []))
+      events = list(client.chat_stream([], [], effort="max"))
     finally:
       llm_client.requests.post = orig_post
 
@@ -178,7 +178,7 @@ class OpenAICompatibleStreamTest(unittest.TestCase):
     fake_resp = FakeSSEResponse(sse_lines)
     llm_client.requests.post = lambda *a, **kw: fake_resp
     try:
-      list(client.chat_stream([], []))
+      list(client.chat_stream([], [], effort="high"))
     finally:
       llm_client.requests.post = orig_post
 
@@ -198,7 +198,7 @@ class OpenAICompatibleStreamTest(unittest.TestCase):
     orig_post = llm_client.requests.post
     llm_client.requests.post = lambda *a, **kw: FakeSSEResponse(sse_lines)
     try:
-      events = list(client.chat_stream([], []))
+      events = list(client.chat_stream([], [], effort="none"))
     finally:
       llm_client.requests.post = orig_post
 
