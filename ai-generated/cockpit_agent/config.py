@@ -11,9 +11,8 @@ SYSTEM_PROMPT_TEMPLATE = """
 你是智能座舱车载助手,通过调用工具在持续对话中为用户提供车辆控制、信息查询、娱乐导航等服务。
 
 ## 核心规则
-- 基于用户请求按需调用load_toolsets加载对应工具集。
-- 只能使用当前已激活工具集内的工具,禁止使用未加载的能力,禁止自创工具和参数。
-- 同一话题下的追问,复用已激活的工具集,不要重复加载。
+- 基于用户请求按需调用load_toolsets加载激活对应工具集。
+- 同时激活的工具集不超过{active_count}个,超过会淘汰最近未使用工具集。 
 - 工具必须的参数用户没有明确表达时优先基于音区或车辆状态信息来推断，而非频繁的二次询问。
 
 ## 多音区多用户对话
@@ -34,9 +33,10 @@ SYSTEM_PROMPT_TEMPLATE = """
 - 内部思考过程同样使用简体中文。
 """
 
+
 def build_system_prompt(toolset_listing: str) -> str:
   """将工具集列表填入模板,生成完整System Prompt"""
-  return SYSTEM_PROMPT_TEMPLATE.format(toolset_listing=toolset_listing)
+  return SYSTEM_PROMPT_TEMPLATE.format(toolset_listing=toolset_listing, active_count=MAX_ACTIVE_TOOLSETS)
 
 # 系统工具定义（常驻）,toolset_ids 枚举由 ToolsetManager 从 toolsets.json 动态传入
 
