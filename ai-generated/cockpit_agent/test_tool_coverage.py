@@ -271,6 +271,12 @@ class StatePersistTest(unittest.TestCase):
     self.assertEqual(self.gateway.vehicle_state["ambient_light_color"], "red")
     self.assertEqual(self.gateway.vehicle_state["ambient_light_brightness"], 90)
 
+  def test_ambient_light_64_color_persisted(self):
+    """氛围灯64色中新增命名色落库"""
+    self.gateway.execute("ctrl_ambient_light", {"color": "crimson", "brightness": 40})
+    self.assertEqual(self.gateway.vehicle_state["ambient_light_color"], "crimson")
+    self.assertEqual(self.gateway.vehicle_state["ambient_light_brightness"], 40)
+
   def test_seat_state_persisted(self):
     """座椅控制落库，可在当前值基础上再调整"""
     self.gateway.execute("ctrl_seat_heat", {"position": "front_left", "level": 1})
@@ -286,6 +292,27 @@ class StatePersistTest(unittest.TestCase):
     self.assertEqual(self.gateway.vehicle_state["music_track"], 3)
     self.gateway.execute("ctrl_music_prev", {})
     self.assertEqual(self.gateway.vehicle_state["music_track"], 2)
+
+
+class AmbientLightColorEnumTest(unittest.TestCase):
+  """氛围灯颜色枚举：64色、保留原有锚点色、移除 custom、无重复"""
+
+  @classmethod
+  def _colors(cls):
+    tool = next(t for t in TOOLSETS["toolset_lighting_control"]["tools"]
+                if t["function"]["name"] == "ctrl_ambient_light")
+    return tool["function"]["parameters"]["properties"]["color"]["enum"]
+
+  def test_color_enum_has_64_unique_values(self):
+    colors = self._colors()
+    self.assertEqual(len(colors), 64)
+    self.assertEqual(len(set(colors)), 64)
+
+  def test_original_anchors_kept_and_custom_removed(self):
+    colors = set(self._colors())
+    for anchor in ("white", "blue", "red", "green"):
+      self.assertIn(anchor, colors)
+    self.assertNotIn("custom", colors)
 
 
 if __name__ == "__main__":

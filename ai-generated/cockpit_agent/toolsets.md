@@ -252,7 +252,7 @@ No parameters.
 
 | Parameter | Type | Required | Enum | Default | Description |
 |---|---|:---:|---|---|---|
-| `color` | `string` | Yes | white, blue, red, green, custom | `` | 灯光颜色 |
+| `color` | `string` | Yes | red, crimson, maroon, brick, scarlet, wine, coral, ruby, orange, amber, tangerine, apricot, sunset, yellow, gold, lemon, mustard, honey, green, lime, olive, mint, emerald, jade, forest, sage, cyan, teal, turquoise, aqua, spring, blue, navy, sky, azure, cobalt, sapphire, indigo, steel, purple, violet, lavender, plum, orchid, magenta, pink, rose, salmon, peach, fuchsia, brown, chocolate, coffee, tan, white, black, gray, silver, ivory, snow, ash, slate, charcoal, fog | `` | 灯光颜色（64色可选） |
 | `brightness` | `integer` | Yes |  | `` | 亮度百分比 |
 
 #### `ctrl_ambient_scene`
