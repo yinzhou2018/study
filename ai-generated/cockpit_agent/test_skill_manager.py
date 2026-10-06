@@ -1,4 +1,5 @@
 """技能管理器单元测试"""
+import json
 import shutil
 import tempfile
 import unittest
@@ -150,10 +151,9 @@ class SkillManagerTest(unittest.TestCase):
     self.assertEqual(len(result["loaded"]), 1)
     self.assertEqual(result["loaded"][0]["skill_name"], "skill-one")
     self.assertEqual(len(result["failed"]), 0)
-    self.assertEqual(len(result["injected"]), 1)
-    self.assertEqual(result["injected"][0]["role"], "system")
-    self.assertIn("【技能:skill-one】", result["injected"][0]["content"])
-    self.assertIn("One content", result["injected"][0]["content"])
+    # 技能内容嵌入工具结果的 content 字段
+    self.assertIn("skill-one", result["content"])
+    self.assertIn("One content", result["content"]["skill-one"])
 
   def test_load_skills_partial_failure(self):
     result = self.mgr.load_skills(["skill-one", "nonexistent", "skill-two"])
@@ -161,7 +161,7 @@ class SkillManagerTest(unittest.TestCase):
     self.assertEqual(len(result["loaded"]), 2)
     self.assertEqual(len(result["failed"]), 1)
     self.assertEqual(result["failed"][0]["skill_name"], "nonexistent")
-    self.assertEqual(len(result["injected"]), 2)
+    self.assertEqual(len(result["content"]), 2)
 
   def test_load_skills_all_failure(self):
     result = self.mgr.load_skills(["ghost"])
@@ -277,8 +277,8 @@ class SkillAgentIntegrationTest(unittest.TestCase):
     finally:
       shutil.rmtree(tmp)
 
-  def test_chat_load_skills_injects_context(self):
-    """模型调用 load_skills 后，技能内容作为 system 消息注入对话上下文"""
+  def test_chat_load_skills_tool_result_carries_content(self):
+    """模型调用 load_skills 后，技能内容随工具结果消息返回，无额外 system 注入"""
     from cockpit_agent import CockpitAgent
 
     class FakeSkillLLM:
@@ -321,15 +321,16 @@ class SkillAgentIntegrationTest(unittest.TestCase):
       agent = CockpitAgent(llm_client=llm, skills_dir=tmp)
       reply = agent.chat("加载技能", verbose=False)
       self.assertEqual(reply, "技能已生效。")
-      # 技能内容已注入上下文
-      injected = [m for m in agent.messages
-                  if m["role"] == "system" and "【技能:alpha】" in m["content"]]
-      self.assertEqual(len(injected), 1)
-      self.assertIn("Instruction for alpha.", injected[0]["content"])
-      # 工具结果消息也已回填
+      # 工具结果消息携带技能内容
       tool_msgs = [m for m in agent.messages if m["role"] == "tool"]
       self.assertEqual(len(tool_msgs), 1)
-      self.assertIn("成功加载1个技能", tool_msgs[0]["content"])
+      data = json.loads(tool_msgs[0]["content"])
+      self.assertIn("alpha", data["content"])
+      self.assertIn("Instruction for alpha.", data["content"]["alpha"])
+      # 不再注入额外的 system 技能消息
+      injected = [m for m in agent.messages
+                  if m["role"] == "system" and "【技能:" in m["content"]]
+      self.assertEqual(len(injected), 0)
     finally:
       shutil.rmtree(tmp)
 

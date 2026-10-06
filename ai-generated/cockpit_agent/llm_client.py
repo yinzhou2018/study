@@ -32,9 +32,9 @@ class MockLLMClient:
 
     # 判断当前是否有 load_skills 工具
     has_load_skills = "load_skills" in tool_names
-    # 判断技能是否已加载（检查对话中是否存在【技能:】注入消息）
+    # 判断技能是否已加载（检查对话中是否存在包含 skill_name 字段的工具结果）
     skill_loaded = any(
-        m["role"] == "system" and "【技能:" in m.get("content", "")
+        m["role"] == "tool" and '"skill_name"' in m.get("content", "")
         for m in messages
     )
 

@@ -31,10 +31,10 @@ class SystemPromptTest(unittest.TestCase):
     self.assertNotIn("{skill_listing}", sp)
 
   def test_contains_skill_section(self):
-    """SP 包含技能使用指引：通过 load_skills 加载、内容注入上下文、无数量限制"""
+    """SP 包含技能使用指引：通过 load_skills 加载、指令随工具结果返回、无数量限制"""
     self.assertIn("## 已安装技能", SYSTEM_PROMPT_TEMPLATE)
     self.assertIn("load_skills", SYSTEM_PROMPT_TEMPLATE)
-    self.assertIn("注入当前对话上下文", SYSTEM_PROMPT_TEMPLATE)
+    self.assertIn("随工具结果返回", SYSTEM_PROMPT_TEMPLATE)
     self.assertIn("技能无数量限制", SYSTEM_PROMPT_TEMPLATE)
 
 

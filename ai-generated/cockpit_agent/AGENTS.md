@@ -10,7 +10,7 @@
 
 - **固定 System Prompt**：最大化服务端 Prefix KV Cache 命中率，降低首字延迟。
 - **工具集按需加载**：全量工具集过大，模型按用户意图调用 `load_toolsets` 激活子集，最多同时激活 3 个，LRU 淘汰。
-- **技能（Skill）按需注入**：技能是独立于工具集的能力层（指令+参考文档+附带资源），模型或用户显式调用 `load_skills` 加载，SKILL.md 内容以 system 消息注入对话上下文，无数量限制、无 LRU。
+- **技能（Skill）按需注入**：技能是独立于工具集的能力层（指令+参考文档+附带资源），模型或用户显式调用 `load_skills` 加载，SKILL.md 内容随工具结果消息返回，无数量限制、无 LRU。
 - **多音区多用户**：front_left / front_right / rear_left / rear_right 共享同一辆车状态与对话上下文，按音区做权限隔离。
 - **安全校验**：行车安全限制（如高速下车窗开度）、主驾专属权限（门锁、放电、泊车等）在网关层强制拦截。
 - **多供应商 + 思考深度（effort）**：运行期可切换供应商与 effort（none/low/high/max），各供应商映射为各自的 payload 字段。
@@ -63,7 +63,7 @@ CockpitAgent.chat / chat_stream
   │  └─ LLMClient.chat / chat_stream (effort, tools)
   ▼
 模型返回 tool_calls？
-  ├─ load_skills → SkillManager.load_skills → 技能 SKILL.md 内容以 system 消息注入上下文
+  ├─ load_skills → SkillManager.load_skills（技能内容嵌入工具结果消息的 content 字段）
   ├─ load_toolsets → ToolsetManager.load_toolsets（LRU 淘汰，更新可用工具）
   ├─ list_active_toolsets / 业务工具 → ToolGateway.execute
   │        └─ check_whitelist → check_permission(音区) → check_security(车速等) → 执行 → 回填 tool 结果
@@ -71,7 +71,7 @@ CockpitAgent.chat / chat_stream
 ```
 
 - 技能发现路径：`~/.cockpit_agent/skills/`（用户级），每个含 `SKILL.md` 的子目录为一个技能。
-- 技能与工具集完全独立：技能加载无数量限制，无 LRU 淘汰，内容以 system 消息注入对话上下文。
+- 技能与工具集完全独立：技能加载无数量限制，无 LRU 淘汰，内容随工具结果消息返回。
 - 单轮用户输入最多 `max_turns=8` 轮工具调用，防死循环。
 - 流式模式支持 Esc 打断（`agent.interrupt()` 置标志，循环中 `_check_interrupt()` 抛 `InterruptedError`）。
 - `compress_history()`：超过 6 条消息时，把中间 tool 结果压缩成"执行摘要" system 消息，保留 System Prompt + 最近 4 条。
@@ -82,12 +82,12 @@ CockpitAgent.chat / chat_stream
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
 | `config.py`          | System Prompt 模板、`build_system_prompt`、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设        |
 | `toolset_manager.py` | 从 `toolsets.json` 加载全量配置；`build_system_tools`（系统工具的 enum 动态来自 toolsets.json）；`load_toolsets` 实现 LRU 淘汰；`get_current_tools` 动态拼装；`get_toolset_listing` 生成 System Prompt 中的工具集清单 | 工具集 ID 是 enum 真相源，新增/删除工具集必须同步 `toolsets.json`   |
-| `skill_manager.py`   | 从 `~/.cockpit_agent/skills/` 发现技能；解析 SKILL.md frontmatter；`load_skills` 返回注入消息；`get_skill_listing` 生成 System Prompt 中的技能清单；`get_system_tool` 生成 `load_skills` 工具定义 | 技能名是 `SKILL.md` 中 frontmatter `name` 字段；新增技能只需在目录中添加，无需修改代码 |
+| `skill_manager.py`   | 从 `~/.cockpit_agent/skills/` 发现技能；解析 SKILL.md frontmatter；`load_skills` 将技能内容嵌入工具结果消息（`content` 字段）；`get_skill_listing` 生成 System Prompt 中的技能清单；`get_system_tool` 生成 `load_skills` 工具定义 | 技能名是 `SKILL.md` 中 frontmatter `name` 字段；新增技能只需在目录中添加，无需修改代码 |
 | `tool_gateway.py`    | 三段校验（白名单→权限→安全）后执行；`DRIVER_ONLY_TOOLS` 定义主驾专属工具                                                                                           | 新增涉及行车安全/门锁/放电/泊车的工具，务必加入 `DRIVER_ONLY_TOOLS` |
 | `zone_context.py`    | 用户消息打 `[zone=,user=]` 前缀，解析用户消息音区标签                                                                                                            | 多音区规则见 System Prompt「多音区多用户对话」段                    |
 | `llm_client.py`      | `MockLLMClient` 关键词匹配模拟工具调用链（支持 `load_skills`）；`OpenAICompatibleLLM` 支持运行期 `configure` 重配供应商                                                                   | 流式需正确合并 `tool_calls` 增量（按 index 累加 name/arguments）    |
 | `llm_config.py`      | `PROVIDERS` 注册表，每供应商绑定 `build_effort_payload`；`build_effort_payload(effort, provider)` 统一入口                                                         | **已 gitignore**，含真实 api_key；改动需本地保留，勿提交            |
-| `cockpit_agent.py`   | 编排：消息管理、工具调用分派（`_handle_load_skills`）、打断、历史压缩、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 manager，`load_skills` 走 manager，`_handle_load_skills` 统一注入逻辑 |
+| `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史压缩、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 ToolsetManager，`load_skills` 走 SkillManager（内容随工具结果返回） |
 | `cli_repl.py`        | REPL 命令 `/exit /clear /history /effort /provider /zone /skill /reload`；`EscListener` 后台线程监听 Esc                                                     | 打断后需 `_flush_input` 清空残留输入，否则污染下一次 `input()`      |
 | `prefs.py`           | 偏好持久化（`~/.cockpit_agent/prefs.json`）：`load_prefs`/`save_prefs`/`update_pref`/`resolve_pref`                                                              | 不依赖业务配置，校验由调用方传入 valid 集合，避免循环依赖             |
 

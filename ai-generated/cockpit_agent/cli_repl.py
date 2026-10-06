@@ -229,11 +229,32 @@ class CockpitRePL:
       for n in names:
         print(f"  - {n}")
       return
-    # 有参数：显式加载指定技能
+    # 有参数：显式加载指定技能，模拟完整工具调用链（assistant tool_call + tool result）
     result = skill_mgr.load_skills(skill_args)
-    for msg in result["injected"]:
-      self.agent.messages.append(msg)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    call_id = f"call_skill_repl_{len(self.agent.messages)}"
+    self.agent.messages.append({
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [{
+            "id": call_id,
+            "type": "function",
+            "function": {
+                "name": "load_skills",
+                "arguments": json.dumps({"skill_names": skill_args}, ensure_ascii=False)
+            }
+        }]
+    })
+    self.agent.messages.append({
+        "role": "tool",
+        "tool_call_id": call_id,
+        "content": json.dumps(result, ensure_ascii=False)
+    })
+    # 摘要展示（隐藏长 content 字段）
+    summary = {
+        k: (f"<{len(v)} chars>" if k == "content" else v)
+        for k, v in result.items()
+    }
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
 
   def _handle_reload(self):
     self.agent.reload_skills()

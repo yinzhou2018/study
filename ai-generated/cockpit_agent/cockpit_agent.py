@@ -97,9 +97,9 @@ class CockpitAgent:
         if verbose:
           print(f"调用工具: {tool_name}, 参数: {arguments}")
 
-        # 特殊处理：加载技能（技能内容注入上下文，无 LRU 淘汰）
+        # 特殊处理：加载技能（技能内容随工具结果返回，无 LRU 淘汰）
         if tool_name == "load_skills":
-          result = self._handle_load_skills(arguments.get("skill_names", []))
+          result = self.skill_manager.load_skills(arguments.get("skill_names", []))
         elif tool_name == "load_toolsets":
           toolset_ids = arguments.get("toolset_ids", [])
           result = self.toolset_manager.load_toolsets(toolset_ids)
@@ -186,7 +186,7 @@ class CockpitAgent:
             on_tool_call(tool_name, arguments)
 
           if tool_name == "load_skills":
-            result = self._handle_load_skills(arguments.get("skill_names", []))
+            result = self.skill_manager.load_skills(arguments.get("skill_names", []))
           elif tool_name == "load_toolsets":
             toolset_ids = arguments.get("toolset_ids", [])
             result = self.toolset_manager.load_toolsets(toolset_ids)
@@ -249,13 +249,6 @@ class CockpitAgent:
     if skill_names:
       tools.append(self.skill_manager.get_system_tool(skill_names))
     return tools
-
-  def _handle_load_skills(self, skill_names: list) -> dict:
-    """处理技能加载：先注入技能内容消息，再返回工具结果摘要"""
-    result = self.skill_manager.load_skills(skill_names)
-    for msg in result["injected"]:
-      self.messages.append(msg)
-    return result
 
   def reload_skills(self):
     """重新发现技能并刷新 System Prompt（供 REPL /reload 调用）"""

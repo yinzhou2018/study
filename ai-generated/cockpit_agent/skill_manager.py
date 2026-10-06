@@ -81,10 +81,10 @@ class SkillManager:
     return skill_name in self._skills
 
   def load_skills(self, skill_names: list[str]) -> dict:
-    """加载指定技能，返回结果（含待注入上下文消息列表 injected）"""
+    """加载指定技能，技能内容嵌入工具结果消息的 content 字段"""
     loaded = []
     failed = []
-    injected = []
+    content = {}
 
     for name in skill_names:
       if name not in self._skills:
@@ -92,10 +92,7 @@ class SkillManager:
         continue
 
       skill = self._skills[name]
-      injected.append({
-          "role": "system",
-          "content": f"【技能:{skill['name']}】\n{skill['content']}"
-      })
+      content[skill["name"]] = skill["content"]
       loaded.append({
           "skill_name": skill["name"],
           "description": skill["description"],
@@ -106,7 +103,7 @@ class SkillManager:
         "status": status,
         "loaded": loaded,
         "failed": failed,
-        "injected": injected,
+        "content": content,
         "message": f"成功加载{len(loaded)}个技能，失败{len(failed)}个"
     }
 
