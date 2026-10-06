@@ -1,7 +1,48 @@
 import json
 from collections import OrderedDict
 
-from config import MAX_ACTIVE_TOOLSETS, build_system_tools
+from config import MAX_ACTIVE_TOOLSETS
+
+
+def build_system_tools(toolset_ids: list) -> list:
+  """根据全量工具集ID构建系统工具,确保 enum 与 toolsets.json 保持一致"""
+  return [
+      {
+          "type": "function",
+          "function": {
+              "name": "load_toolsets",
+              "description": "批量加载并激活指定的车载工具集,加载成功后可使用对应工具集内的所有业务工具。",
+              "parameters": {
+                  "type": "object",
+                  "properties": {
+                      "toolset_ids": {
+                          "type": "array",
+                          "items": {
+                              "type": "string",
+                              "enum": toolset_ids
+                          },
+                          "minItems": 1,
+                          "maxItems": MAX_ACTIVE_TOOLSETS,
+                          "description": f"要加载的工具集ID列表,最多传入{MAX_ACTIVE_TOOLSETS}个"
+                      }
+                  },
+                  "required": ["toolset_ids"]
+              }
+          }
+      },
+      {
+          "type": "function",
+          "function": {
+              "name": "list_active_toolsets",
+              "description": "查询当前已激活的所有工具集及对应可用能力",
+              "parameters": {
+                  "type": "object",
+                  "properties": {},
+                  "required": []
+              }
+          }
+      }
+  ]
 
 
 class ToolsetManager:

@@ -3,19 +3,24 @@ import json
 from config import DEFAULT_USER_ID, DEFAULT_ZONE, build_system_prompt
 from llm_client import MockLLMClient, OpenAICompatibleLLM
 from llm_config import DEFAULT_EFFORT, DEFAULT_PROVIDER_ID, PROVIDERS
+from skill_manager import SkillManager
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
 from zone_context import parse_user_tag, tag_user_message
 
 
 class CockpitAgent:
-  def __init__(self, llm_client=None, provider_id=None):
+  def __init__(self, llm_client=None, provider_id=None, skills_dir=None):
     self.llm = llm_client or MockLLMClient()
     self.toolset_manager = ToolsetManager()
+    self.skill_manager = SkillManager(skills_dir=skills_dir)
     self.tool_gateway = ToolGateway(self.toolset_manager)
-    # 初始化消息：System Prompt(含动态工具集列表) + 空对话
+    # 初始化消息：System Prompt(含动态工具集列表 + 技能清单) + 空对话
     self.messages = [
-        {"role": "system", "content": build_system_prompt(self.toolset_manager.get_toolset_listing())}
+        {"role": "system", "content": build_system_prompt(
+            self.toolset_manager.get_toolset_listing(),
+            self.skill_manager.get_skill_listing(),
+        )}
     ]
     self.max_turns = 8  # 单轮用户输入最多执行8轮工具调用，防止死循环
     self._interrupted = False
@@ -56,8 +61,8 @@ class CockpitAgent:
     })
 
     for turn in range(self.max_turns):
-      # 动态获取当前工具列表
-      current_tools = self.toolset_manager.get_current_tools()
+      # 动态获取当前完整工具列表（系统工具 + 业务工具 + 技能工具）
+      current_tools = self._get_current_tools()
 
       if verbose:
         print(f"\n--- 第{turn+1}轮模型调用 ---")
@@ -92,8 +97,10 @@ class CockpitAgent:
         if verbose:
           print(f"调用工具: {tool_name}, 参数: {arguments}")
 
-        # 特殊处理：加载工具集
-        if tool_name == "load_toolsets":
+        # 特殊处理：加载技能（技能内容注入上下文，无 LRU 淘汰）
+        if tool_name == "load_skills":
+          result = self._handle_load_skills(arguments.get("skill_names", []))
+        elif tool_name == "load_toolsets":
           toolset_ids = arguments.get("toolset_ids", [])
           result = self.toolset_manager.load_toolsets(toolset_ids)
         elif tool_name == "list_active_toolsets":
@@ -133,7 +140,7 @@ class CockpitAgent:
 
         msg = None
 
-        current_tools = self.toolset_manager.get_current_tools()
+        current_tools = self._get_current_tools()
         for event in self.llm.chat_stream(
             messages=self.messages,
             tools=current_tools,
@@ -178,7 +185,9 @@ class CockpitAgent:
           if on_tool_call:
             on_tool_call(tool_name, arguments)
 
-          if tool_name == "load_toolsets":
+          if tool_name == "load_skills":
+            result = self._handle_load_skills(arguments.get("skill_names", []))
+          elif tool_name == "load_toolsets":
             toolset_ids = arguments.get("toolset_ids", [])
             result = self.toolset_manager.load_toolsets(toolset_ids)
           else:
@@ -231,3 +240,30 @@ class CockpitAgent:
     }
 
     self.messages = [system_msg, summary_msg] + recent_msgs
+
+  def _get_current_tools(self) -> list:
+    """组装完整工具列表：系统工具 + 已激活业务工具 + 技能工具"""
+    tools = self.toolset_manager.get_current_tools()
+    # 追加 load_skills 系统工具（enum 为当前已发现的所有技能名）
+    skill_names = self.skill_manager.get_all_skill_names()
+    if skill_names:
+      tools.append(self.skill_manager.get_system_tool(skill_names))
+    return tools
+
+  def _handle_load_skills(self, skill_names: list) -> dict:
+    """处理技能加载：先注入技能内容消息，再返回工具结果摘要"""
+    result = self.skill_manager.load_skills(skill_names)
+    for msg in result["injected"]:
+      self.messages.append(msg)
+    return result
+
+  def reload_skills(self):
+    """重新发现技能并刷新 System Prompt（供 REPL /reload 调用）"""
+    self.skill_manager.discover_skills()
+    self.messages[0] = {
+        "role": "system",
+        "content": build_system_prompt(
+            self.toolset_manager.get_toolset_listing(),
+            self.skill_manager.get_skill_listing(),
+        )
+    }

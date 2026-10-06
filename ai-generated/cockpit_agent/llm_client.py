@@ -25,9 +25,18 @@ class MockLLMClient:
         user_msg = m["content"]
         break
 
-    # 判断当前是否已加载工具集
+    # 判断当前是否已加载业务工具（排除所有系统工具）
     tool_names = [t["function"]["name"] for t in tools]
-    has_biz_tools = len([n for n in tool_names if n not in ["load_toolsets", "list_active_toolsets"]]) > 0
+    system_tools = ["load_toolsets", "list_active_toolsets", "load_skills"]
+    has_biz_tools = len([n for n in tool_names if n not in system_tools]) > 0
+
+    # 判断当前是否有 load_skills 工具
+    has_load_skills = "load_skills" in tool_names
+    # 判断技能是否已加载（检查对话中是否存在【技能:】注入消息）
+    skill_loaded = any(
+        m["role"] == "system" and "【技能:" in m.get("content", "")
+        for m in messages
+    )
 
     # ========== 模拟逻辑：未加载业务工具时，先加载工具集 ==========
     if not has_biz_tools:
@@ -49,6 +58,20 @@ class MockLLMClient:
             "load_toolsets",
             {"toolset_ids": load_ids}
         )
+
+    # ========== 模拟逻辑：技能场景，模型加载技能后回复 ==========
+    if has_load_skills and skill_loaded and not has_biz_tools:
+      # 技能已加载但无业务工具，说明该技能未绑定工具集，直接回复
+      return self._build_text_response("技能已加载，请告诉我你想如何处理。")
+
+    if has_load_skills and not skill_loaded:
+      # 用户提及技能意图时，从 load_skills 工具 enum 中取可用技能名加载
+      if "技能" in user_msg:
+        skill_enum = self._get_skill_enum(tools)
+        if skill_enum:
+          return self._build_function_response(
+              "load_skills", {"skill_names": [skill_enum[0]]}
+          )
 
     # ========== 模拟逻辑：已加载通风工具集 ==========
     if "sys_query_vehicle_speed" in tool_names:
@@ -133,6 +156,18 @@ class MockLLMClient:
         time.sleep(0.01)
 
     yield {"type": "done", "message": msg}
+
+  def _get_skill_enum(self, tools):
+    """从 load_skills 工具定义中提取可用技能名 enum"""
+    for t in tools:
+      fn = t.get("function", {})
+      if fn.get("name") == "load_skills":
+        items = (fn.get("parameters", {})
+                 .get("properties", {})
+                 .get("skill_names", {})
+                 .get("items", {}))
+        return items.get("enum", [])
+    return []
 
   def _build_function_response(self, name, arguments):
     return {

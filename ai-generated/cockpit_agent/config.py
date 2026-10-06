@@ -29,56 +29,20 @@ SYSTEM_PROMPT_TEMPLATE = """
 
 ## 全量工具集
 {toolset_listing}
+
+## 已安装技能
+技能是独立于工具集的能力包，包含指令、参考文档和附带资源。需要相关能力时先调用 load_skills 加载技能，技能加载后其指令会注入当前对话上下文。技能无数量限制。
+{skill_listing}
 """
 
 
-def build_system_prompt(toolset_listing: str) -> str:
-  """将工具集列表填入模板,生成完整System Prompt"""
-  return SYSTEM_PROMPT_TEMPLATE.format(toolset_listing=toolset_listing, active_count=MAX_ACTIVE_TOOLSETS)
-
-# 系统工具定义（常驻）,toolset_ids 枚举由 ToolsetManager 从 toolsets.json 动态传入
-
-
-def build_system_tools(toolset_ids: list) -> list:
-  """根据全量工具集ID构建系统工具,确保 enum 与 toolsets.json 保持一致"""
-  return [
-      {
-          "type": "function",
-          "function": {
-              "name": "load_toolsets",
-              "description": "批量加载并激活指定的车载工具集,加载成功后可使用对应工具集内的所有业务工具。",
-              "parameters": {
-                  "type": "object",
-                  "properties": {
-                      "toolset_ids": {
-                          "type": "array",
-                          "items": {
-                              "type": "string",
-                              "enum": toolset_ids
-                          },
-                          "minItems": 1,
-                          "maxItems": MAX_ACTIVE_TOOLSETS,
-                          "description": f"要加载的工具集ID列表,最多传入{MAX_ACTIVE_TOOLSETS}个"
-                      }
-                  },
-                  "required": ["toolset_ids"]
-              }
-          }
-      },
-      {
-          "type": "function",
-          "function": {
-              "name": "list_active_toolsets",
-              "description": "查询当前已激活的所有工具集及对应可用能力",
-              "parameters": {
-                  "type": "object",
-                  "properties": {},
-                  "required": []
-              }
-          }
-      }
-  ]
-
+def build_system_prompt(toolset_listing: str, skill_listing: str) -> str:
+  """将工具集列表和技能清单填入模板,生成完整System Prompt"""
+  return SYSTEM_PROMPT_TEMPLATE.format(
+      toolset_listing=toolset_listing,
+      skill_listing=skill_listing,
+      active_count=MAX_ACTIVE_TOOLSETS,
+  )
 
 # 最大同时激活工具集数量
 MAX_ACTIVE_TOOLSETS = 3

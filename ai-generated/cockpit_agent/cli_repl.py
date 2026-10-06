@@ -124,6 +124,7 @@ class CockpitRePL:
     print("=" * 50)
     print("  智能座舱车载助手 - 交互模式")
     print("  命令: /exit 退出 | /clear 清空历史 | /history 查看历史 | /effort [none|low|high|max] 查看或切换思考深度 | /provider [id] 查看或切换 LLM 供应商 | /zone [front_left|front_right|rear_left|rear_right] 查看或切换音区")
+    print("        /skill [name1 name2] 查看或加载技能 | /reload 重新发现技能并刷新上下文")
     print("  生成期间按 Esc 打断")
     print("=" * 50)
 
@@ -161,9 +162,13 @@ class CockpitRePL:
       self._handle_zone(parts[1] if len(parts) > 1 else None)
     elif parts[0] == "/provider":
       self._handle_provider(parts[1] if len(parts) > 1 else None)
+    elif parts[0] == "/skill":
+      self._handle_skill(parts[1].split() if len(parts) > 1 else [])
+    elif parts[0] == "/reload":
+      self._handle_reload()
     else:
       print(f"未知命令: {cmd}")
-      print("可用命令: /exit /clear /history /effort /provider /zone")
+      print("可用命令: /exit /clear /history /effort /provider /zone /skill /reload")
 
   def _save_pref(self, key, value):
     """持久化偏好,失败仅警告,不影响内存切换"""
@@ -212,11 +217,36 @@ class CockpitRePL:
     model = getattr(self.agent.llm, "model", "mock")
     print(f"供应商已切换为: {provider_arg} (模型: {model})")
 
+  def _handle_skill(self, skill_args):
+    skill_mgr = self.agent.skill_manager
+    # 无参数：列出所有已安装技能
+    if not skill_args:
+      names = skill_mgr.get_all_skill_names()
+      if not names:
+        print(f"暂无已安装技能（技能目录: {skill_mgr.skills_dir}）")
+        return
+      print(f"已安装技能({len(names)}个, 目录: {skill_mgr.skills_dir}):")
+      for n in names:
+        print(f"  - {n}")
+      return
+    # 有参数：显式加载指定技能
+    result = skill_mgr.load_skills(skill_args)
+    for msg in result["injected"]:
+      self.agent.messages.append(msg)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+  def _handle_reload(self):
+    self.agent.reload_skills()
+    names = self.agent.skill_manager.get_all_skill_names()
+    print(f"技能已重新发现，当前可用技能({len(names)}个): {', '.join(names) or '无'}")
+
   def _clear_history(self):
     from config import build_system_prompt
     self.agent.messages = [
         {"role": "system",
-         "content": build_system_prompt(self.agent.toolset_manager.get_toolset_listing())}
+         "content": build_system_prompt(
+             self.agent.toolset_manager.get_toolset_listing(),
+             self.agent.skill_manager.get_skill_listing())}
     ]
     print("对话历史已清空。")
 
