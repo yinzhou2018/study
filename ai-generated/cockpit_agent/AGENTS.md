@@ -27,7 +27,7 @@
 ```
 cockpit_agent/
 ├── main.py                # 入口：argparse 解析 --effort/--provider/--interactive，跑演示多轮对话
-├── cockpit_agent.py       # CockpitAgent：核心对话编排（chat / chat_stream / compress_history / reload_skills）
+├── cockpit_agent.py       # CockpitAgent：核心对话编排（chat / chat_stream / _trim_history / reload_skills）
 ├── llm_client.py          # MockLLMClient（离线跑通）+ OpenAICompatibleLLM（真实接口/流式）
 ├── llm_config.py          # 供应商注册表 + effort→payload 映射（⚠️ 已 gitignore，含真实密钥）
 ├── config.py              # System Prompt 模板、系统工具定义、音区/车辆状态常量
@@ -74,20 +74,20 @@ CockpitAgent.chat / chat_stream
 - 技能与工具集完全独立：技能加载无数量限制，无 LRU 淘汰，内容随工具结果消息返回。
 - 单轮用户输入最多 `max_turns=8` 轮工具调用，防死循环。
 - 流式模式支持 Esc 打断（`agent.interrupt()` 置标志，循环中 `_check_interrupt()` 抛 `InterruptedError`）。
-- `compress_history()`：超过 6 条消息时，把中间 tool 结果压缩成"执行摘要" system 消息，保留 System Prompt + 最近 4 条。
+- `chat`/`chat_stream`：追加用户消息后自动 `_trim_history`，仅保留 System Prompt + 最近 20 轮用户对话（在 user 消息边界截断），不产生孤儿 tool/assistant 消息。
 
 ## 5. 关键模块职责
 
 | 模块                 | 职责                                                                                                                                                               | 改动注意                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `config.py`          | System Prompt 模板、`build_system_prompt`、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设        |
+| `config.py`          | System Prompt 模板、`build_system_prompt`、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3`、`MAX_USER_TURNS=20` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设        |
 | `toolset_manager.py` | 从 `toolsets.json` 加载全量配置；`build_system_tools`（系统工具的 enum 动态来自 toolsets.json）；`load_toolsets` 实现 LRU 淘汰；`get_current_tools` 动态拼装；`get_toolset_listing` 生成 System Prompt 中的工具集清单 | 工具集 ID 是 enum 真相源，新增/删除工具集必须同步 `toolsets.json`   |
 | `skill_manager.py`   | 从 `~/.cockpit_agent/skills/` 发现技能；解析 SKILL.md frontmatter；`load_skills` 将技能内容嵌入工具结果消息（`content` 字段）；`get_skill_listing` 生成 System Prompt 中的技能清单；`get_system_tool` 生成 `load_skills` 工具定义 | 技能名是 `SKILL.md` 中 frontmatter `name` 字段；新增技能只需在目录中添加，无需修改代码 |
 | `tool_gateway.py`    | 三段校验（白名单→权限→安全）后执行；`DRIVER_ONLY_TOOLS` 定义主驾专属工具                                                                                           | 新增涉及行车安全/门锁/放电/泊车的工具，务必加入 `DRIVER_ONLY_TOOLS` |
 | `zone_context.py`    | 用户消息打 `[zone=,user=]` 前缀，解析用户消息音区标签                                                                                                            | 多音区规则见 System Prompt「多音区多用户对话」段                    |
 | `llm_client.py`      | `MockLLMClient` 关键词匹配模拟工具调用链（支持 `load_skills`）；`OpenAICompatibleLLM` 支持运行期 `configure` 重配供应商                                                                   | 流式需正确合并 `tool_calls` 增量（按 index 累加 name/arguments）    |
 | `llm_config.py`      | `PROVIDERS` 注册表，每供应商绑定 `build_effort_payload`；`build_effort_payload(effort, provider)` 统一入口                                                         | **已 gitignore**，含真实 api_key；改动需本地保留，勿提交            |
-| `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史压缩、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 ToolsetManager，`load_skills` 走 SkillManager（内容随工具结果返回） |
+| `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史裁剪（`_trim_history`）、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 ToolsetManager，`load_skills` 走 SkillManager（内容随工具结果返回） |
 | `cli_repl.py`        | REPL 命令 `/exit /clear /history /effort /provider /zone /skill /reload`；`EscListener` 后台线程监听 Esc                                                     | 打断后需 `_flush_input` 清空残留输入，否则污染下一次 `input()`      |
 | `prefs.py`           | 偏好持久化（`~/.cockpit_agent/prefs.json`）：`load_prefs`/`save_prefs`/`update_pref`/`resolve_pref`                                                              | 不依赖业务配置，校验由调用方传入 valid 集合，避免循环依赖             |
 

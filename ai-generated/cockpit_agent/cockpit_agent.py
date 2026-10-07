@@ -1,12 +1,12 @@
 import json
 
-from config import DEFAULT_USER_ID, DEFAULT_ZONE, build_system_prompt
+from config import DEFAULT_USER_ID, DEFAULT_ZONE, MAX_USER_TURNS, build_system_prompt
 from llm_client import MockLLMClient, OpenAICompatibleLLM
 from llm_config import DEFAULT_EFFORT, DEFAULT_PROVIDER_ID, PROVIDERS
 from skill_manager import SkillManager
 from tool_gateway import ToolGateway
 from toolset_manager import ToolsetManager
-from zone_context import parse_user_tag, tag_user_message
+from zone_context import tag_user_message
 
 
 class CockpitAgent:
@@ -59,6 +59,7 @@ class CockpitAgent:
         "role": "user",
         "content": tag_user_message(user_query, zone_id, user_id)
     })
+    self._trim_history()
 
     for turn in range(self.max_turns):
       # 动态获取当前完整工具列表（系统工具 + 业务工具 + 技能工具）
@@ -130,6 +131,7 @@ class CockpitAgent:
         "role": "user",
         "content": tag_user_message(user_query, zone_id, user_id)
     })
+    self._trim_history()
 
     try:
       for turn in range(self.max_turns):
@@ -209,37 +211,13 @@ class CockpitAgent:
     except InterruptedError:
       raise
 
-  def compress_history(self):
-    """历史压缩：将工具执行细节压缩为摘要，保留核心语义"""
-    if len(self.messages) <= 6:
+  def _trim_history(self):
+    """仅保留最近 MAX_USER_TURNS 轮用户对话，更早历史丢弃（在 user 消息边界截断）"""
+    user_idx = [i for i, m in enumerate(self.messages) if m["role"] == "user"]
+    if len(user_idx) <= MAX_USER_TURNS:
       return
-
-    # 提取System + 最近3轮用户/助手回复，中间的工具调用压缩为摘要
-    system_msg = self.messages[0]
-    recent_msgs = self.messages[-4:]
-
-    # 生成执行摘要
-    summary_lines = []
-    current_zone = "unknown"
-    for m in self.messages[1:-4]:
-      if m["role"] == "user":
-        zone, _, _ = parse_user_tag(str(m.get("content", "")))
-        if zone:
-          current_zone = zone
-      elif m["role"] == "tool":
-        try:
-          data = json.loads(m["content"])
-          if data.get("status") == "success" and "message" in data:
-            summary_lines.append(f"[{current_zone}] {data['message']}")
-        except Exception:
-          pass
-
-    summary_msg = {
-        "role": "system",
-        "content": "【执行摘要】此前已完成操作：" + "；".join(summary_lines)
-    }
-
-    self.messages = [system_msg, summary_msg] + recent_msgs
+    cutoff = user_idx[-MAX_USER_TURNS]
+    self.messages = [self.messages[0]] + self.messages[cutoff:]
 
   def _get_current_tools(self) -> list:
     """组装完整工具列表：系统工具 + 已激活业务工具 + 技能工具"""

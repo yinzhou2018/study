@@ -47,6 +47,9 @@ def build_system_prompt(toolset_listing: str, skill_listing: str) -> str:
 # 最大同时激活工具集数量
 MAX_ACTIVE_TOOLSETS = 3
 
+# 最大保留用户对话轮数（超过则丢弃更早的历史）
+MAX_USER_TURNS = 20
+
 # 模拟车辆实时状态（真实环境从车机总线获取）
 MOCK_VEHICLE_STATE = {
     # 行驶基础

@@ -113,30 +113,58 @@ class ZoneAwareToolPermissionTest(unittest.TestCase):
     self.assertIn("无权限", result["message"])
 
 
-class HistoryCompressionTest(unittest.TestCase):
+class HistoryTrimTest(unittest.TestCase):
+  """历史裁剪：仅保留最近 MAX_USER_TURNS 轮用户对话"""
 
-  def test_compression_preserves_zone_tags(self):
-    """压缩摘要保留发起音区"""
+  def _build_messages(self, n_turns, with_tool_calls=False):
+    msgs = [{"role": "system", "content": "system"}]
+    for i in range(n_turns):
+      msgs.append({"role": "user",
+                   "content": f"[zone=front_left,user=guest] q{i}"})
+      if with_tool_calls:
+        msgs.append({"role": "assistant", "content": None,
+                     "tool_calls": [{"id": str(i),
+                                     "function": {"name": "query", "arguments": "{}"}}]})
+        msgs.append({"role": "tool", "tool_call_id": str(i),
+                     "content": '{"status":"success"}'})
+      msgs.append({"role": "assistant", "content": f"a{i}"})
+    return msgs
+
+  def test_keeps_recent_20_user_turns(self):
+    """超过20轮时只保留最近20轮，System Prompt 始终保留"""
     agent = CockpitAgent(llm_client=FakeLLMClient())
-    agent.messages = [
-        {"role": "system", "content": "system"},
-        {"role": "user", "content": "[zone=front_left,user=guest] 有点闷"},
-        {"role": "assistant", "content": None, "tool_calls": [{"id": "1", "function": {"name": "ctrl_window", "arguments": "{\"position\":\"front_left\",\"openness\":25}"}}]},
-        {"role": "tool", "tool_call_id": "1", "content": '{"status":"success","message":"左前车窗已开"}'},
-        {"role": "user", "content": "[zone=front_right,user=guest] 调低音量"},
-        {"role": "assistant", "content": None, "tool_calls": [{"id": "2", "function": {"name": "ctrl_volume_media", "arguments": "{}"}}]},
-        {"role": "tool", "tool_call_id": "2", "content": '{"status":"success","message":"音量已调低"}'},
-        {"role": "assistant", "content": "已处理"},
-        {"role": "assistant", "content": "状态正常"},
-        {"role": "assistant", "content": "继续"},
-        {"role": "assistant", "content": "结束"},
-        {"role": "user", "content": "[zone=front_left,user=guest] 继续"},
-    ]
-    agent.compress_history()
+    agent.messages = self._build_messages(25)
+    agent._trim_history()
+    user_msgs = [m for m in agent.messages if m["role"] == "user"]
+    self.assertEqual(len(user_msgs), 20)
+    self.assertIn("q5", user_msgs[0]["content"])
+    self.assertIn("q24", user_msgs[-1]["content"])
+    self.assertEqual(agent.messages[0]["role"], "system")
 
-    summary = agent.messages[1]["content"]
-    self.assertIn("[front_left]", summary)
-    self.assertIn("[front_right]", summary)
+  def test_no_trim_under_20_turns(self):
+    """不超过20轮时历史原样保留"""
+    agent = CockpitAgent(llm_client=FakeLLMClient())
+    before = self._build_messages(20)
+    agent.messages = before
+    agent._trim_history()
+    self.assertEqual(agent.messages, before)
+
+  def test_trim_cuts_at_user_boundary(self):
+    """裁剪点在 user 消息边界，不产生孤儿 tool/assistant 消息"""
+    agent = CockpitAgent(llm_client=FakeLLMClient())
+    agent.messages = self._build_messages(25, with_tool_calls=True)
+    agent._trim_history()
+    self.assertEqual(agent.messages[1]["role"], "user")
+    user_msgs = [m for m in agent.messages if m["role"] == "user"]
+    self.assertEqual(len(user_msgs), 20)
+
+  def test_chat_stream_auto_trims(self):
+    """chat_stream 追加新用户消息后自动裁剪"""
+    agent = CockpitAgent(llm_client=FakeLLMClient())
+    agent.messages = self._build_messages(25)
+    agent.chat_stream("q25")
+    user_msgs = [m for m in agent.messages if m["role"] == "user"]
+    self.assertEqual(len(user_msgs), 20)
 
 
 class ReplZoneTest(unittest.TestCase):

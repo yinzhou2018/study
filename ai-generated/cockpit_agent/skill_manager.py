@@ -123,7 +123,7 @@ class SkillManager:
         "type": "function",
         "function": {
             "name": "load_skills",
-            "description": "加载车载技能，加载后技能包含的操作指令即生效（若技能指引需要工具集，需再调用 load_toolsets）。技能无数量限制，可随时加载多个。",
+            "description": "加载车载技能",
             "parameters": {
                 "type": "object",
                 "properties": {

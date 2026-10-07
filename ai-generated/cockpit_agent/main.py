@@ -67,11 +67,10 @@ def main():
     reply = agent.chat(query, verbose=True)
     print(f"\n助手最终回复: {reply}")
 
-  # ===== 查看压缩后的历史 =====
+  # ===== 查看对话历史（自动保留最近 MAX_USER_TURNS 轮）=====
   print("\n" + "=" * 50)
-  print("执行历史压缩...")
-  agent.compress_history()
-  print(f"压缩后消息总数: {len(agent.messages)}")
+  print("对话历史（仅保留最近20轮用户对话）")
+  print(f"当前消息总数: {len(agent.messages)}")
   for i, msg in enumerate(agent.messages):
     role = msg["role"]
     content = str(msg["content"])[:80] + "..." if len(str(msg["content"])) > 80 else str(msg["content"])
