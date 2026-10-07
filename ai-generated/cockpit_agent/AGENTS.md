@@ -17,8 +17,8 @@
 
 ## 2. 技术栈
 
-- 语言：Python 3.12（无框架，纯标准库 + `requests`）
-- 依赖：见 `requirements.txt`，仅 `requests>=2.31.0`
+- 语言：Python 3.12（无框架，纯标准库 + `requests`；A2A 服务器模式依赖 `grpcio`）
+- 依赖：见 `requirements.txt`：`requests>=2.31.0`、`grpcio>=1.60.0`、`grpcio-tools>=1.60.0`（仅重新生成 pb2 时需要）、`protobuf>=5.0.0`
 - 运行环境：macOS / Linux（CLI 使用 `termios`+`tty`，Windows 回退 `msvcrt`）
 - 虚拟环境：项目根 `venv/`（已 gitignore），VSCode 默认环境管理器为 venv
 
@@ -26,7 +26,13 @@
 
 ```
 cockpit_agent/
-├── main.py                # 入口：argparse 解析 --effort/--provider/--interactive，跑演示多轮对话
+├── a2a/                   # A2A 协议 gRPC 生成代码（由 a2a/a2a.proto 经 grpcio-tools 生成，已 vendor）
+│   ├── a2a.proto          # A2A 协议 proto（官方 spec，已剥离 google.api HTTP 注解）
+│   ├── a2a_pb2.py         # protobuf 消息类（勿手改，重新生成）
+│   └── a2a_pb2_grpc.py    # A2AService stub/servicer（勿手改，重新生成）
+├── a2a_agent.py           # A2A 适配层：TaskStore（context_id→CockpitAgent LRU 管理）+ 消息转换工具
+├── a2a_server.py          # A2A gRPC 服务器：A2AServiceServicer 实现 + serve() 启动
+├── main.py                # 入口：argparse 解析 --effort/--provider/--interactive/--a2a，跑演示多轮对话
 ├── cockpit_agent.py       # CockpitAgent：核心对话编排（chat / chat_stream / _trim_history / reload_skills）
 ├── llm_client.py          # MockLLMClient（离线跑通）+ OpenAICompatibleLLM（真实接口/流式）
 ├── llm_config.py          # 供应商注册表 + effort→payload 映射（⚠️ 已 gitignore，含真实密钥）
@@ -76,6 +82,25 @@ CockpitAgent.chat / chat_stream
 - 流式模式支持 Esc 打断（`agent.interrupt()` 置标志，循环中 `_check_interrupt()` 抛 `InterruptedError`）。
 - `chat`/`chat_stream`：追加用户消息后自动 `_trim_history`，仅保留 System Prompt + 最近 20 轮用户对话（在 user 消息边界截断），不产生孤儿 tool/assistant 消息。
 
+**A2A gRPC 服务器模式**（`python3 main.py --a2a`）：
+
+```
+外部 Agent (gRPC client)
+  │  GetExtendedAgentCard  →  AgentCard（工具集+技能派生 skills，streaming=True）
+  │  SendMessage           →  新建/复用 Task（context_id→CockpitAgent），同步 chat
+  │  SendStreamingMessage  →  WORKING 状态 → 最终 Message → COMPLETED 状态
+  │  GetTask               →  查询 Task 状态与历史（history_length 可限制条数）
+  │  CancelTask            →  标记 CANCELED + agent.interrupt() 打断
+  ▼
+A2AServiceServicer (a2a_server.py)
+  └─ TaskStore (a2a_agent.py)  →  context_id → CockpitAgent（上限 50，LRU 淘汰）
+       └─ 复用主对话编排链路（工具集/技能/网关同 REPL 模式）
+```
+
+- 音区从 `Message.metadata["zone"]` 提取，缺省 `front_left`。
+- `context_id` 相同则复用同一 `CockpitAgent`（共享对话历史），`task_id` 缺省时服务端生成 UUID。
+- 未实现 RPC（`ListTasks`/`SubscribeToTask`/推送通知等）返回 `UNIMPLEMENTED`。
+
 ## 5. 关键模块职责
 
 | 模块                 | 职责                                                                                                                                                               | 改动注意                                                            |
@@ -90,6 +115,8 @@ CockpitAgent.chat / chat_stream
 | `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史裁剪（`_trim_history`）、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 ToolsetManager，`load_skills` 走 SkillManager（内容随工具结果返回） |
 | `cli_repl.py`        | REPL 命令 `/exit /clear /history /effort /provider /zone /skill /reload`；`EscListener` 后台线程监听 Esc                                                     | 打断后需 `_flush_input` 清空残留输入，否则污染下一次 `input()`      |
 | `prefs.py`           | 偏好持久化（`~/.cockpit_agent/prefs.json`）：`load_prefs`/`save_prefs`/`update_pref`/`resolve_pref`                                                              | 不依赖业务配置，校验由调用方传入 valid 集合，避免循环依赖             |
+| `a2a_agent.py`       | A2A 适配层：`TaskStore`（context_id→CockpitAgent，上限 50，LRU 淘汰，线程安全）、`extract_text`/`extract_zone`/`build_agent_message` 消息转换 | context_id 相同复用同一 agent（共享对话历史）；`metadata["zone"]` 提取音区，缺省 front_left |
+| `a2a_server.py`      | A2A gRPC 服务器：`A2AServiceServicer` 实现 `GetExtendedAgentCard`/`SendMessage`/`SendStreamingMessage`/`GetTask`/`CancelTask`，`serve()` 启动 | `a2a/` 下 pb2 生成代码勿手改；未实现 RPC 返回 `UNIMPLEMENTED`，新增时同步更新此说明 |
 
 ## 6. 运行方式
 
@@ -106,11 +133,16 @@ python3 main.py --provider voyah --effort high
 
 # 交互式 REPL（流式输出，Esc 打断，支持 /effort /provider /zone /skill /reload 切换）
 python3 main.py -i
+
+# A2A gRPC 服务器模式（接收外部 Agent 请求，默认监听 0.0.0.0:50051）
+python3 main.py --a2a
+python3 main.py --a2a --a2a-host 0.0.0.0 --a2a-port 50051
 ```
 
 > 真实供应商调用依赖本地 `llm_config.py`（已 gitignore）。未提供时，MockLLMClient 可跑通全部流程。
 > **偏好持久化**：REPL 中 `/effort` `/provider` 切换会写入 `~/.cockpit_agent/prefs.json`，下次启动自动恢复；命令行显式参数优先且不写回。优先级：命令行 > 持久化 > 代码默认。
 > **技能**：技能目录为 `~/.cockpit_agent/skills/`，每个含 `SKILL.md` 的子目录即一个技能；REPL 中 `/skill [name]` 查看或显式加载，`/reload` 重新发现技能并刷新 System Prompt。
+> **A2A 模式**：`--a2a` 启动 gRPC 服务器（insecure，无认证，仅供内网/开发环境）；`context_id` 相同的请求共享同一对话上下文，最多同时维护 50 个上下文（LRU 淘汰）；需本地 `llm_config.py` 提供真实供应商配置。
 
 ## 7. 测试约定
 
@@ -145,6 +177,7 @@ python3 main.py -i
 - **调整思考深度**：`EFFORT_MODES`/`DEFAULT_EFFORT` 在 `llm_config.py`；改动映射函数后同步修测试。
 - **持久化偏好**：`prefs.py` 读写 `~/.cockpit_agent/prefs.json`；`resolve_pref` 负责命令行>持久化>默认的优先级。新增需持久化的偏好项时，在 `main.py` 启动解析与 `cli_repl.py` 切换处同步接入，并 monkeypatch `PREFS_FILE` 补测试。
 - **调整 System Prompt**：改 `config.py` 的 `SYSTEM_PROMPT_TEMPLATE`，注意这是"全程固定"的缓存前缀，频繁改动会削弱缓存收益。
+- **重新生成 A2A proto 代码**：改 `a2a/a2a.proto` 后在项目根执行 `python3 -m grpc_tools.protoc -I a2a --python_out=a2a --grpc_python_out=a2a a2a/a2a.proto`，生成后需把 `a2a_pb2_grpc.py` 里的 `import a2a_pb2` 改为 `from . import a2a_pb2`（保持包内相对导入）。
 
 ## 11. 提交检查清单
 

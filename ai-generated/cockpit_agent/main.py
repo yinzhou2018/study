@@ -23,6 +23,12 @@ def main():
   parser.add_argument("--provider", default=None,
                       choices=list(PROVIDERS.keys()),
                       help="选择 LLM 供应商 (缺省读取上次选择)")
+  parser.add_argument("--a2a", action="store_true",
+                      help="以 A2A gRPC 服务器模式运行，接收外部 Agent 请求")
+  parser.add_argument("--a2a-host", default="0.0.0.0",
+                      help="A2A 服务器监听地址 (默认 0.0.0.0)")
+  parser.add_argument("--a2a-port", type=int, default=50051,
+                      help="A2A 服务器监听端口 (默认 50051)")
   args = parser.parse_args()
 
   # 优先级:命令行显式参数 > 持久化偏好 > 代码默认值
@@ -33,6 +39,22 @@ def main():
                        set(EFFORT_MODES), DEFAULT_EFFORT)
 
   profile = get_provider(provider)
+
+  # A2A 服务器模式：每个对话上下文内部创建独立 agent，主线程不创建
+  if args.a2a:
+    from a2a_server import serve
+    serve(
+        host=args.a2a_host,
+        port=args.a2a_port,
+        llm_client=OpenAICompatibleLLM(
+            base_url=profile["base_url"],
+            api_key=profile["api_key"],
+            model=profile["model"],
+            provider_id=provider,
+        ),
+    )
+    return
+
   agent = CockpitAgent(
       llm_client=OpenAICompatibleLLM(
           base_url=profile["base_url"],

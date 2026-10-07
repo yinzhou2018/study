@@ -1,2 +1,5 @@
 # 仅需基础依赖，真实调用时按需添加
 requests>=2.31.0
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+protobuf>=5.0.0
