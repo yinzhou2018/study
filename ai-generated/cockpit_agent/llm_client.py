@@ -27,7 +27,7 @@ class MockLLMClient:
 
     # 判断当前是否已加载业务工具（排除所有系统工具）
     tool_names = [t["function"]["name"] for t in tools]
-    system_tools = ["load_toolsets", "list_active_toolsets", "load_skills"]
+    system_tools = ["load_toolsets", "list_active_toolsets", "load_skills", "request_user_input"]
     has_biz_tools = len([n for n in tool_names if n not in system_tools]) > 0
 
     # 判断当前是否有 load_skills 工具
@@ -37,6 +37,13 @@ class MockLLMClient:
         m["role"] == "tool" and '"skill_name"' in m.get("content", "")
         for m in messages
     )
+
+    # ========== 模拟逻辑：指令存在歧义/缺关键参数时，请求用户补充输入 ==========
+    if "歧义" in user_msg or "不确定" in user_msg:
+      return self._build_function_response(
+          "request_user_input",
+          {"question": "请问您具体想要什么操作？"}
+      )
 
     # ========== 模拟逻辑：未加载业务工具时，先加载工具集 ==========
     if not has_biz_tools:

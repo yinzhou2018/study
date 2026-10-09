@@ -41,6 +41,23 @@ def build_system_tools(toolset_ids: list) -> list:
                   "required": []
               }
           }
+      },
+      {
+          "type": "function",
+          "function": {
+              "name": "request_user_input",
+              "description": "当关键参数无法推断或指令存在歧义时，向用户提问请求补充信息。调用后本轮操作停止，等待用户回答。",
+              "parameters": {
+                  "type": "object",
+                  "properties": {
+                      "question": {
+                          "type": "string",
+                          "description": "向用户提出的问题，简短口语化，适合语音播报"
+                      }
+                  },
+                  "required": ["question"]
+              }
+          }
       }
   ]
 

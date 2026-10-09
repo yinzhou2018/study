@@ -24,6 +24,7 @@ class CockpitAgent:
     ]
     self.max_turns = 8  # 单轮用户输入最多执行8轮工具调用，防止死循环
     self._interrupted = False
+    self.needs_input = False  # 上一轮是否以 request_user_input 结束（等待用户补充输入）
     self.effort = DEFAULT_EFFORT
     self.provider_id = provider_id or DEFAULT_PROVIDER_ID
 
@@ -55,6 +56,7 @@ class CockpitAgent:
   def chat(self, user_query: str, verbose: bool = True,
            zone_id: str = DEFAULT_ZONE, user_id: str = DEFAULT_USER_ID) -> str:
     """用户输入一句话，执行完整的工具调用链路，返回最终回复"""
+    self.needs_input = False
     self.messages.append({
         "role": "user",
         "content": tag_user_message(user_query, zone_id, user_id)
@@ -88,6 +90,7 @@ class CockpitAgent:
         return msg.get("content") or ""
 
       # 处理每一个工具调用
+      pending_question = None
       for tool_call in msg["tool_calls"]:
         tool_name = tool_call["function"]["name"]
         try:
@@ -98,17 +101,9 @@ class CockpitAgent:
         if verbose:
           print(f"调用工具: {tool_name}, 参数: {arguments}")
 
-        # 特殊处理：加载技能（技能内容随工具结果返回，无 LRU 淘汰）
-        if tool_name == "load_skills":
-          result = self.skill_manager.load_skills(arguments.get("skill_names", []))
-        elif tool_name == "load_toolsets":
-          toolset_ids = arguments.get("toolset_ids", [])
-          result = self.toolset_manager.load_toolsets(toolset_ids)
-        elif tool_name == "list_active_toolsets":
-          result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
-        else:
-          # 普通业务工具，走网关执行
-          result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
+        result = self._dispatch_tool(tool_name, arguments, zone_id)
+        if result.get("status") == "waiting":
+          pending_question = result.get("question", "")
 
         # 回填工具结果
         self.messages.append({
@@ -120,6 +115,11 @@ class CockpitAgent:
         if verbose:
           print(f"工具返回: {result}")
 
+      # 模型请求用户补充输入：停止本轮，返回澄清问题
+      if pending_question is not None:
+        self.needs_input = True
+        return pending_question
+
     return "操作执行完毕。"
 
   def chat_stream(self, user_query, on_content=None, on_tool_call=None,
@@ -127,6 +127,7 @@ class CockpitAgent:
                   zone_id: str = DEFAULT_ZONE, user_id: str = DEFAULT_USER_ID):
     """流式对话：逐token回调思考内容和回复，工具调用实时回调，支持打断"""
     self._interrupted = False
+    self.needs_input = False
     self.messages.append({
         "role": "user",
         "content": tag_user_message(user_query, zone_id, user_id)
@@ -175,6 +176,7 @@ class CockpitAgent:
           return final_reply
 
         # 处理每一个工具调用
+        pending_question = None
         for tool_call in msg["tool_calls"]:  # type: ignore
           self._check_interrupt()
 
@@ -187,13 +189,9 @@ class CockpitAgent:
           if on_tool_call:
             on_tool_call(tool_name, arguments)
 
-          if tool_name == "load_skills":
-            result = self.skill_manager.load_skills(arguments.get("skill_names", []))
-          elif tool_name == "load_toolsets":
-            toolset_ids = arguments.get("toolset_ids", [])
-            result = self.toolset_manager.load_toolsets(toolset_ids)
-          else:
-            result = self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
+          result = self._dispatch_tool(tool_name, arguments, zone_id)
+          if result.get("status") == "waiting":
+            pending_question = result.get("question", "")
 
           self.messages.append({
               "role": "tool",
@@ -204,12 +202,35 @@ class CockpitAgent:
           if on_tool_result:
             on_tool_result(tool_name, result)
 
+        # 模型请求用户补充输入：停止本轮，返回澄清问题
+        if pending_question is not None:
+          self.needs_input = True
+          if on_done:
+            on_done(pending_question)
+          return pending_question
+
       final_reply = "操作执行完毕。"
       if on_done:
         on_done(final_reply)
       return final_reply
     except InterruptedError:
       raise
+
+  def _dispatch_tool(self, tool_name, arguments, zone_id):
+    """执行单个工具调用，返回工具结果 dict。
+
+    request_user_input 返回 status=waiting，由调用方终止本轮并等待用户补充输入。
+    """
+    # 模型请求用户补充输入，不执行任何操作
+    if tool_name == "request_user_input":
+      return {"status": "waiting", "question": arguments.get("question", "")}
+    # 加载技能（技能内容随工具结果返回，无 LRU 淘汰）
+    if tool_name == "load_skills":
+      return self.skill_manager.load_skills(arguments.get("skill_names", []))
+    if tool_name == "load_toolsets":
+      return self.toolset_manager.load_toolsets(arguments.get("toolset_ids", []))
+    # 普通业务工具（含 list_active_toolsets），走网关执行
+    return self.tool_gateway.execute(tool_name, arguments, requesting_zone=zone_id)
 
   def _trim_history(self):
     """仅保留最近 MAX_USER_TURNS 轮用户对话，更早历史丢弃（在 user 消息边界截断）"""

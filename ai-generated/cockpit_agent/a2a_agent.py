@@ -54,6 +54,7 @@ class TaskStore:
     self._tasks: dict[str, a2a_pb2.Task] = {} # type: ignore
     self._agents: OrderedDict[str, CockpitAgent] = OrderedDict()
     self._llm = None
+    self._busy: set[str] = set()  # 正在处理的 context_id，并发保护
 
   def set_llm(self, llm):
     self._llm = llm
@@ -88,6 +89,19 @@ class TaskStore:
     with self._lock:
       if context_id in self._agents:
         self._agents[context_id].interrupt()
+
+  def try_acquire_context(self, context_id: str) -> bool:
+    """原子地标记 context 为处理中；已 busy 返回 False"""
+    with self._lock:
+      if context_id in self._busy:
+        return False
+      self._busy.add(context_id)
+      return True
+
+  def release_context(self, context_id: str):
+    """释放 context 的 busy 标记"""
+    with self._lock:
+      self._busy.discard(context_id)
 
 
 def _apply_history_length(task: a2a_pb2.Task, history_length: int | None): # type: ignore

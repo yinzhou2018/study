@@ -64,13 +64,14 @@ cockpit_agent/
   ▼
 CockpitAgent.chat / chat_stream
   │  ┌─ messages 历史（System Prompt 在前，全程不变）
-  │  ├─ ToolsetManager.get_current_tools()  →  load_toolsets/list_active_toolsets + 已激活业务工具
+  │  ├─ ToolsetManager.get_current_tools()  →  load_toolsets/list_active_toolsets/request_user_input + 已激活业务工具
   │  ├─ SkillManager.get_system_tool()  →  load_skills 工具（enum 为已发现技能名）
   │  └─ LLMClient.chat / chat_stream (effort, tools)
   ▼
 模型返回 tool_calls？
   ├─ load_skills → SkillManager.load_skills（技能内容嵌入工具结果消息的 content 字段）
   ├─ load_toolsets → ToolsetManager.load_toolsets（LRU 淘汰，更新可用工具）
+  ├─ request_user_input → 不执行操作，置 agent.needs_input 并终止本轮返回澄清问题（A2A 层任务转 INPUT_REQUIRED）
   ├─ list_active_toolsets / 业务工具 → ToolGateway.execute
   │        └─ check_whitelist → check_permission(音区) → check_security(车速等) → 执行 → 回填 tool 结果
   └─ 无 tool_calls → 最终回复，结束
@@ -87,8 +88,8 @@ CockpitAgent.chat / chat_stream
 ```
 外部 Agent (gRPC client)
   │  GetExtendedAgentCard  →  AgentCard（工具集+技能派生 skills，streaming=True）
-  │  SendMessage           →  新建/复用 Task（context_id→CockpitAgent），同步 chat
-  │  SendStreamingMessage  →  WORKING 状态 → 最终 Message → COMPLETED 状态
+  │  SendMessage           →  解析 task_id/context_id（新建或续接）→ busy 守卫 → 同步 chat
+  │  SendStreamingMessage  →  busy 守卫 → 新任务发 Task / 续接发 WORKING status_update → 终态 status_update（回复随 status.message）
   │  GetTask               →  查询 Task 状态与历史（history_length 可限制条数）
   │  CancelTask            →  标记 CANCELED + agent.interrupt() 打断
   ▼
@@ -98,25 +99,28 @@ A2AServiceServicer (a2a_server.py)
 ```
 
 - 音区从 `Message.metadata["zone"]` 提取，缺省 `front_left`。
-- `context_id` 相同则复用同一 `CockpitAgent`（共享对话历史），`task_id` 缺省时服务端生成 UUID。
+- `task_id`/`context_id` 解析（遵循 proto 语义）：无 `task_id` 则新建 Task（`context_id` 复用或新建，同 context 复用同一 `CockpitAgent`）；传 `task_id` 必须命中已有**非终态**任务（SUBMITTED/WORKING/INPUT_REQUIRED/AUTH_REQUIRED）并续接，否则返回 FAILED 响应（**不写入 store**，不影响原任务）；仅传 `task_id` 时服务端从任务推断 `context_id`；同时传两者时校验与任务绑定一致，不一致返回 FAILED。
 - 未实现 RPC（`ListTasks`/`SubscribeToTask`/推送通知等）返回 `UNIMPLEMENTED`。
+- **INPUT_REQUIRED 生命周期**：模型调用系统工具 `request_user_input`（歧义/缺参数时）→ `CockpitAgent` 置 `needs_input` 并终止本轮返回澄清问题 → 任务转 `TASK_STATE_INPUT_REQUIRED`；客户端用 `task_id` 续接补充输入后 → `COMPLETED`（闭环）。
+- **流式事件规范**（A2A）：新任务首事件为 `Task` 对象（WORKING 状态）；续接已有任务首事件为 WORKING `TaskStatusUpdateEvent`（不发 Task 事件）；解析失败与并发拒绝均为单一 FAILED `TaskStatusUpdateEvent`；agent 回复经终态事件的 `status.message` 投递，**不发独立 Message 事件**。
+- **并发保护（busy 守卫）**：同一 `context_id`（即同一 `CockpitAgent`）同时仅处理一个请求；并行请求直接拒绝并返回 FAILED"任务处理中，请稍后重试"（不写入 store）。不同 context 互不互斥；串行多轮与 INPUT_REQUIRED 续接不受影响；`CancelTask` 不获取守卫锁，仍可打断 busy 任务。
 
 ## 5. 关键模块职责
 
 | 模块                 | 职责                                                                                                                                                               | 改动注意                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `config.py`          | System Prompt 模板、`build_system_prompt`、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3`、`MAX_USER_TURNS=20` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设        |
-| `toolset_manager.py` | 从 `toolsets.json` 加载全量配置；`build_system_tools`（系统工具的 enum 动态来自 toolsets.json）；`load_toolsets` 实现 LRU 淘汰；`get_current_tools` 动态拼装；`get_toolset_listing` 生成 System Prompt 中的工具集清单 | 工具集 ID 是 enum 真相源，新增/删除工具集必须同步 `toolsets.json`   |
+| `config.py`          | System Prompt 模板、`build_system_prompt`、音区常量、`MOCK_VEHICLE_STATE`、`MAX_ACTIVE_TOOLSETS=3`、`MAX_USER_TURNS=20` | System Prompt 模板**全程固定**，改动会破坏 Prefix Cache 假设；含 `request_user_input` 澄清规则        |
+| `toolset_manager.py` | 从 `toolsets.json` 加载全量配置；`build_system_tools`（含 `load_toolsets`/`list_active_toolsets`/`request_user_input`，enum 动态来自 toolsets.json）；`load_toolsets` 实现 LRU 淘汰；`get_current_tools` 动态拼装；`get_toolset_listing` 生成 System Prompt 中的工具集清单 | 工具集 ID 是 enum 真相源，新增/删除工具集必须同步 `toolsets.json`   |
 | `skill_manager.py`   | 从 `~/.cockpit_agent/skills/` 发现技能；解析 SKILL.md frontmatter；`load_skills` 将技能内容嵌入工具结果消息（`content` 字段）；`get_skill_listing` 生成 System Prompt 中的技能清单；`get_system_tool` 生成 `load_skills` 工具定义 | 技能名是 `SKILL.md` 中 frontmatter `name` 字段；新增技能只需在目录中添加，无需修改代码 |
 | `tool_gateway.py`    | 三段校验（白名单→权限→安全）后执行；`DRIVER_ONLY_TOOLS` 定义主驾专属工具                                                                                           | 新增涉及行车安全/门锁/放电/泊车的工具，务必加入 `DRIVER_ONLY_TOOLS` |
 | `zone_context.py`    | 用户消息打 `[zone=,user=]` 前缀，解析用户消息音区标签                                                                                                            | 多音区规则见 System Prompt「多音区多用户对话」段                    |
-| `llm_client.py`      | `MockLLMClient` 关键词匹配模拟工具调用链（支持 `load_skills`）；`OpenAICompatibleLLM` 支持运行期 `configure` 重配供应商                                                                   | 流式需正确合并 `tool_calls` 增量（按 index 累加 name/arguments）    |
+| `llm_client.py`      | `MockLLMClient` 关键词匹配模拟工具调用链（含 `request_user_input` 歧义触发）；`OpenAICompatibleLLM` 支持运行期 `configure` 重配供应商                                                                   | 流式需正确合并 `tool_calls` 增量（按 index 累加 name/arguments）    |
 | `llm_config.py`      | `PROVIDERS` 注册表，每供应商绑定 `build_effort_payload`；`build_effort_payload(effort, provider)` 统一入口                                                         | **已 gitignore**，含真实 api_key；改动需本地保留，勿提交            |
-| `cockpit_agent.py`   | 编排：消息管理、工具调用分派、打断、历史裁剪（`_trim_history`）、`set_provider`/`reload_skills` 运行期切换                                             | `load_toolsets` 走 ToolsetManager，`load_skills` 走 SkillManager（内容随工具结果返回） |
+| `cockpit_agent.py`   | 编排：消息管理、工具调用分派（`_dispatch_tool`）、`needs_input` 状态、打断、历史裁剪（`_trim_history`）、`set_provider`/`reload_skills` 运行期切换                                             | `request_user_input` 置 `needs_input` 并终止本轮；A2A 层据此转 INPUT_REQUIRED |
 | `cli_repl.py`        | REPL 命令 `/exit /clear /history /effort /provider /zone /skill /reload`；`EscListener` 后台线程监听 Esc                                                     | 打断后需 `_flush_input` 清空残留输入，否则污染下一次 `input()`      |
 | `prefs.py`           | 偏好持久化（`~/.cockpit_agent/prefs.json`）：`load_prefs`/`save_prefs`/`update_pref`/`resolve_pref`                                                              | 不依赖业务配置，校验由调用方传入 valid 集合，避免循环依赖             |
-| `a2a_agent.py`       | A2A 适配层：`TaskStore`（context_id→CockpitAgent，上限 50，LRU 淘汰，线程安全）、`extract_text`/`extract_zone`/`build_agent_message` 消息转换 | context_id 相同复用同一 agent（共享对话历史）；`metadata["zone"]` 提取音区，缺省 front_left |
-| `a2a_server.py`      | A2A gRPC 服务器：`A2AServiceServicer` 实现 `GetExtendedAgentCard`/`SendMessage`/`SendStreamingMessage`/`GetTask`/`CancelTask`，`serve()` 启动 | `a2a/` 下 pb2 生成代码勿手改；未实现 RPC 返回 `UNIMPLEMENTED`，新增时同步更新此说明 |
+| `a2a_agent.py`       | A2A 适配层：`TaskStore`（context_id→CockpitAgent，上限 50，LRU 淘汰，线程安全；busy 守卫 `try_acquire_context`/`release_context`）、`extract_text`/`extract_zone`/`build_agent_message` 消息转换 | context_id 相同复用同一 agent（共享对话历史）；`metadata["zone"]` 提取音区，缺省 front_left |
+| `a2a_server.py`      | A2A gRPC 服务器：`A2AServiceServicer` 实现 `GetExtendedAgentCard`/`SendMessage`/`SendStreamingMessage`/`GetTask`/`CancelTask`；task_id/context_id 解析；busy 并发守卫；`needs_input` → INPUT_REQUIRED；`serve()` 启动 | `a2a/` 下 pb2 生成代码勿手改；未实现 RPC 返回 `UNIMPLEMENTED`，新增时同步更新此说明 |
 
 ## 6. 运行方式
 
@@ -142,7 +146,7 @@ python3 main.py --a2a --a2a-host 0.0.0.0 --a2a-port 50051
 > 真实供应商调用依赖本地 `llm_config.py`（已 gitignore）。未提供时，MockLLMClient 可跑通全部流程。
 > **偏好持久化**：REPL 中 `/effort` `/provider` 切换会写入 `~/.cockpit_agent/prefs.json`，下次启动自动恢复；命令行显式参数优先且不写回。优先级：命令行 > 持久化 > 代码默认。
 > **技能**：技能目录为 `~/.cockpit_agent/skills/`，每个含 `SKILL.md` 的子目录即一个技能；REPL 中 `/skill [name]` 查看或显式加载，`/reload` 重新发现技能并刷新 System Prompt。
-> **A2A 模式**：`--a2a` 启动 gRPC 服务器（insecure，无认证，仅供内网/开发环境）；`context_id` 相同的请求共享同一对话上下文，最多同时维护 50 个上下文（LRU 淘汰）；需本地 `llm_config.py` 提供真实供应商配置。
+> **A2A 模式**：`--a2a` 启动 gRPC 服务器（insecure，无认证，仅供内网/开发环境）；`context_id` 相同的请求共享同一对话上下文，最多同时维护 50 个上下文（LRU 淘汰）；需本地 `llm_config.py` 提供真实供应商配置。歧义指令可触发 `request_user_input` 澄清（任务转 `INPUT_REQUIRED`，用 `task_id` 续接）。
 
 ## 7. 测试约定
 
