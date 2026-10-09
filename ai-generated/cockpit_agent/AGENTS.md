@@ -32,6 +32,7 @@ cockpit_agent/
 │   └── a2a_pb2_grpc.py    # A2AService stub/servicer（勿手改，重新生成）
 ├── a2a_agent.py           # A2A 适配层：TaskStore（context_id→CockpitAgent LRU 管理）+ 消息转换工具
 ├── a2a_server.py          # A2A gRPC 服务器：A2AServiceServicer 实现 + serve() 启动
+├── a2a_client.py          # A2A gRPC 交互式客户端：流式多轮对话 + INPUT_REQUIRED 自动续接
 ├── main.py                # 入口：argparse 解析 --effort/--provider/--interactive/--a2a，跑演示多轮对话
 ├── cockpit_agent.py       # CockpitAgent：核心对话编排（chat / chat_stream / _trim_history / reload_skills）
 ├── llm_client.py          # MockLLMClient（离线跑通）+ OpenAICompatibleLLM（真实接口/流式）
@@ -121,6 +122,7 @@ A2AServiceServicer (a2a_server.py)
 | `prefs.py`           | 偏好持久化（`~/.cockpit_agent/prefs.json`）：`load_prefs`/`save_prefs`/`update_pref`/`resolve_pref`                                                              | 不依赖业务配置，校验由调用方传入 valid 集合，避免循环依赖             |
 | `a2a_agent.py`       | A2A 适配层：`TaskStore`（context_id→CockpitAgent，上限 50，LRU 淘汰，线程安全；busy 守卫 `try_acquire_context`/`release_context`）、`extract_text`/`extract_zone`/`build_agent_message` 消息转换 | context_id 相同复用同一 agent（共享对话历史）；`metadata["zone"]` 提取音区，缺省 front_left |
 | `a2a_server.py`      | A2A gRPC 服务器：`A2AServiceServicer` 实现 `GetExtendedAgentCard`/`SendMessage`/`SendStreamingMessage`/`GetTask`/`CancelTask`；task_id/context_id 解析；busy 并发守卫；`needs_input` → INPUT_REQUIRED；`serve()` 启动 | `a2a/` 下 pb2 生成代码勿手改；未实现 RPC 返回 `UNIMPLEMENTED`，新增时同步更新此说明 |
+| `a2a_client.py`      | A2A gRPC 交互式客户端：`A2AClient` 流式发送、实时打印 Task/status_update/artifact_update 事件；`A2AClientSession` 管理 context_id 与 INPUT_REQUIRED 自动续接（下一轮带 task_id） | 纯 gRPC 客户端，不依赖 `llm_config.py`；命令 `/exit`/`/clear`/`/zone`/`/help` |
 
 ## 6. 运行方式
 
@@ -141,6 +143,10 @@ python3 main.py -i
 # A2A gRPC 服务器模式（接收外部 Agent 请求，默认监听 0.0.0.0:50051）
 python3 main.py --a2a
 python3 main.py --a2a --a2a-host 0.0.0.0 --a2a-port 50051
+
+# A2A gRPC 交互式客户端（连本地服务器，流式多轮对话 + INPUT_REQUIRED 自动续接）
+python3 a2a_client.py
+python3 a2a_client.py --host 127.0.0.1 --port 50051
 ```
 
 > 真实供应商调用依赖本地 `llm_config.py`（已 gitignore）。未提供时，MockLLMClient 可跑通全部流程。
