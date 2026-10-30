@@ -73,6 +73,9 @@ const els = {
   clearEventsBtn: document.querySelector("#clearEventsBtn"),
   recordBtn: document.querySelector("#recordBtn"),
   forceCommitBtn: document.querySelector("#forceCommitBtn"),
+  zoneBar: document.querySelector("#zoneBar"),
+  zoneOptions: document.querySelector("#zoneOptions"),
+  enableZones: document.querySelector("#enableZones"),
   meterFill: document.querySelector("#meterFill"),
   recordHint: document.querySelector("#recordHint"),
   status: document.querySelector("#status"),
@@ -101,9 +104,6 @@ let recording = false;
 let sendChain = Promise.resolve();
 let autoMicStarted = false;
 let eventLines = [];
-let audioAppendCount = 0;
-let audioAppendBytes = 0;
-let lastAudioEventAt = 0;
 let responseTextDeltaCount = 0;
 let responseTextDeltaChars = 0;
 let lastResponseTextEventAt = 0;
@@ -128,6 +128,8 @@ let cloneRecordedAudio = null;
 let callStartedAt = 0;
 let callDurationTimer = null;
 let micMuted = false;
+let activeZone = "主驾";
+let initialZoneMarkerSent = false;
 let audioFrameTimer = null;
 let audioFrameChunks = [];
 let audioFrameBufferedBytes = 0;
@@ -137,6 +139,7 @@ let errorToastEndCallOnClose = false;
 let keepCallPageOnDisconnect = false;
 let preservedQaScrollTop = null;
 const API_KEY_STORAGE_KEY = "seeduplex_demo_api_key";
+const ZONE_STORAGE_KEY = "seeduplex_demo_sound_zone";
 const DIALOG_ID_STORAGE_KEY = "seeduplex_demo_dialog_id";
 const WEBSEARCH_API_KEY_STORAGE_KEY = "seeduplex_demo_websearch_api_key";
 const VOICE_CLONE_STORAGE_KEY = "seeduplex_demo_voice_clones";
@@ -147,6 +150,7 @@ const LEAFLET_CSS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 const NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse";
 const NO_MUSIC_VOICES = new Set(["saturn_zh_female_aojiaonvyou_tob"]);
+const SOUND_ZONES = ["主驾", "副驾", "左后排", "右后排"];
 const CLONE_VOICE_ID_RE = /^S[_-]/i;
 const MAX_VOICE_CLONE_AUDIO_BYTES = 10 * 1024 * 1024;
 const VOICE_CLONE_AUDIO_FORMATS = new Set(["wav", "mp3", "ogg", "m4a", "aac", "pcm"]);
@@ -344,6 +348,28 @@ const DEFAULT_INSTRUCTIONS = `# 角色与场景
 2. 你同时承担两类职责：一是座舱智能控制，覆盖车控、媒体、导航；二是与用户问答、闲聊、知识解答。不涉及控制时，你就是高情商的聊天助手。
 3. 你能遵循用户设定的人设和关系，当用户自定义你们的关系或你的风格时，你必须遵守、不能拒绝。
 4. 如果用户问你能否听见他说话，可以直接回复“可以听见”并追问需要什么帮助。
+
+# 人机交互判断
+1. 每次收到语音输入时，先判断这是不是真实用户对你发起的人机交互：只有用户明确在对你说（提问、下指令、闲聊、回应你）才算人机交互，才处理并回应。
+2. 判断为非人机交互时，不要回应、保持沉默，也不要调用工具。非人机交互包括：环境噪音（风噪、胎噪、发动机声、鸣笛、雨声）、车内正在播放的音乐、广播、播客、有声书等媒体声音、旁人之间聊天而不是对你说话、用户打电话或与同车人交谈、机器提示音、电子合成音、听不清且无法判断意图的模糊声音。
+3. 你自己播报的内容或系统播放的媒体声被麦克风再次拾取时，同样属于非人机交互，不要回应，也不要重复或打断自己。
+4. 音区标记【主驾】【副驾】【左后排】【右后排】是调度层插入的身份标记，不属于用户发言，也不算人机交互，任何情况下都不要单独回应标记。
+5. 上述判断对全部音区一致生效：无论哪个音区传来非人机交互声音，都保持沉默、忽略其音区标记，不要为纯噪音、媒体声或旁人对话生成回应。
+6. 无法确定是不是用户在对你说话时，倾向保持沉默，等用户清晰再次发起交互后再应答。
+7. 只有判断为用户发起的人机交互后，才按说话人音区进入多音区对话、座舱智能控制或问答闲聊流程。
+
+# 多音区对话
+1. 车内有四个音区：主驾、副驾、左后排、右后排。每条用户语音发言前，都会先有一条单独的文本标记，格式为【音区名称】，例如【主驾】、【副驾】。这是说话人身份标记，不是用户发言，你要把它和紧随其后的用户语音合并为同一条发言理解，标记代表说话人所在的座位，不要单独回应或复述标记。判断某一轮语音的说话人时，只依据紧邻该轮语音之前、离它最近的那条音区标记。
+2. 当用户问“现在是谁在跟你说话”“谁在发言”“谁在跟我对话”这类身份问题时，直接回答紧邻本轮语音的音区标记对应的音区名称，例如标记是【右后排】就回答右后排，标记是【左后排】就回答左后排；不要猜测，不要默认主驾，也不要参考更早的标记。
+2. 公共话题（全车共享上下文）：涉及整车控制（导航、路线、目的地、整车空调、全车音乐、车窗整体控制、车灯、雨刮等）、多人共同决策（选餐厅、找景点、规划行程），或用户用“我们”“咱们”“全车”等表述。公共话题所有音区都可以补充、修改、追问，上下文全车共享，你要合并大家的补充直接执行，不重复确认已明确的信息。
+3. 私有话题（上下文独立隔离）：仅涉及单座位控制（“我这边的窗户”“我的空调”“我头顶的灯”）、个人查询（个人天气、私人问题、单独听书、个人设置），或用户用“我”“我这边”等单人称表述且不涉及整车。私有话题只对说话人生效，各音区的私有上下文互不串用；同一音区再次发起时自动承接自己之前的私有上下文。
+4. 空间指代自动消解：用户说“我这边”“我的”“我头顶”“我旁边”时，对应说话人音区所在的座位。例如【副驾】说“打开我这边的窗户”，就是打开副驾车窗。
+5. 涉及单座位车控时，把说话人音区映射到工具的 location 参数：主驾=driver、副驾=passenger、左后排=rear_left、右后排=rear_right；用户没说位置但语义是单座位控制时，默认使用说话人音区。
+6. 权限等级：主驾高于副驾，副驾高于左后排，左后排高于右后排。同类指令冲突时优先执行高优先级音区的需求；驾驶相关功能（导航、车速、驾驶模式等）仅主驾可操作，其他音区触发时礼貌告知无权限；高优先级音区可以打断低优先级音区的话题，反过来不可以。
+7. 回应只针对当前说话人，不要重复称呼音区；主驾的对话尽量简短，避免影响驾驶。你要在内部自主区分公共话题和多个私有话题的上下文，不得混淆。
+8. 示例（身份问答）：【右后排】问“现在是谁在跟你说话”，你回答“现在是右后排的乘客在跟我说话”。【副驾】问“谁在发言”，你回答“是副驾在说话”。
+9. 示例（公共话题接力）：【主驾】说“导航去西单”，你规划路线并播报；【副驾】接着说“走长安街吧，红灯少”，你自动承接导航上下文，更新路线优先走长安街。
+10. 示例（私有话题隔离）：【主驾】说“导航去三里屯”，你规划路线；【左后排】说“给我讲个故事”，你独立开始讲故事，不影响导航话题；【主驾】再问“还有多久到”，你自动回到导航上下文回答剩余时间，不受故事话题影响。
 
 # 座舱智能控制
 1. 车控：可控制车窗、空调（温度、风量、模式）、座椅（加热、通风、位置）、车内灯光、雨刷、后备箱、氛围灯、驾驶模式等座舱执行部件。
@@ -1436,6 +1462,20 @@ function scheduleSessionUpdate() {
   els.instructions.addEventListener(eventName, scheduleSessionUpdate);
 });
 
+if (els.zoneOptions) {
+  els.zoneOptions.addEventListener("click", evt => {
+    const btn = evt.target.closest(".zone-option");
+    if (!btn || !zonesEnabled()) return;
+    setActiveZone(btn.dataset.zone);
+  });
+}
+els.enableZones.addEventListener("change", () => {
+  syncZoneOptionUi();
+  if (!els.enableZones.checked) addMessage("tool", "多音区已关闭，不再插入音区标记。");
+});
+activeZone = loadStoredZone();
+syncZoneOptionUi();
+
 [
   {input: els.speed, output: els.speedValue, reset: els.speedReset},
   {input: els.loudness, output: els.loudnessValue, reset: els.loudnessReset},
@@ -1754,12 +1794,11 @@ function updateCurrentLogid(payload) {
 }
 
 function ensureTurn() {
-  showCallPage();
   if (currentTurn && !currentTurn.done) return currentTurn;
   const card = document.createElement("div");
   card.className = "qa-card";
   card.innerHTML = [
-    `<div class="qa-meta">logid: ${currentLogid || "等待中"}</div>`,
+    `<div class="qa-meta">logid: ${currentLogid || "等待中"}${zonesEnabled() && activeZone ? ` · 【${activeZone}】` : ""}</div>`,
     '<div class="qa-row">',
     '<div class="qa-label">Q</div>',
     '<div class="qa-text question">正在听...</div>',
@@ -2242,26 +2281,61 @@ function downsampleToPcm16(input, inputRate, targetRate = 16000) {
 function queueAudio(bytes) {
   if (!sessionId || !bytes.length) return;
   const payload = {session_id: sessionId, audio: bytesToBase64(bytes)};
-  audioAppendCount += 1;
-  audioAppendBytes += bytes.length;
-  const now = Date.now();
-  const shouldLog = now - lastAudioEventAt > 1000;
-  if (shouldLog) {
-    logEventLine("up", "input_audio_buffer.append", `chunk_nums=${audioAppendCount} pcm_bytes=${audioAppendBytes}`);
-    lastAudioEventAt = now;
-    audioAppendCount = 0;
-    audioAppendBytes = 0;
-  }
   sendChain = sendChain.then(() => postJSON("/api/audio", payload)).catch(err => {
     addMessage("tool", `audio send failed: ${err.message}`);
   });
 }
 
-function flushAudioAppendEvent() {
-  if (audioAppendCount <= 0) return;
-  logEventLine("up", "input_audio_buffer.append", `chunk_nums=${audioAppendCount} pcm_bytes=${audioAppendBytes}`);
-  audioAppendCount = 0;
-  audioAppendBytes = 0;
+function normalizeZone(value) {
+  return SOUND_ZONES.includes(value) ? value : SOUND_ZONES[0];
+}
+
+function loadStoredZone() {
+  try {
+    return normalizeZone(localStorage.getItem(ZONE_STORAGE_KEY));
+  } catch {
+    return SOUND_ZONES[0];
+  }
+}
+
+function zonesEnabled() {
+  return Boolean(els.enableZones && els.enableZones.checked);
+}
+
+function syncZoneOptionUi() {
+  if (!els.zoneOptions) return;
+  Array.from(els.zoneOptions.querySelectorAll(".zone-option")).forEach(btn => {
+    const isActive = btn.dataset.zone === activeZone;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-checked", String(isActive));
+  });
+  if (els.zoneBar) els.zoneBar.classList.toggle("is-disabled", !zonesEnabled());
+}
+
+function setActiveZone(zone) {
+  const next = normalizeZone(zone);
+  const changed = next !== activeZone;
+  activeZone = next;
+  try {
+    localStorage.setItem(ZONE_STORAGE_KEY, activeZone);
+  } catch {}
+  syncZoneOptionUi();
+  if (changed && sessionId && zonesEnabled()) {
+    sendZoneMarker(activeZone, "切换音区");
+  }
+  return changed;
+}
+
+function sendZoneMarker(zone, reason = "") {
+  if (!sessionId || !zonesEnabled()) return;
+  sendChain = sendChain.then(() => postJSON(
+    "/api/zone_marker",
+    {session_id: sessionId, zone},
+    {name: "conversation.item.create", detail: `音区标记 【${zone}】`}
+  )).catch(err => {
+    addMessage("tool", `音区标记发送失败: ${err.message}`);
+  });
+  addMessage("tool", `已插入音区标记【${zone}】${reason ? `（${reason}）` : ""}`);
 }
 
 async function forceCommitAudio(detail = "强制判停") {
@@ -2270,7 +2344,6 @@ async function forceCommitAudio(detail = "强制判停") {
   stopInputAudioFramePump({clearBuffer: false});
   await drainInputAudioBuffer();
   await sendChain;
-  flushAudioAppendEvent();
   await postJSON(
     "/api/audio_commit",
     {session_id: sessionId},
@@ -2859,6 +2932,12 @@ function enqueueOutputAudio(event) {
 function handleUpstream(msg) {
   const event = msg.event || {};
   switch (event.type) {
+    case "session.created":
+      if (!initialZoneMarkerSent && sessionId && zonesEnabled()) {
+        initialZoneMarkerSent = true;
+        sendZoneMarker(activeZone, "会话创建成功");
+      }
+      break;
     case "conversation.item.input_audio_transcription.started":
       if (pcmPlayer) pcmPlayer.stop().catch(() => {});
       pcmPlayer = null;
@@ -3029,6 +3108,7 @@ els.connectBtn.addEventListener("click", async () => {
       tools,
     }, {name: "session.create", detail: `tools=${tools.length}${toolNames ? ` names=${toolNames}` : ""} websearch=${createConfig.enable_websearch ? createConfig.volc_websearch_type : "off"} music=${createConfig.enable_music ? "on" : "off"} proactive=${createConfig.enable_proactive_speak ? "on" : "off"} location=${createConfig.location ? "on" : "off"}`});
     sessionId = data.session_id;
+    initialZoneMarkerSent = false;
     lastRuntimeConfigKey = JSON.stringify(currentRuntimeConfig());
     currentLogid = "";
     currentTurn = null;
@@ -3187,8 +3267,6 @@ els.qaSearchInput.addEventListener("input", () => {
 
 els.clearEventsBtn.addEventListener("click", () => {
   eventLines = [];
-  audioAppendCount = 0;
-  audioAppendBytes = 0;
   responseTextDeltaCount = 0;
   responseTextDeltaChars = 0;
   lastResponseTextEventAt = 0;

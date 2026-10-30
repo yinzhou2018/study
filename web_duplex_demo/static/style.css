@@ -614,7 +614,7 @@ body {
   min-height: 0;
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto auto;
   gap: 14px;
   padding: 18px;
   overflow: hidden;
@@ -642,6 +642,7 @@ body {
 .app.call-ended .call-controls,
 .app.call-ended .force-commit-tip,
 .app.call-ended .call-meter,
+.app.call-ended .zone-bar,
 .app.call-ended .call-disclaimer {
   display: none;
 }
@@ -800,7 +801,7 @@ body {
 
 .call-qa-panel {
   grid-column: 2;
-  grid-row: 1 / 4;
+  grid-row: 1 / 6;
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -817,9 +818,66 @@ body {
   padding: 14px;
 }
 
-.call-controls {
+.zone-bar {
   grid-column: 1;
   grid-row: 2;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 222, 231, .8);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.zone-bar-label {
+  color: #7c8798;
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+
+.zone-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.zone-option {
+  padding: 7px 4px;
+  border: 1px solid rgba(217, 222, 231, .92);
+  border-radius: 9px;
+  background: rgba(250, 251, 255, .9);
+  color: #5a6472;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.zone-option:hover {
+  background: rgba(98, 85, 255, .08);
+  color: #3d3d46;
+}
+
+.zone-option.is-active {
+  border-color: rgba(98, 85, 255, .55);
+  background: rgba(98, 85, 255, .14);
+  color: #3d2fb8;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(98, 85, 255, .18);
+}
+
+.zone-bar.is-disabled .zone-option {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.zone-bar.is-disabled .zone-option.is-active {
+  opacity: .8;
+}
+
+.call-controls {
+  grid-column: 1;
+  grid-row: 3;
   min-height: 76px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -889,7 +947,7 @@ body {
 
 .force-commit-tip {
   grid-column: 1;
-  grid-row: 3;
+  grid-row: 4;
   margin: -4px 0 0;
   color: #b45309;
   font-size: 12px;
@@ -899,7 +957,7 @@ body {
 
 .call-meter {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 5;
   width: min(420px, 100%);
   justify-self: center;
 }
@@ -2009,7 +2067,7 @@ pre {
 
   .call-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(180px, 1fr) auto auto auto;
+    grid-template-rows: auto minmax(180px, 1fr) auto auto auto auto;
     gap: 14px;
     padding: 34px 18px 22px;
   }
@@ -2017,6 +2075,7 @@ pre {
   .call-profile,
   .call-qa-panel,
   .call-controls,
+  .zone-bar,
   .call-meter {
     grid-column: 1;
   }
@@ -2029,17 +2088,23 @@ pre {
     grid-row: 2;
   }
 
-  .call-controls {
+  .zone-bar {
     grid-row: 3;
+    width: min(420px, 100%);
+    justify-self: center;
+  }
+
+  .call-controls {
+    grid-row: 4;
   }
 
   .call-meter {
-    grid-row: 5;
+    grid-row: 6;
   }
 
   .force-commit-tip {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 5;
   }
 
   .call-profile-visual {

@@ -95,6 +95,15 @@
           <div id="messages" class="messages"></div>
         </div>
 
+        <div class="zone-bar" id="zoneBar" role="radiogroup" aria-label="当前说话音区">
+          <span class="zone-bar-label">说话音区</span>
+          <div class="zone-options" id="zoneOptions">
+            <button type="button" class="zone-option is-active" data-zone="主驾" role="radio" aria-checked="true">主驾</button>
+            <button type="button" class="zone-option" data-zone="副驾" role="radio" aria-checked="false">副驾</button>
+            <button type="button" class="zone-option" data-zone="左后排" role="radio" aria-checked="false">左后排</button>
+            <button type="button" class="zone-option" data-zone="右后排" role="radio" aria-checked="false">右后排</button>
+          </div>
+        </div>
         <div class="call-controls">
           <button id="recordBtn" class="call-control-btn mic-on" type="button" disabled aria-label="关闭麦克风" title="关闭麦克风">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -361,12 +370,16 @@
         <button id="connectBtn" type="button" hidden>连接</button>
         <button id="closeBtn" type="button" hidden disabled>断开</button>
         <label class="check">
-          <input id="enableTools" type="checkbox">
-          <span>启用本地文件 FC</span>
+          <input id="enableTools" type="checkbox" checked>
+          <span>启用工具调用</span>
         </label>
         <label class="check">
-          <input id="enableWebSearch" type="checkbox" checked>
+          <input id="enableWebSearch" type="checkbox">
           <span>联网</span>
+        </label>
+        <label class="check">
+          <input id="enableZones" type="checkbox" checked>
+          <span>多音区</span>
         </label>
         <label class="check">
           <input id="enableMusic" type="checkbox" checked>
@@ -407,6 +420,6 @@
       <p id="errorToastMessage"></p>
     </div>
   </div>
-  <script src="/app.js?v=20260807-session-id-order"></script>
+  <script src="/app.js?v=20260808-multizone3"></script>
 </body>
 </html>
