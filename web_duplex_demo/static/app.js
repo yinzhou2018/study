@@ -70,6 +70,15 @@ const els = {
   clearMessagesBtn: document.querySelector("#clearMessagesBtn"),
   qaSearchInput: document.querySelector("#qaSearchInput"),
   qaSearchStatus: document.querySelector("#qaSearchStatus"),
+  showContextBtn: document.querySelector("#showContextBtn"),
+  contextModal: document.querySelector("#contextModal"),
+  ctxCount: document.querySelector("#ctxCount"),
+  ctxRefreshBtn: document.querySelector("#ctxRefreshBtn"),
+  ctxCloseBtn: document.querySelector("#ctxCloseBtn"),
+  ctxZone: document.querySelector("#ctxZone"),
+  ctxZoneNote: document.querySelector("#ctxZoneNote"),
+  ctxUpstreamHint: document.querySelector("#ctxUpstreamHint"),
+  ctxItems: document.querySelector("#ctxItems"),
   clearEventsBtn: document.querySelector("#clearEventsBtn"),
   recordBtn: document.querySelector("#recordBtn"),
   forceCommitBtn: document.querySelector("#forceCommitBtn"),
@@ -129,7 +138,6 @@ let callStartedAt = 0;
 let callDurationTimer = null;
 let micMuted = false;
 let activeZone = "主驾";
-let initialZoneMarkerSent = false;
 let audioFrameTimer = null;
 let audioFrameChunks = [];
 let audioFrameBufferedBytes = 0;
@@ -353,23 +361,23 @@ const DEFAULT_INSTRUCTIONS = `# 角色与场景
 1. 每次收到语音输入时，先判断这是不是真实用户对你发起的人机交互：只有用户明确在对你说（提问、下指令、闲聊、回应你）才算人机交互，才处理并回应。
 2. 判断为非人机交互时，不要回应、保持沉默，也不要调用工具。非人机交互包括：环境噪音（风噪、胎噪、发动机声、鸣笛、雨声）、车内正在播放的音乐、广播、播客、有声书等媒体声音、旁人之间聊天而不是对你说话、用户打电话或与同车人交谈、机器提示音、电子合成音、听不清且无法判断意图的模糊声音。
 3. 你自己播报的内容或系统播放的媒体声被麦克风再次拾取时，同样属于非人机交互，不要回应，也不要重复或打断自己。
-4. 音区标记【主驾】【副驾】【左后排】【右后排】是调度层插入的身份标记，不属于用户发言，也不算人机交互，任何情况下都不要单独回应标记。
+4. 用户发言文本开头的音区标记【主驾】【副驾】【左后排】【右后排】是调度层附加的说话人身份标记，不属于用户发言内容，也不算人机交互，任何情况下都不要单独回应标记。
 5. 上述判断对全部音区一致生效：无论哪个音区传来非人机交互声音，都保持沉默、忽略其音区标记，不要为纯噪音、媒体声或旁人对话生成回应。
 6. 无法确定是不是用户在对你说话时，倾向保持沉默，等用户清晰再次发起交互后再应答。
 7. 只有判断为用户发起的人机交互后，才按说话人音区进入多音区对话、座舱智能控制或问答闲聊流程。
 
 # 多音区对话
-1. 车内有四个音区：主驾、副驾、左后排、右后排。每条用户语音发言前，都会先有一条单独的文本标记，格式为【音区名称】，例如【主驾】、【副驾】。这是说话人身份标记，不是用户发言，你要把它和紧随其后的用户语音合并为同一条发言理解，标记代表说话人所在的座位，不要单独回应或复述标记。判断某一轮语音的说话人时，只依据紧邻该轮语音之前、离它最近的那条音区标记。
-2. 当用户问“现在是谁在跟你说话”“谁在发言”“谁在跟我对话”这类身份问题时，直接回答紧邻本轮语音的音区标记对应的音区名称，例如标记是【右后排】就回答右后排，标记是【左后排】就回答左后排；不要猜测，不要默认主驾，也不要参考更早的标记。
-2. 公共话题（全车共享上下文）：涉及整车控制（导航、路线、目的地、整车空调、全车音乐、车窗整体控制、车灯、雨刮等）、多人共同决策（选餐厅、找景点、规划行程），或用户用“我们”“咱们”“全车”等表述。公共话题所有音区都可以补充、修改、追问，上下文全车共享，你要合并大家的补充直接执行，不重复确认已明确的信息。
-3. 私有话题（上下文独立隔离）：仅涉及单座位控制（“我这边的窗户”“我的空调”“我头顶的灯”）、个人查询（个人天气、私人问题、单独听书、个人设置），或用户用“我”“我这边”等单人称表述且不涉及整车。私有话题只对说话人生效，各音区的私有上下文互不串用；同一音区再次发起时自动承接自己之前的私有上下文。
-4. 空间指代自动消解：用户说“我这边”“我的”“我头顶”“我旁边”时，对应说话人音区所在的座位。例如【副驾】说“打开我这边的窗户”，就是打开副驾车窗。
-5. 涉及单座位车控时，把说话人音区映射到工具的 location 参数：主驾=driver、副驾=passenger、左后排=rear_left、右后排=rear_right；用户没说位置但语义是单座位控制时，默认使用说话人音区。
-6. 权限等级：主驾高于副驾，副驾高于左后排，左后排高于右后排。同类指令冲突时优先执行高优先级音区的需求；驾驶相关功能（导航、车速、驾驶模式等）仅主驾可操作，其他音区触发时礼貌告知无权限；高优先级音区可以打断低优先级音区的话题，反过来不可以。
-7. 回应只针对当前说话人，不要重复称呼音区；主驾的对话尽量简短，避免影响驾驶。你要在内部自主区分公共话题和多个私有话题的上下文，不得混淆。
-8. 示例（身份问答）：【右后排】问“现在是谁在跟你说话”，你回答“现在是右后排的乘客在跟我说话”。【副驾】问“谁在发言”，你回答“是副驾在说话”。
-9. 示例（公共话题接力）：【主驾】说“导航去西单”，你规划路线并播报；【副驾】接着说“走长安街吧，红灯少”，你自动承接导航上下文，更新路线优先走长安街。
-10. 示例（私有话题隔离）：【主驾】说“导航去三里屯”，你规划路线；【左后排】说“给我讲个故事”，你独立开始讲故事，不影响导航话题；【主驾】再问“还有多久到”，你自动回到导航上下文回答剩余时间，不受故事话题影响。
+1. 车内有四个音区：主驾、副驾、左后排、右后排。每条用户发言的文本以【音区名称】开头，例如【主驾】打开空调。开头的音区标记是调度层附加的说话人身份标记，不属于用户发言内容，理解发言时忽略标记文字本身，但要用它判断这条发言来自哪个座位，不要单独回应或复述标记。判断某一轮语音的说话人时，只依据该轮发言文本开头的音区标记。系统提示末尾的“当前发言音区”一节由调度系统自动更新，代表当前正在说话的音区。
+2. 当用户问“现在是谁在跟你说话”“谁在发言”“谁在跟我对话”这类身份问题时，直接回答本轮发言文本开头的音区标记对应的音区名称，例如标记是【右后排】就回答右后排，标记是【左后排】就回答左后排；不要猜测，不要默认主驾，也不要参考更早的标记。
+3. 公共话题（全车共享上下文）：涉及整车控制（导航、路线、目的地、整车空调、全车音乐、车窗整体控制、车灯、雨刮等）、多人共同决策（选餐厅、找景点、规划行程），或用户用“我们”“咱们”“全车”等表述。公共话题所有音区都可以补充、修改、追问，上下文全车共享，你要合并大家的补充直接执行，不重复确认已明确的信息。
+4. 私有话题（上下文独立隔离）：仅涉及单座位控制（“我这边的窗户”“我的空调”“我头顶的灯”）、个人查询（个人天气、私人问题、单独听书、个人设置），或用户用“我”“我这边”等单人称表述且不涉及整车。私有话题只对说话人生效，各音区的私有上下文互不串用；同一音区再次发起时自动承接自己之前的私有上下文。
+5. 空间指代自动消解：用户说“我这边”“我的”“我头顶”“我旁边”时，对应说话人音区所在的座位。例如【副驾】说“打开我这边的窗户”，就是打开副驾车窗。
+6. 涉及单座位车控时，把说话人音区映射到工具的 location 参数：主驾=driver、副驾=passenger、左后排=rear_left、右后排=rear_right；用户没说位置但语义是单座位控制时，默认使用说话人音区。
+7. 权限等级：主驾高于副驾，副驾高于左后排，左后排高于右后排。同类指令冲突时优先执行高优先级音区的需求；驾驶相关功能（导航、车速、驾驶模式等）仅主驾可操作，其他音区触发时礼貌告知无权限；高优先级音区可以打断低优先级音区的话题，反过来不可以。
+8. 回应只针对当前说话人，不要重复称呼音区；主驾的对话尽量简短，避免影响驾驶。你要在内部自主区分公共话题和多个私有话题的上下文，不得混淆。
+9. 示例（身份问答）：【右后排】问“现在是谁在跟你说话”，你回答“现在是右后排的乘客在跟我说话”。【副驾】问“谁在发言”，你回答“是副驾在说话”。
+10. 示例（公共话题接力）：【主驾】说“导航去西单”，你规划路线并播报；【副驾】接着说“走长安街吧，红灯少”，你自动承接导航上下文，更新路线优先走长安街。
+11. 示例（私有话题隔离）：【主驾】说“导航去三里屯”，你规划路线；【左后排】说“给我讲个故事”，你独立开始讲故事，不影响导航话题；【主驾】再问“还有多久到”，你自动回到导航上下文回答剩余时间，不受故事话题影响。
 
 # 座舱智能控制
 1. 车控：可控制车窗、空调（温度、风量、模式）、座椅（加热、通风、位置）、车内灯光、雨刷、后备箱、氛围灯、驾驶模式等座舱执行部件。
@@ -382,7 +390,7 @@ const DEFAULT_INSTRUCTIONS = `# 角色与场景
 
 # 问答与闲聊
 1. 用户的问题不涉及座舱控制时，进入问答与闲聊模式，像朋友一样自然交流，回答准确、有温度。
-2. 联网能力可用时，对时效性、事实性问题（天气、新闻、赛事、股价、周边信息等）优先联⺼搜索后再回答。
+2. 联网能力可用时，对时效性、事实性问题（天气、新闻、赛事、股价、周边信息等）优先联网搜索后再回答。
 3. 可以聊天、讲趣闻、做情绪安抚、解答常识，但不要在闲聊中编造不存在的政策、法规或专业结论。
 
 # 对话节奏
@@ -1423,6 +1431,7 @@ function currentCreateConfig() {
   return {
     ...currentRuntimeConfig(),
     dialog_id: currentDialogId(),
+    zone: zonesEnabled() ? activeZone : "",
     enable_websearch: els.enableWebSearch.checked,
     volc_websearch_type: els.webSearchType.value,
     volc_websearch_api_key: webSearchTypeNeedsKey() ? els.webSearchApiKey.value.trim() : "",
@@ -1471,7 +1480,12 @@ if (els.zoneOptions) {
 }
 els.enableZones.addEventListener("change", () => {
   syncZoneOptionUi();
-  if (!els.enableZones.checked) addMessage("tool", "多音区已关闭，不再插入音区标记。");
+  if (els.enableZones.checked) {
+    if (sessionId) sendZoneMarker(activeZone, "多音区已开启");
+  } else {
+    addMessage("tool", "多音区已关闭，不再维护当前发言音区。");
+    clearZoneMarker();
+  }
 });
 activeZone = loadStoredZone();
 syncZoneOptionUi();
@@ -1506,6 +1520,7 @@ function setConnected(ok, {keepCallPage = false} = {}) {
   els.closeBtn.disabled = !ok;
   els.recordBtn.disabled = !ok;
   els.forceCommitBtn.disabled = !ok;
+  els.showContextBtn.disabled = !ok;
   els.callCloseBtn.disabled = false;
   if (ok) {
     showCallPage();
@@ -2331,11 +2346,23 @@ function sendZoneMarker(zone, reason = "") {
   sendChain = sendChain.then(() => postJSON(
     "/api/zone_marker",
     {session_id: sessionId, zone},
-    {name: "conversation.item.create", detail: `音区标记 【${zone}】`}
+    {name: "session.update", detail: `当前发言音区：${zone}`}
   )).catch(err => {
-    addMessage("tool", `音区标记发送失败: ${err.message}`);
+    addMessage("tool", `音区更新失败: ${err.message}`);
   });
-  addMessage("tool", `已插入音区标记【${zone}】${reason ? `（${reason}）` : ""}`);
+  addMessage("tool", `已设置当前发言音区为【${zone}】${reason ? `（${reason}）` : ""}`);
+}
+
+function clearZoneMarker() {
+  if (!sessionId) return;
+  sendChain = sendChain.then(() => postJSON(
+    "/api/zone_marker",
+    {session_id: sessionId, zone: ""},
+    {name: "session.update", detail: "清除当前发言音区"}
+  )).catch(err => {
+    addMessage("tool", `音区清除失败: ${err.message}`);
+  });
+  addMessage("tool", "已清除当前发言音区，后续不再为转录条目打音区标记。");
 }
 
 async function forceCommitAudio(detail = "强制判停") {
@@ -2933,10 +2960,7 @@ function handleUpstream(msg) {
   const event = msg.event || {};
   switch (event.type) {
     case "session.created":
-      if (!initialZoneMarkerSent && sessionId && zonesEnabled()) {
-        initialZoneMarkerSent = true;
-        sendZoneMarker(activeZone, "会话创建成功");
-      }
+      // 当前发言音区已随 session.create 的 instructions 下发，无需再补发。
       break;
     case "conversation.item.input_audio_transcription.started":
       if (pcmPlayer) pcmPlayer.stop().catch(() => {});
@@ -3108,7 +3132,6 @@ els.connectBtn.addEventListener("click", async () => {
       tools,
     }, {name: "session.create", detail: `tools=${tools.length}${toolNames ? ` names=${toolNames}` : ""} websearch=${createConfig.enable_websearch ? createConfig.volc_websearch_type : "off"} music=${createConfig.enable_music ? "on" : "off"} proactive=${createConfig.enable_proactive_speak ? "on" : "off"} location=${createConfig.location ? "on" : "off"}`});
     sessionId = data.session_id;
-    initialZoneMarkerSent = false;
     lastRuntimeConfigKey = JSON.stringify(currentRuntimeConfig());
     currentLogid = "";
     currentTurn = null;
@@ -3145,6 +3168,10 @@ els.connectBtn.addEventListener("click", async () => {
         addMessage("tool", `session.update diff:\n${JSON.stringify(msg.diff, null, 2)}`);
       }
       if (msg.type === "upstream.event") handleUpstream(msg);
+      if (msg.type === "upstream.event" && (msg.event || {}).type === "conversation.item.retrieved") {
+        handleContextRetrieved(msg.event);
+      }
+      if (isContextLiveEvent(msg)) scheduleContextLiveRefresh();
       if (msg.type === "upstream.event" && (msg.event || {}).type === "session.closed") {
         addMessage("tool", "session.closed ack received");
       }
@@ -3252,6 +3279,225 @@ els.forceCommitBtn.addEventListener("click", evt => {
     showErrorToast("强制判停失败", err);
   });
 });
+
+// ---- 历史上下文弹窗 ----
+
+let ctxFetching = false;
+let ctxLiveRefreshTimer = 0;
+let ctxKnownItemIds = [];
+let ctxRetrievedAt = 0;
+let ctxRetrieveTimeoutTimer = 0;
+let ctxLastRetrieveEventId = "";
+
+els.showContextBtn.addEventListener("click", () => {
+  if (!sessionId) return;
+  openContextModal();
+});
+
+els.ctxCloseBtn.addEventListener("click", closeContextModal);
+els.ctxRefreshBtn.addEventListener("click", () => refreshContext({retrieve: true}));
+els.contextModal.addEventListener("click", evt => {
+  if (evt.target === els.contextModal) closeContextModal();
+});
+window.addEventListener("keydown", evt => {
+  if (evt.key === "Escape" && !els.contextModal.hidden) closeContextModal();
+});
+
+function openContextModal() {
+  els.contextModal.hidden = false;
+  els.ctxItems.textContent = "向上游查询中…";
+  els.ctxCount.textContent = "";
+  refreshContext({retrieve: true});
+}
+
+function closeContextModal() {
+  els.contextModal.hidden = true;
+}
+
+async function fetchJSON(url) {
+  const resp = await fetch(url);
+  const data = await resp.json();
+  if (!resp.ok || data.ok === false) throw new Error(data.error || resp.statusText);
+  return data;
+}
+
+async function refreshContext({retrieve = true} = {}) {
+  if (!sessionId || ctxFetching || els.contextModal.hidden) return;
+  ctxFetching = true;
+  try {
+    const data = await fetchJSON(`/api/context?session_id=${encodeURIComponent(sessionId)}`);
+    ctxKnownItemIds = data.known_item_ids || [];
+    els.ctxZone.textContent = data.zone || "未设置";
+    els.ctxZoneNote.textContent = data.zone_active ? "（已写入 system prompt）" : "（多音区未启用）";
+    if (retrieve) {
+      els.ctxItems.textContent = "向上游查询中…";
+      els.ctxCount.textContent = "";
+      const result = await postJSON(
+        "/api/context_retrieve",
+        {session_id: sessionId},
+        {name: "conversation.item.retrieve", detail: `查询 ${ctxKnownItemIds.length} 条已知条目`}
+      );
+      ctxLastRetrieveEventId = result.event_id || "";
+      if (result.requested) {
+        els.ctxUpstreamHint.textContent = `已向上游查询 ${result.requested} 条已知条目，等待 conversation.item.retrieved 返回…`;
+        scheduleCtxRetrieveTimeout();
+      } else {
+        renderRetrievedItems([]);
+        els.ctxUpstreamHint.textContent = "暂无已知条目（还没有发言或工具调用）。";
+      }
+    }
+  } catch (err) {
+    els.ctxItems.textContent = `历史上下文查询失败: ${err.message}`;
+  } finally {
+    ctxFetching = false;
+  }
+}
+
+function scheduleCtxRetrieveTimeout() {
+  window.clearTimeout(ctxRetrieveTimeoutTimer);
+  const startedAt = Date.now();
+  ctxRetrieveTimeoutTimer = window.setTimeout(() => {
+    if (ctxRetrievedAt < startedAt && !els.contextModal.hidden) {
+      els.ctxItems.textContent = "上游 6 秒内未返回 conversation.item.retrieved，可点击刷新重试。";
+    }
+  }, 6000);
+}
+
+function renderRetrievedItems(items) {
+  els.ctxItems.textContent = "";
+  els.ctxCount.textContent = items.length ? `${items.length} 条` : "";
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "ctx-empty";
+    empty.textContent = "暂无历史上下文记录。";
+    els.ctxItems.appendChild(empty);
+    return;
+  }
+  orderContextItems(items).forEach(item => {
+    if (item && typeof item === "object") {
+      els.ctxItems.appendChild(buildContextItemRow(normalizeRetrievedItem(item)));
+    }
+  });
+}
+
+function normalizeRetrievedItem(item) {
+  return {
+    role: String(item.role || item.type || "unknown"),
+    text: extractContextItemText(item),
+    name: item.name || (typeof item.function === "string" ? item.function : null),
+    item_id: item.id || item.item_id || "",
+  };
+}
+
+function orderContextItems(items) {
+  // 优先用条目自带的时间戳；否则按已知 item id 的先后顺序（未知的排末尾，保持原相对顺序）。
+  const stamps = items.map(item => {
+    const value = item && (item.timestamp ?? item.ts);
+    const num = Number(value);
+    return value === undefined || value === null || value === "" ? NaN : num;
+  });
+  if (stamps.length && stamps.every(num => Number.isFinite(num))) {
+    return items
+      .map((item, index) => ({item, index, stamp: stamps[index]}))
+      .sort((a, b) => a.stamp - b.stamp || a.index - b.index)
+      .map(entry => entry.item);
+  }
+  const rank = new Map(ctxKnownItemIds.map((id, index) => [id, index]));
+  return items
+    .map((item, index) => ({item, index}))
+    .sort((a, b) => {
+      const ra = rank.get(a.item && a.item.id) ?? rank.get(a.item && a.item.item_id);
+      const rb = rank.get(b.item && b.item.id) ?? rank.get(b.item && b.item.item_id);
+      if (ra === undefined && rb === undefined) return a.index - b.index;
+      if (ra === undefined) return 1;
+      if (rb === undefined) return -1;
+      return ra - rb;
+    })
+    .map(entry => entry.item);
+}
+
+function buildContextItemRow(item) {
+  const row = document.createElement("div");
+  row.className = `ctx-item ctx-role-${ctxRoleKey(item.role)}`;
+  const badge = document.createElement("span");
+  badge.className = "ctx-role";
+  badge.textContent = ctxRoleLabel(item.role);
+  const main = document.createElement("div");
+  main.className = "ctx-item-main";
+  const text = document.createElement("div");
+  text.className = "ctx-item-text";
+  text.textContent = item.text || "";
+  main.appendChild(text);
+  if (item.name) {
+    const name = document.createElement("div");
+    name.className = "ctx-item-name";
+    name.textContent = `工具：${item.name}`;
+    main.appendChild(name);
+  }
+  if (item.item_id) {
+    const meta = document.createElement("div");
+    meta.className = "ctx-item-meta";
+    meta.textContent = `id: ${item.item_id}`;
+    main.appendChild(meta);
+  }
+  row.appendChild(badge);
+  row.appendChild(main);
+  return row;
+}
+
+function ctxRoleKey(role) {
+  return ["user", "assistant", "function_call", "tool"].includes(role) ? role : "unknown";
+}
+
+function ctxRoleLabel(role) {
+  if (role === "user") return "用户";
+  if (role === "assistant") return "助手";
+  if (role === "function_call") return "调用";
+  if (role === "tool") return "结果";
+  return role || "未知";
+}
+
+function handleContextRetrieved(event) {
+  if (event.event_id && ctxLastRetrieveEventId && event.event_id !== ctxLastRetrieveEventId) return;
+  ctxRetrievedAt = Date.now();
+  window.clearTimeout(ctxRetrieveTimeoutTimer);
+  const raw = event.items;
+  const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  renderRetrievedItems(items);
+  els.ctxUpstreamHint.textContent = items.length
+    ? "以上为上游返回的原始上下文记录，按先后顺序展示，内容未做任何加工。"
+    : "上游返回了空列表（或条目已被服务端淘汰）。";
+}
+
+function extractContextItemText(item) {
+  if (typeof item.text === "string") return item.text;
+  const content = item.content;
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (typeof part === "string") return part;
+      return (part && typeof part.text === "string") ? part.text : "";
+    }).join("");
+  }
+  if (typeof content === "string") return content;
+  if (typeof item.arguments === "string") return item.arguments;
+  return JSON.stringify(item);
+}
+
+function isContextLiveEvent(msg) {
+  if (els.contextModal.hidden) return false;
+  if (msg.type === "local.tool_result") return true;
+  const type = msg.type === "upstream.event" ? (msg.event || {}).type : "";
+  return type === "conversation.item.input_audio_transcription.completed"
+    || type === "response.output_text.done"
+    || type === "response.function_call_arguments.done";
+}
+
+function scheduleContextLiveRefresh() {
+  window.clearTimeout(ctxLiveRefreshTimer);
+  ctxLiveRefreshTimer = window.setTimeout(() => refreshContext({retrieve: true}), 600);
+}
+
+// ---- 原有消息区交互 ----
 
 els.clearMessagesBtn.addEventListener("click", () => {
   els.messages.textContent = "";

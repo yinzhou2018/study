@@ -90,6 +90,7 @@
             <h2>QA 展示</h2>
             <input id="qaSearchInput" class="qa-search-input" type="search" placeholder="搜索 QA">
             <span id="qaSearchStatus" class="qa-search-status"></span>
+            <button id="showContextBtn" type="button" class="link-btn" disabled title="查看当前会话的历史上下文（含音区标记）">历史上下文</button>
             <button id="clearMessagesBtn" type="button" class="link-btn">清空展示</button>
           </div>
           <div id="messages" class="messages"></div>
@@ -411,6 +412,26 @@
       </aside>
     </section>
   </main>
+  <div id="contextModal" class="ctx-modal" role="dialog" aria-modal="true" aria-labelledby="contextModalTitle" hidden>
+    <div class="ctx-dialog">
+      <div class="ctx-dialog-head">
+        <h3 id="contextModalTitle">历史上下文</h3>
+        <div class="ctx-dialog-actions">
+          <span id="ctxCount" class="ctx-count"></span>
+          <button id="ctxRefreshBtn" type="button" class="ctx-refresh-btn">刷新</button>
+          <button id="ctxCloseBtn" type="button" class="ctx-close" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="ctx-summary">
+        <span>当前发言音区：<strong id="ctxZone">—</strong></span>
+        <span id="ctxZoneNote" class="ctx-zone-note"></span>
+        <span id="ctxUpstreamHint">打开或刷新时会向上游查询已知条目，返回后在此对照</span>
+      </div>
+      <div class="ctx-body">
+        <div id="ctxItems" class="ctx-items"></div>
+      </div>
+    </div>
+  </div>
   <div id="errorToast" class="error-toast" role="alertdialog" aria-live="assertive" aria-modal="true" hidden>
     <div class="error-dialog">
       <div class="error-dialog-head">
@@ -420,6 +441,6 @@
       <p id="errorToastMessage"></p>
     </div>
   </div>
-  <script src="/app.js?v=20260808-multizone3"></script>
+  <script src="/app.js?v=20260808-multizone7"></script>
 </body>
 </html>

@@ -18,6 +18,27 @@
 - 页面会聚合 ASR 识别文本和模型回复文本，按完整 QA 对展示
 - 事件面板按一行一个事件展示，`↑` 表示客户端上行，`↓` 表示服务端下行，`•` 表示本地状态
 
+## 多音区
+
+页面顶部的“说话音区”选择器配合“多音区”开关，模拟车载座舱四个音区（主驾/副驾/左后排/右后排）的多人对话。方案分两层：
+
+- 当前发言音区（机制 A）：音区随 `session.create` 写进 system prompt 末尾的“当前发言音区”一节；切换音区时后端通过 `session.update` 更新 instructions（内容不变时不重复发送）；关闭多音区开关会下发一次不含该节的 instructions 清除状态。
+- 历史发言归属（机制 B）：后端收到 `conversation.item.input_audio_transcription.completed` 后，立即用 `conversation.item.update` 把该轮 ASR 转录条目回写为 `【音区名】+原文`，使历史上下文里每条用户发言都自带音区，续接 dialog id 后依然可辨。
+
+上下文形态：
+
+```text
+[system prompt] …… + 当前正在与你说话的音区：主驾
+user:      【主驾】打开空调
+assistant: 好的，已为你打开空调
+user:      【副驾】我这边也开一下
+assistant: 好的，已打开副驾车窗
+```
+
+`/api/zone_marker` 接口即上述机制 A：`{"session_id": ..., "zone": "主驾"}`，`zone` 传空字符串表示清除。ASR 说话期间的音区归属以 `conversation.item.input_audio_transcription.started` 时刻的音区为准。
+
+通话页 QA 面板头部提供“历史上下文”入口：打开或点击“刷新”时向上游发送 `conversation.item.retrieve` 查询已知 item id 的条目，弹窗如实展示上游通过 `conversation.item.retrieved` 返回的原始上下文记录，按角色和时间先后排列，内容原样不加工，可直接验证音区回写是否在上游生效。对应接口为 `GET /api/context`（返回当前音区与已知 item id）与 `POST /api/context_retrieve`（下发查询并返回 event_id 供与下行事件关联）。
+
 ## 启动
 
 运行要求：Python 3.9+。这个 demo 只使用 Python 标准库，不需要安装第三方依赖。
