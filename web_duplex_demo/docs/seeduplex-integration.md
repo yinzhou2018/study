@@ -35,17 +35,20 @@
 - [14. 干预模型回复 speech_text_buffer.replacement.append / commit](#14-干预模型回复-speech_text_bufferreplacementappend--commit)
 - [15. 客户端打断 response.cancel](#15-客户端打断-responsecancel)
 - [16. 结束会话 session.close](#16-结束会话-sessionclose)
-- [17. 上下文管理](#17-上下文管理)
-- [18. Function Calling](#18-function-calling)
-- [19. 下行事件总表](#19-下行事件总表)
-- [20. 下行事件示例](#20-下行事件示例)
-- [21. 错误码](#21-错误码)
-- [22. 稳定性与限流](#22-稳定性与限流)
-- [23. 接口迁移与事件对照表](#23-接口迁移与事件对照表)
-- [24. 视频帧采集最佳实践（Doubao-Seed-Realtime-1.0）](#24-视频帧采集最佳实践doubao-seed-realtime-10)
-- [25. 推荐接入流程](#25-推荐接入流程)
-- [26. 最小实现示例（Python）](#26-最小实现示例python)
-- [27. 开发注意事项](#27-开发注意事项)
+- [17. 新增上下文 conversation.item.create](#17-新增上下文-conversationitemcreate)
+- [18. 更新上下文 conversation.item.update](#18-更新上下文-conversationitemupdate)
+- [19. 查询上下文 conversation.item.retrieve](#19-查询上下文-conversationitemretrieve)
+- [20. 删除上下文 conversation.item.delete](#20-删除上下文-conversationitemdelete)
+- [21. Function Calling](#21-function-calling)
+- [22. 下行事件总表](#22-下行事件总表)
+- [23. 下行事件示例](#23-下行事件示例)
+- [24. 错误码](#24-错误码)
+- [25. 稳定性与限流](#25-稳定性与限流)
+- [26. 接口迁移与事件对照表](#26-接口迁移与事件对照表)
+- [27. 视频帧采集最佳实践（Doubao-Seed-Realtime-1.0）](#27-视频帧采集最佳实践doubao-seed-realtime-10)
+- [28. 推荐接入流程](#28-推荐接入流程)
+- [29. 最小实现示例（Python）](#29-最小实现示例python)
+- [30. 开发注意事项](#30-开发注意事项)
 
 ---
 
@@ -409,7 +412,7 @@ wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue
 | `conversation.item.delete` | `ConversationDelete` | 删除上下文 |
 | `response.cancel` | `ClientInterrupt` | 客户端打断 |
 
-> 下文第 10–16 节分别对每个上行事件给出 **接口定义、字段说明、使用场景、服务端响应与注意事项**。
+> 下文第 10–20 节分别对每个上行事件给出 **接口定义、字段说明、使用场景、服务端响应与注意事项**。
 
 ---
 
@@ -446,7 +449,7 @@ wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue
 
 ### 10.4 服务端响应
 
-持续发送音频后，服务端会依次返回完整的下行响应链路（详见 [20. 下行事件示例](#20-下行事件示例)）：
+持续发送音频后，服务端会依次返回完整的下行响应链路（详见 [23. 下行事件示例](#23-下行事件示例)）：
 
 ```text
 conversation.item.input_audio_transcription.started   (ASR 识别出首字)
@@ -509,7 +512,7 @@ response.done                                          (本轮用量统计)
 }
 ```
 
-随后服务端会基于已提交的音频继续返回 ASR / Chat / TTS 下行事件（与 `input_audio_buffer.append` 触发的响应链路一致，详见 [20. 下行事件示例](#20-下行事件示例)）。
+随后服务端会基于已提交的音频继续返回 ASR / Chat / TTS 下行事件（与 `input_audio_buffer.append` 触发的响应链路一致，详见 [23. 下行事件示例](#23-下行事件示例)）。
 
 ### 11.5 注意事项
 
@@ -795,11 +798,9 @@ response.done                                          (本轮用量统计)
 
 ---
 
-## 17. 上下文管理
+## 17. 新增上下文 conversation.item.create
 
-Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
-
-### 17.1 新增上下文 conversation.item.create
+### 17.1 接口定义
 
 ```json
 {
@@ -825,10 +826,38 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-服务端返回：
+### 17.2 字段说明
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `type` | string | 是 | 固定 `conversation.item.create`。 |
+| `event_id` | string | 否 | 客户端生成的幂等标识，服务端会在相关下行事件中回带，便于链路追踪。 |
+| `items` | array | 是 | 新增上下文对话信息，可用于初始化历史上下文。需按 `user` / `assistant` 成对提交，每次最多提交 20 轮（40 条）完整 QA。 |
+
+`items` 条目结构：
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 否 | 指定自定义的上下文对话 id。 |
+| `type` | string | 是 | 条目类型，固定 `message`。 |
+| `role` | string | 是 | 对话角色：`user` / `assistant`（回传 FC 结果时为 `tool`）。 |
+| `call_id` | string | 否 | 函数调用唯一标识，回传 FC 结果时必传且需与下发一致。 |
+| `content` | array | 是 | 内容数组。 |
+| `content[].type` | string | 是 | 内容类型，如 `input_text`。 |
+| `content[].text` | string | 是 | 文本内容。 |
+
+### 17.3 使用场景
+
+新增上下文用于向会话注入历史对话记录或回传 Function Calling 结果，对应原版本的 `ConversationCreate` / `FunctionCallOutput`。典型场景：
+
+- **初始化对话上下文**：会话建立后，将预置的历史 QA 注入会话，使模型基于已有上下文继续对话。
+- **接续历史会话**：复用上次 `session.created` 返回的 `session.id`（即 `dialog.id`），配合 `conversation.item.create` 注入历史记录接续对话。
+- **回传函数调用结果**：模型发起 Function Calling 后，客户端执行本地函数并通过本事件回传结果（`role=tool`，携带相同 `call_id`），详见 [21. Function Calling](#21-function-calling)。
+
+### 17.4 服务端响应
 
 ```json
-// conversation.item.added / retrieved
+// conversation.item.added
 {
   "type": "conversation.item.added",
   "event_id": "event_C9G8pjSJCfRNEhMEnYAVy",
@@ -847,13 +876,18 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-上下文要求（来自接入必读）：
+### 17.5 注意事项
 
-- 上下文须按 `user` / `assistant` **成对提交**，数组长度为偶数。
+- 上下文须按 `user` / `assistant` **成对提交**，数组长度为偶数，每次最多提交 20 轮（40 条）完整 QA。
 - 时间戳需统一：要么全部携带（严格递增、不超过当前时间），要么全部不携带。
 - 接续历史对话：复用上次 `session.created` 返回的 `session.id`（即 `dialog.id`）即可接续，服务端默认保留最近 **20 轮问答记录**。
+- 回传 FC 结果时 `call_id` 必须与下发一致，详见 [21. Function Calling](#21-function-calling)。
 
-### 17.2 更新上下文 conversation.item.update
+---
+
+## 18. 更新上下文 conversation.item.update
+
+### 18.1 接口定义
 
 ```json
 {
@@ -870,7 +904,64 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 17.3 查询上下文 conversation.item.retrieve
+### 18.2 字段说明
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `type` | string | 是 | 固定 `conversation.item.update`。 |
+| `event_id` | string | 否 | 客户端生成的幂等标识，建议传入，用于后续事件匹配与追踪。 |
+| `items` | array | 是 | 指定待更新的上下文信息。 |
+
+`items` 条目结构：
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 是 | 指定待更新的对话 id（即服务端返回的 item id）。更新用户问题时传入 `user` 对应的 items_id，更新模型回复时传入 `assistant` 对应的 items_id。 |
+| `content` | array | 否 | 传入待更新的对话内容。 |
+| `content[].type` | string | 否 | 内容类型，如 `input_text`。 |
+| `content[].text` | string | 否 | 更新后的文本内容。 |
+
+### 18.3 使用场景
+
+更新上下文用于修改已存在于会话中的上下文条目内容，对应原版本的 `ConversationUpdate`。典型场景：
+
+- **修正历史记录**：发现已注入的历史上下文内容有误，按 `id` 定位并更新为正确内容。
+- **动态调整上下文**：在对话过程中根据业务逻辑调整已有上下文条目的文本，使后续模型回复基于最新内容。
+
+### 18.4 服务端响应
+
+服务端返回 `conversation.item.updated`（`conversation.item.update` 请求对应的确认响应 ack），表示上下文已成功更新：
+
+```json
+{
+  "type": "conversation.item.updated",
+  "event_id": "event_901",
+  "items": [
+    {
+      "id": "item_002",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        { "type": "input_text", "text": "更新后的文本" }
+      ]
+    }
+  ]
+}
+```
+
+### 18.5 注意事项
+
+- `items` 中须通过 `id` 精确定位待更新条目；更新用户问题时传入 `user` 对应的 items_id，更新模型回复时传入 `assistant` 对应的 items_id。
+- 更新为**全量覆盖**对应条目的 `content`，非增量更新。
+- 更新操作不会重置会话，模型后续回复将基于更新后的上下文。
+
+---
+
+## 19. 查询上下文 conversation.item.retrieve
+
+### 19.1 接口定义
+
+按 `id` 查询指定轮次的上下文：
 
 ```json
 {
@@ -882,9 +973,70 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-服务端返回 `conversation.item.retrieved`，返回查询到的上下文内容。
+不传 `items`（或传空数组）时，返回最近 20 轮完整上下文信息：
 
-### 17.4 删除上下文 conversation.item.delete
+```json
+{
+  "event_id": "event_902",
+  "type": "conversation.item.retrieve"
+}
+```
+
+### 19.2 字段说明
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `type` | string | 是 | 固定 `conversation.item.retrieve`。 |
+| `event_id` | string | 否 | 客户端生成的幂等标识，建议传入，用于后续事件匹配与追踪。 |
+| `items` | array | 否 | 指定待查询的上下文信息。传入 `id` 时返回对应轮次的上下文；不传（或为空）时返回最近 20 轮完整上下文信息。 |
+
+`items` 条目结构：
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 否 | 传入待查询的对话 id（即新增 / 转录时服务端返回的 item id），返回该轮次上下文信息；不传则返回最近 20 轮完整上下文信息。 |
+
+### 19.3 使用场景
+
+查询上下文用于获取当前会话中已有的上下文条目内容，对应原版本的 `ConversationRetrieve`。典型场景：
+
+- **读取历史记录**：传入指定 `id` 查询会话中已注入或已生成的上下文条目，用于本地展示或调试。
+- **核对上下文**：在更新或删除前先查询，确认目标条目的当前内容。
+- **拉取最近上下文**：不传 `items`（或传空数组）获取最近 20 轮完整上下文，用于会话恢复或全量同步。
+
+### 19.4 服务端响应
+
+服务端返回 `conversation.item.retrieved`，返回查询到的上下文内容：
+
+```json
+{
+  "type": "conversation.item.retrieved",
+  "event_id": "event_901",
+  "items": [
+    {
+      "id": "item_002",
+      "type": "message",
+      "role": "user",
+      "content": [
+        { "type": "input_text", "text": "hi" }
+      ]
+    }
+  ]
+}
+```
+
+### 19.5 注意事项
+
+- `items` 为可选：传入 `id` 时返回对应轮次的上下文；不传 `items`（或传空数组）时返回最近 20 轮完整上下文信息。
+- `items` 中仅需携带待查询条目的 `id`（即对话 id），无需传入完整内容。
+- 查询结果在 `conversation.item.retrieved` 的 `items` 字段中返回，结构与新增时一致。
+- 若查询的 `id` 不存在，服务端可能返回空 `items`，请以实际返回为准。
+
+---
+
+## 20. 删除上下文 conversation.item.delete
+
+### 20.1 接口定义
 
 ```json
 {
@@ -896,7 +1048,29 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-服务端返回：
+### 20.2 字段说明
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `type` | string | 是 | 固定 `conversation.item.delete`。 |
+| `event_id` | string | 否 | 客户端生成的幂等标识，建议传入，用于后续事件匹配与追踪。 |
+| `items` | array | 是 | 指定待删除的上下文信息。 |
+
+`items` 条目结构：
+
+| 字段 | 类型 | 必选 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 是 | 指定待删除的对话 id（即服务端返回的 item id）。 |
+
+### 20.3 使用场景
+
+删除上下文用于从会话中移除已有的上下文条目，对应原版本的 `ConversationDelete`。典型场景：
+
+- **清理过期上下文**：移除不再需要的历史记录，避免干扰模型当前对话。
+- **纠正错误上下文**：删除误注入的错误条目（也可使用更新覆盖）。
+- **控制上下文长度**：主动管理上下文条目数量，配合服务端默认保留的 20 轮问答限制。
+
+### 20.4 服务端响应
 
 ```json
 // conversation.item.deleted
@@ -915,11 +1089,18 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
+### 20.5 注意事项
+
+- `items` 中仅需携带待删除条目的 `id`（即对话 id），无需传入完整内容。
+- **删除以对话轮为单位**：传入 `user` 侧 items_id 时，系统将同时删除与之成对的 `assistant` 回复；传入 `assistant` 侧 items_id 时同理。
+- 若待删除的上下文不存在，服务端返回 `status_code: 40000010`，客户端应做容错处理。
+- 删除操作不可恢复，请确认后再执行。
+
 ---
 
-## 18. Function Calling
+## 21. Function Calling
 
-### 18.1 声明工具
+### 21.1 声明工具
 
 在 `session.create` / `session.update` 的 `tools` 字段中以标准 JSON Schema 结构声明（`type = function` + `parameters`）。会话过程中可再次发送 `session.update` 动态增删工具。
 
@@ -945,7 +1126,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 > **注意**：`session.update` 动态增删工具为**全量覆盖**，非增量更新。
 
-### 18.2 服务端下发函数调用
+### 21.2 服务端下发函数调用
 
 当模型决定调用工具时，服务端返回 `response.function_call_arguments.done`：
 
@@ -978,7 +1159,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 | `name` | 函数名，与 `tools` 中声明的 `name` 对应。 |
 | `arguments` | 模型生成的参数，JSON 字符串。客户端需 `JSON.parse` 后执行本地函数。 |
 
-### 18.3 回传函数结果
+### 21.3 回传函数结果
 
 客户端执行本地函数后，须通过 `conversation.item.create` 回传结果（`role=tool`，结果放入 `content` 数组），并在回传项中携带**相同的 `call_id`**：
 
@@ -1018,7 +1199,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 19. 下行事件总表
+## 22. 下行事件总表
 
 | 类别 | 事件名 | 说明 |
 | --- | --- | --- |
@@ -1036,20 +1217,21 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 | TTS | `response.output_audio.delta` | 返回的流式音频数据块，Base64 编码。 |
 | TTS | `response.output_audio.done` | 模型一轮音频合成结束。 |
 | Context | `conversation.item.added` | 新增上下文请求的确认（ack），返回创建成功的上下文数组。 |
+| Context | `conversation.item.updated` | 更新上下文请求的确认（ack），返回更新后的上下文内容。 |
 | Context | `conversation.item.retrieved` | 查询上下文请求的确认（ack），返回查询到的上下文内容。 |
 | Context | `conversation.item.deleted` | 删除上下文请求的确认（ack），返回被删除的上下文内容。 |
 | FC | `response.function_call_arguments.done` | FC 函数调用参数生成完成。 |
 | Usage | `response.done` | 一轮交互结束，返回本次用量统计。 |
 | Usage | `response.canceled` | 客户端打断请求 `response.cancel` 的确认（ack）。 |
-| Error | `error` | 错误事件，错误表详见 [21. 错误码](#21-错误码)。 |
+| Error | `error` | 错误事件，错误表详见 [24. 错误码](#24-错误码)。 |
 
 ---
 
-## 20. 下行事件示例
+## 23. 下行事件示例
 
 以下是"发送音频流"场景下服务端返回的完整响应链路示例。
 
-### 20.1 ASR 识别开始
+### 23.1 ASR 识别开始
 
 ```json
 // started（ASRInfo）
@@ -1060,7 +1242,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.2 ASR 识别增量
+### 23.2 ASR 识别增量
 
 ```json
 // delta（ASRResponse）
@@ -1073,7 +1255,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.3 ASR 识别完成
+### 23.3 ASR 识别完成
 
 ```json
 // completed（ASREnded）
@@ -1086,7 +1268,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.4 ASR 识别失败
+### 23.4 ASR 识别失败
 
 ```json
 // failed（ASRFailed）
@@ -1103,7 +1285,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.5 模型回复文本增量
+### 23.5 模型回复文本增量
 
 ```json
 // response.output_text.delta
@@ -1116,7 +1298,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.6 模型回复文本完成
+### 23.6 模型回复文本完成
 
 ```json
 // response.output_text.done
@@ -1129,7 +1311,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.7 音频合成开始
+### 23.7 音频合成开始
 
 ```json
 // response.output_audio.started
@@ -1142,7 +1324,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.8 音频合成增量
+### 23.8 音频合成增量
 
 ```json
 // response.output_audio.delta
@@ -1155,7 +1337,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 }
 ```
 
-### 20.9 音频合成结束
+### 23.9 音频合成结束
 
 ```json
 // response.output_audio.done
@@ -1170,7 +1352,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 21. 错误码
+## 24. 错误码
 
 客户端应对所有下行 `error` 事件做统一捕获与日志记录。推荐在每条上行事件中携带 `event_id`，以便结合服务端返回的 `X-Tt-Logid` 进行精准的问题定位与链路追踪。
 
@@ -1197,7 +1379,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 22. 稳定性与限流
+## 25. 稳定性与限流
 
 - **优雅关闭**：务必先发送 `session.close`（即 `FinishSession`）并收到服务端回复后，再关闭 WebSocket 链接；直接断开会触发 `ContextCanceled` 错误（错误码 `55000001`）。
 - **5xx 重连**：遇到服务端 5xx 错误时，应统一触发重连逻辑。
@@ -1209,11 +1391,11 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 23. 接口迁移与事件对照表
+## 26. 接口迁移与事件对照表
 
 若已完成端到端实时语音识别的接入，现需升级至全双工版本，事件名对照如下。
 
-### 23.1 上行事件对照
+### 26.1 上行事件对照
 
 | 新事件 | 原 S2S 版本事件名 |
 | --- | --- |
@@ -1230,7 +1412,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 | `conversation.item.delete` | `ConversationDelete` |
 | `response.cancel` | `ClientInterrupt` |
 
-### 23.2 下行事件对照
+### 26.2 下行事件对照
 
 | 新事件 | 原 S2S 版本事件 |
 | --- | --- |
@@ -1248,13 +1430,14 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 | `response.output_audio.delta` | `TTSResponse` |
 | `response.output_audio.done` | `TTSEnded` |
 | `conversation.item.added` | `ConversationCreated` |
+| `conversation.item.updated` | `ConversationUpdated` |
 | `conversation.item.retrieved` | `ConversationRetrieved` |
 | `conversation.item.deleted` | `ConversationDeleted` |
 | `response.function_call_arguments.done` | `FunctionCallResponse` |
 | `response.done` | `UsageResponse` |
 | `error` | `ResponseMeta` / `DialogCommonError` |
 
-### 23.3 迁移最佳实践
+### 26.3 迁移最佳实践
 
 - **事件改名优先，配置后置**：建议先将客户端收发的事件名从实时语音版本切换为全双工版本，再将 `asr` / `tts` / `dialog` 配置迁入 `extension`，可显著降低迁移风险。
 - **extension 直接复用存量配置**：原 `StartSessionPayload` 中的 `asr` / `tts` / `dialog` 字段无需改造，按原格式整体移入 `extension` 即可。
@@ -1263,7 +1446,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 24. 视频帧采集最佳实践（Doubao-Seed-Realtime-1.0）
+## 27. 视频帧采集最佳实践（Doubao-Seed-Realtime-1.0）
 
 > 本节仅针对 `Doubao-Seed-Realtime-1.0` 多模态模型。
 
@@ -1283,7 +1466,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 25. 推荐接入流程
+## 28. 推荐接入流程
 
 1. 在控制台获取 API Key（控制台 > API Key 管理）。
 2. 建立到 `wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue` 的 WebSocket 连接，并设置 `X-Api-Key` 请求头。
@@ -1294,7 +1477,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 7. 监听下行事件：ASR 增量 / 完成、模型回复文本、TTS 音频增量、函数调用、用量统计、错误。
 8. 收到 `response.output_audio.delta` 时，解码 Base64 并写入播放队列。
 9. 麦克风关闭时发送 `input_audio_mute.commit`，恢复时发送 `input_audio_unmute.commit` 保活（第 12 节）。
-10. 遇到函数调用，执行本地函数并用 `conversation.item.create`（`role=tool`）回传结果，携带相同 `call_id`（第 18 节）。
+10. 遇到函数调用，执行本地函数并用 `conversation.item.create`（`role=tool`）回传结果，携带相同 `call_id`（第 21 节）。
 11. 用户抢话或需要中止回复时发送 `response.cancel`（第 15 节）。
 12. 需要手动结束输入时发送 `input_audio_buffer.commit`（第 11 节）。
 13. 需要由客户端指定回复话术时发送 `speech_text_buffer.replacement.append` / `commit`（第 14 节）。
@@ -1322,7 +1505,7 @@ Seeduplex 支持通过 `conversation.item` 系列事件管理历史上下文。
 
 ---
 
-## 26. 最小实现示例（Python）
+## 29. 最小实现示例（Python）
 
 以下示例使用 Python `websockets` 库，仅演示连接、创建会话和发送音频事件的核心流程。
 
@@ -1397,7 +1580,7 @@ asyncio.run(main())
 
 ---
 
-## 27. 开发注意事项
+## 30. 开发注意事项
 
 - **鉴权**：使用请求头 `X-Api-Key`；浏览器端无法自定义 WebSocket 请求头，须通过后端代理注入，避免泄露 API Key。
 - **音频节奏**：严格按实时音频流节奏发送 `input_audio_buffer.append`，过快或过慢都会触发服务端错误；20 ms 一包（640 字节）。
