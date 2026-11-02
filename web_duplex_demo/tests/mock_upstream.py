@@ -28,6 +28,7 @@ class MockUpstream:
     self.addr = (host, port)
     self.log = []
     self.received_types = []
+    self.received_messages = []
     self.lock = threading.Lock()
     self.session_id = "mock_session_1"
     self.frame_count = 0
@@ -138,6 +139,7 @@ class MockUpstream:
     mtype = msg.get("type")
     with self.lock:
       self.received_types.append(mtype)
+      self.received_messages.append(msg)
     self.note("client->up", json.dumps(msg, ensure_ascii=False)[:220])
 
     if mtype == "session.create":
@@ -154,6 +156,10 @@ class MockUpstream:
     if mtype == "conversation.item.retrieve":
       self._send_json(conn, {"type": "conversation.item.retrieved", "event_id": msg.get("event_id") or "ev_ir",
                              "items": []})
+      return
+    if mtype == "conversation.item.create":
+      self._send_json(conn, {"type": "conversation.item.added", "event_id": msg.get("event_id") or "ev_ic",
+                             "items": msg.get("items") or []})
       return
     if mtype == "input_audio_buffer.append":
       self.frame_count += 1

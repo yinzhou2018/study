@@ -1060,7 +1060,8 @@ body {
   width: min(680px, calc(100vw - 32px));
   max-height: min(640px, calc(100vh - 48px));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* 四行：标题、音区摘要、注入表单、可滚动的上下文列表 */
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
   padding: 18px;
   border: 1px solid var(--line);
@@ -1143,6 +1144,77 @@ body {
 
 .ctx-summary strong {
   color: var(--accent-dark);
+}
+
+.ctx-add {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(15, 118, 110, .04);
+}
+
+.ctx-add-head {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ctx-add textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, .92);
+  color: var(--ink);
+}
+
+.ctx-add textarea:focus {
+  outline: 2px solid rgba(15, 118, 110, .35);
+  outline-offset: -1px;
+}
+
+.ctx-add-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ctx-add-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ctx-add-note.is-error {
+  color: #b91c1c;
+}
+
+.ctx-add-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 16px;
+  background: var(--accent, #0f766e);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ctx-add-btn:hover {
+  filter: brightness(1.08);
+}
+
+.ctx-add-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 .ctx-body {

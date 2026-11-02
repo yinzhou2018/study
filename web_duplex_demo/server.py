@@ -30,6 +30,7 @@ VOICE_CLONE_TRAIN_URL = "https://openspeech.bytedance.com/api/v3/tts/voice_clone
 VOICE_CLONE_STATUS_URL = "https://openspeech.bytedance.com/api/v3/tts/get_voice"
 MAX_READ_BYTES = 64 * 1024
 MAX_VOICE_CLONE_AUDIO_BYTES = 10 * 1024 * 1024
+MAX_CONTEXT_PAIRS = 20
 DEFAULT_OUTPUT_FORMAT = "ogg_opus"
 DEFAULT_MODEL = "1.2.6.1"
 NO_MUSIC_VOICES = {"saturn_zh_female_aojiaonvyou_tob"}
@@ -948,6 +949,39 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
 
+  def add_context_pairs(self, pairs):
+    """按 user/assistant 成对注入历史上下文（conversation.item.create）。
+
+    user 消息自动带上当前发言音区前缀（与 ASR 盖章机制 B 一致），不传 id 由服务端分配。
+    """
+    self._wait_ready()
+    items = []
+    for pair in pairs:
+      user_text = str(pair.get("user") or "").strip()
+      assistant_text = str(pair.get("assistant") or "").strip()
+      if not user_text or not assistant_text:
+        raise ValueError("each pair needs non-empty user and assistant text")
+      if self.zone and not user_text.startswith("【"):
+        user_text = f"【{self.zone}】{user_text}"
+      items.append({
+          "type": "message",
+          "role": "user",
+          "content": [{"type": "input_text", "text": user_text}],
+      })
+      items.append({
+          "type": "message",
+          "role": "assistant",
+          "content": [{"type": "input_text", "text": assistant_text}],
+      })
+    payload = {
+        "type": "conversation.item.create",
+        "event_id": uuid.uuid4().hex,
+        "items": items,
+    }
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
+    return len(items)
+
   def commit_audio(self):
     self._wait_ready()
     self.ws.send_json({"type": "input_audio_buffer.commit", "event_id": uuid.uuid4().hex})
@@ -1206,6 +1240,8 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_zone_marker()
       elif parsed.path == "/api/context_retrieve":
         self._retrieve_context()
+      elif parsed.path == "/api/context_add":
+        self._add_context_pairs()
       elif parsed.path == "/api/close":
         self._close_session()
       elif parsed.path == "/api/voice_clone/train":
@@ -1377,6 +1413,21 @@ class Handler(SimpleHTTPRequestHandler):
       raise ValueError("session not found")
     event_id = session.retrieve_context()
     self._json({"ok": True, "event_id": event_id})
+
+  def _add_context_pairs(self):
+    data = self._body()
+    session = STATE.get(data.get("session_id"))
+    if not session:
+      raise ValueError("session not found")
+    pairs = data.get("pairs")
+    if not isinstance(pairs, list) or not pairs:
+      raise ValueError("pairs must be a non-empty JSON array of {user, assistant}")
+    if not all(isinstance(pair, dict) for pair in pairs):
+      raise ValueError("each pair must be an object with user and assistant text")
+    if len(pairs) > MAX_CONTEXT_PAIRS:
+      raise ValueError(f"pairs exceeds the {MAX_CONTEXT_PAIRS}-round limit per submission")
+    added = session.add_context_pairs(pairs)
+    self._json({"ok": True, "added": added})
 
   def _close_session(self):
     data = self._body()

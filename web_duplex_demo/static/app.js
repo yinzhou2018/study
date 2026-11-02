@@ -79,6 +79,9 @@ const els = {
   ctxZoneNote: document.querySelector("#ctxZoneNote"),
   ctxUpstreamHint: document.querySelector("#ctxUpstreamHint"),
   ctxItems: document.querySelector("#ctxItems"),
+  ctxAddInput: document.querySelector("#ctxAddInput"),
+  ctxAddNote: document.querySelector("#ctxAddNote"),
+  ctxAddBtn: document.querySelector("#ctxAddBtn"),
   clearEventsBtn: document.querySelector("#clearEventsBtn"),
   recordBtn: document.querySelector("#recordBtn"),
   forceCommitBtn: document.querySelector("#forceCommitBtn"),
@@ -3323,6 +3326,17 @@ els.showContextBtn.addEventListener("click", () => {
 
 els.ctxCloseBtn.addEventListener("click", closeContextModal);
 els.ctxRefreshBtn.addEventListener("click", () => refreshContext({retrieve: true}));
+els.ctxAddBtn.addEventListener("click", () => {
+  submitContextPairs().catch(err => {
+    setCtxAddNote(err.message, true);
+  });
+});
+els.ctxAddInput.addEventListener("keydown", evt => {
+  if (evt.key === "Enter" && (evt.metaKey || evt.ctrlKey)) {
+    evt.preventDefault();
+    els.ctxAddBtn.click();
+  }
+});
 els.contextModal.addEventListener("click", evt => {
   if (evt.target === els.contextModal) closeContextModal();
 });
@@ -3341,6 +3355,53 @@ function closeContextModal() {
   els.contextModal.hidden = true;
 }
 
+function updateCtxAddNote(zone) {
+  if (zone) {
+    setCtxAddNote(`user 消息提交时将自动添加【${zone}】前缀`);
+  } else {
+    setCtxAddNote("多音区未启用，user 消息不加音区前缀");
+  }
+}
+
+function setCtxAddNote(text, isError = false) {
+  els.ctxAddNote.textContent = text;
+  els.ctxAddNote.classList.toggle("is-error", isError);
+}
+
+function parseContextPairsInput(raw) {
+  const lines = String(raw || "").split("\n").map(line => line.trim()).filter(Boolean);
+  if (!lines.length) throw new Error("请先输入要注入的对话，每行一轮：用户话术 | 助手回复");
+  if (lines.length > 20) throw new Error("单次最多提交 20 轮对话");
+  const pairs = [];
+  for (const line of lines) {
+    const sep = line.indexOf("|");
+    if (sep < 0) throw new Error(`这一行缺少“|”分隔符：${line.slice(0, 40)}`);
+    const user = line.slice(0, sep).trim();
+    const assistant = line.slice(sep + 1).trim();
+    if (!user || !assistant) throw new Error(`这一行的用户话术或助手回复为空：${line.slice(0, 40)}`);
+    pairs.push({user, assistant});
+  }
+  return pairs;
+}
+
+async function submitContextPairs() {
+  if (!sessionId) throw new Error("会话未连接");
+  const pairs = parseContextPairsInput(els.ctxAddInput.value);
+  els.ctxAddBtn.disabled = true;
+  try {
+    const result = await postJSON(
+      "/api/context_add",
+      {session_id: sessionId, pairs},
+      {name: "conversation.item.create", detail: `注入 ${pairs.length} 轮成对上下文`}
+    );
+    setCtxAddNote(`已提交 ${result.added} 条上下文条目，等待 conversation.item.added 确认。`);
+    els.ctxAddInput.value = "";
+    refreshContext({retrieve: true});
+  } finally {
+    els.ctxAddBtn.disabled = false;
+  }
+}
+
 async function fetchJSON(url) {
   const resp = await fetch(url);
   const data = await resp.json();
@@ -3356,6 +3417,7 @@ async function refreshContext({retrieve = true} = {}) {
     ctxKnownItemIds = data.known_item_ids || [];
     els.ctxZone.textContent = data.zone || "未设置";
     els.ctxZoneNote.textContent = data.zone_active ? "（已写入 system prompt）" : "（多音区未启用）";
+    updateCtxAddNote(data.zone);
     if (retrieve) {
       els.ctxItems.textContent = "向上游查询中…";
       els.ctxCount.textContent = "";
@@ -3515,7 +3577,8 @@ function isContextLiveEvent(msg) {
   const type = msg.type === "upstream.event" ? (msg.event || {}).type : "";
   return type === "conversation.item.input_audio_transcription.completed"
     || type === "response.output_text.done"
-    || type === "response.function_call_arguments.done";
+    || type === "response.function_call_arguments.done"
+    || type === "conversation.item.added";
 }
 
 function scheduleContextLiveRefresh() {

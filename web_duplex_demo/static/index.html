@@ -427,6 +427,15 @@
         <span id="ctxZoneNote" class="ctx-zone-note"></span>
         <span id="ctxUpstreamHint">打开或刷新时会向上游查询已知条目，返回后在此对照</span>
       </div>
+      <div class="ctx-add">
+        <div class="ctx-add-head">注入历史上下文（user / assistant 成对）</div>
+        <textarea id="ctxAddInput" rows="3" spellcheck="false"
+          placeholder="每行一轮，用 | 分隔：用户话术 | 助手回复&#10;例如：打开空调 | 好的，已为你打开空调。"></textarea>
+        <div class="ctx-add-foot">
+          <span id="ctxAddNote" class="ctx-add-note"></span>
+          <button id="ctxAddBtn" type="button" class="ctx-add-btn">提交</button>
+        </div>
+      </div>
       <div class="ctx-body">
         <div id="ctxItems" class="ctx-items"></div>
       </div>

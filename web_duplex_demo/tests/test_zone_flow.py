@@ -118,6 +118,31 @@ def main():
   assert "input_audio_unmute.commit" in mock.received_types, "unmute commit not sent"
   print("== mute/unmute keep-alive events OK")
 
+  # --- 成对注入历史上下文：user 自动带当前音区前缀 ---
+  added = session.add_context_pairs([
+      {"user": "打开空调", "assistant": "好的，已为你打开空调。"},
+      {"user": "导航去公司", "assistant": "正在为你导航去公司，大约 20 分钟。"},
+  ])
+  time.sleep(0.3)
+  create_msgs = [m for m in mock.received_messages if m.get("type") == "conversation.item.create"]
+  assert create_msgs, "conversation.item.create not sent"
+  create_items = create_msgs[0].get("items") or []
+  assert added == 4 and len(create_items) == 4, f"expected 4 items, got {added}/{len(create_items)}"
+  texts = [item["content"][0]["text"] for item in create_items]
+  roles = [item["role"] for item in create_items]
+  print(f"== injected roles: {roles}")
+  print(f"== injected texts: {texts}")
+  assert roles == ["user", "assistant", "user", "assistant"], "items must be user/assistant paired"
+  # 切音区到副驾后注入，user 应自动带【副驾】前缀
+  assert texts[0] == "【副驾】打开空调", f"zone prefix missing: {texts[0]}"
+  assert texts[2] == "【副驾】导航去公司", f"zone prefix missing: {texts[2]}"
+  # 已带【前缀的 user 文本不重复叠加
+  session.add_context_pairs([{"user": "【主驾】你好", "assistant": "你好呀。"}])
+  time.sleep(0.2)
+  create_msgs2 = [m for m in mock.received_messages if m.get("type") == "conversation.item.create"]
+  assert create_msgs2[1]["items"][0]["content"][0]["text"] == "【主驾】你好", "existing prefix must not double"
+  print("== paired context injection with zone prefix OK")
+
   stop.set()
   session.close()
   print("\nALL ASSERTIONS PASSED")
