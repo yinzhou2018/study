@@ -1052,20 +1052,16 @@ class DuplexSession:
     }
 
   def retrieve_context(self):
-    """向上游查询已知 item id 的上下文内容（conversation.item.retrieve）。"""
+    """向上游拉取最近的对话历史（conversation.item.retrieve，不传 items 即返回最近 20 轮完整上下文）。"""
     self._wait_ready()
-    ids = list(self.known_item_ids)
-    if not ids:
-      return "", 0
     event_id = uuid.uuid4().hex
     payload = {
       "type": "conversation.item.retrieve",
       "event_id": event_id,
-      "items": [{"id": item_id} for item_id in ids],
     }
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
-    return event_id, len(ids)
+    return event_id
 
   def _remember_sent_payload(self, payload):
     with self.state_lock:
@@ -1347,8 +1343,8 @@ class Handler(SimpleHTTPRequestHandler):
     session = STATE.get(data.get("session_id"))
     if not session:
       raise ValueError("session not found")
-    event_id, requested = session.retrieve_context()
-    self._json({"ok": True, "event_id": event_id, "requested": requested})
+    event_id = session.retrieve_context()
+    self._json({"ok": True, "event_id": event_id})
 
   def _close_session(self):
     data = self._body()

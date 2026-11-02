@@ -3285,9 +3285,8 @@ els.forceCommitBtn.addEventListener("click", evt => {
 let ctxFetching = false;
 let ctxLiveRefreshTimer = 0;
 let ctxKnownItemIds = [];
-let ctxRetrievedAt = 0;
+let ctxWaitingForRetrieve = false;
 let ctxRetrieveTimeoutTimer = 0;
-let ctxLastRetrieveEventId = "";
 
 els.showContextBtn.addEventListener("click", () => {
   if (!sessionId) return;
@@ -3332,21 +3331,20 @@ async function refreshContext({retrieve = true} = {}) {
     if (retrieve) {
       els.ctxItems.textContent = "向上游查询中…";
       els.ctxCount.textContent = "";
-      const result = await postJSON(
+      els.ctxUpstreamHint.textContent = "已向上游查询最近的对话历史，等待 conversation.item.retrieved 返回…";
+      // 先置等待标志并启动超时，再发请求：上游的 retrieved 事件可能先于 HTTP 响应到达 SSE，
+      // 必须在请求发出前就进入等待态，否则事件到达时会因标志/定时器未就绪而被丢弃或误判超时。
+      ctxWaitingForRetrieve = true;
+      scheduleCtxRetrieveTimeout();
+      await postJSON(
         "/api/context_retrieve",
         {session_id: sessionId},
-        {name: "conversation.item.retrieve", detail: `查询 ${ctxKnownItemIds.length} 条已知条目`}
+        {name: "conversation.item.retrieve", detail: "查询最近对话历史"}
       );
-      ctxLastRetrieveEventId = result.event_id || "";
-      if (result.requested) {
-        els.ctxUpstreamHint.textContent = `已向上游查询 ${result.requested} 条已知条目，等待 conversation.item.retrieved 返回…`;
-        scheduleCtxRetrieveTimeout();
-      } else {
-        renderRetrievedItems([]);
-        els.ctxUpstreamHint.textContent = "暂无已知条目（还没有发言或工具调用）。";
-      }
     }
   } catch (err) {
+    ctxWaitingForRetrieve = false;
+    window.clearTimeout(ctxRetrieveTimeoutTimer);
     els.ctxItems.textContent = `历史上下文查询失败: ${err.message}`;
   } finally {
     ctxFetching = false;
@@ -3355,9 +3353,9 @@ async function refreshContext({retrieve = true} = {}) {
 
 function scheduleCtxRetrieveTimeout() {
   window.clearTimeout(ctxRetrieveTimeoutTimer);
-  const startedAt = Date.now();
   ctxRetrieveTimeoutTimer = window.setTimeout(() => {
-    if (ctxRetrievedAt < startedAt && !els.contextModal.hidden) {
+    if (ctxWaitingForRetrieve && !els.contextModal.hidden) {
+      ctxWaitingForRetrieve = false;
       els.ctxItems.textContent = "上游 6 秒内未返回 conversation.item.retrieved，可点击刷新重试。";
     }
   }, 6000);
@@ -3458,8 +3456,8 @@ function ctxRoleLabel(role) {
 }
 
 function handleContextRetrieved(event) {
-  if (event.event_id && ctxLastRetrieveEventId && event.event_id !== ctxLastRetrieveEventId) return;
-  ctxRetrievedAt = Date.now();
+  if (!ctxWaitingForRetrieve) return;
+  ctxWaitingForRetrieve = false;
   window.clearTimeout(ctxRetrieveTimeoutTimer);
   const raw = event.items;
   const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
