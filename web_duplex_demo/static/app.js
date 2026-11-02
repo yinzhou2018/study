@@ -1334,6 +1334,9 @@ function sendNextInputAudioFrame() {
     stopInputAudioFramePump();
     return;
   }
+  // 静音态不发音频帧，改用 input_audio_mute.commit 静音保活；
+  // 这里仅作兑底防护，正常路径下静音时帧泵已停止。
+  if (micMuted) return;
   queueAudio(nextInputAudioFrame());
 }
 
@@ -2448,16 +2451,41 @@ async function toggleMicrophone() {
   updateMicUi();
   if (micMuted) {
     els.meterFill.style.width = "0%";
+    stopInputAudioFramePump({clearBuffer: false});
     clearInputAudioBuffer();
-    startInputAudioFramePump();
+    sendMuteCommit("关闭麦克风");
     setHeroState("麦克风已关", "ok");
-    addMessage("tool", "麦克风已关闭，客户端仍每 20ms 发送一包静音帧保持上行。");
+    addMessage("tool", "麦克风已关闭，停止上行音频帧，已发送 input_audio_mute.commit 静音保活。");
     return;
   }
   clearInputAudioBuffer();
+  sendUnmuteCommit("打开麦克风");
   startInputAudioFramePump();
   setHeroState("正在听...", "listening");
+  addMessage("tool", "麦克风已打开，恢复上行音频帧，已发送 input_audio_unmute.commit。");
   if (!recording) await startRecording();
+}
+
+function sendMuteCommit(reason = "") {
+  if (!sessionId) return;
+  sendChain = sendChain.then(() => postJSON(
+    "/api/audio_mute",
+    {session_id: sessionId},
+    {name: "input_audio_mute.commit", detail: reason}
+  )).catch(err => {
+    addMessage("tool", `静音保活事件发送失败: ${err.message}`);
+  });
+}
+
+function sendUnmuteCommit(reason = "") {
+  if (!sessionId) return;
+  sendChain = sendChain.then(() => postJSON(
+    "/api/audio_unmute",
+    {session_id: sessionId},
+    {name: "input_audio_unmute.commit", detail: reason}
+  )).catch(err => {
+    addMessage("tool", `取消静音事件发送失败: ${err.message}`);
+  });
 }
 
 function base64ToBytes(b64) {
@@ -3149,13 +3177,13 @@ els.connectBtn.addEventListener("click", async () => {
           recording = false;
           micMuted = true;
           clearInputAudioBuffer();
-          startInputAudioFramePump();
           updateMicUi();
-          els.recordHint.textContent = "麦克风启动失败，客户端将继续每 20ms 发送静音帧";
+          els.recordHint.textContent = "麦克风启动失败，已改用静音保活";
           setHeroState("麦克风已关", "ok");
           const message = microphoneErrorMessage(err);
-          addMessage("tool", `${message}\n客户端将继续每 20ms 发送静音帧保持上行。`);
+          addMessage("tool", `${message}\n已发送 input_audio_mute.commit 静音保活。`);
           showErrorToast("麦克风启动失败", message);
+          sendMuteCommit("麦克风启动失败");
         });
       }
       if (msg.type === "local.session_create") {

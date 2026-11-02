@@ -163,6 +163,9 @@ class MockUpstream:
       self._send_json(conn, {"type": "input_audio_buffer.committed", "event_id": "ev_commit"})
       self._finish_turn(conn)
       return
+    if mtype in ("input_audio_mute.commit", "input_audio_unmute.commit"):
+      self.note("mock", f"keep-alive event received: {mtype}")
+      return
     if mtype == "session.close":
       self._send_json(conn, {"type": "session.closed", "event_id": "ev_close"})
       return

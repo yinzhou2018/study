@@ -110,6 +110,14 @@ def main():
   assert appends_before > 0, "session.update should land mid-turn (after started-triggering frames)"
   assert appends_after > 0, "audio frames stopped after session.update!"
 
+  # --- 静音/取消静音：应发送 mute/unmute 保活事件 ---
+  session.send_mute()
+  session.send_unmute()
+  time.sleep(0.3)
+  assert "input_audio_mute.commit" in mock.received_types, "mute commit not sent"
+  assert "input_audio_unmute.commit" in mock.received_types, "unmute commit not sent"
+  print("== mute/unmute keep-alive events OK")
+
   stop.set()
   session.close()
   print("\nALL ASSERTIONS PASSED")

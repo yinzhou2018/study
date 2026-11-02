@@ -936,6 +936,18 @@ class DuplexSession:
     self._wait_ready()
     self.ws.send_json({"type": "input_audio_buffer.append", "event_id": uuid.uuid4().hex, "audio": audio_b64})
 
+  def send_mute(self):
+    self._wait_ready()
+    payload = {"type": "input_audio_mute.commit", "event_id": uuid.uuid4().hex}
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
+
+  def send_unmute(self):
+    self._wait_ready()
+    payload = {"type": "input_audio_unmute.commit", "event_id": uuid.uuid4().hex}
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
+
   def commit_audio(self):
     self._wait_ready()
     self.ws.send_json({"type": "input_audio_buffer.commit", "event_id": uuid.uuid4().hex})
@@ -1186,6 +1198,10 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_audio()
       elif parsed.path == "/api/audio_commit":
         self._commit_audio()
+      elif parsed.path == "/api/audio_mute":
+        self._send_audio_mute()
+      elif parsed.path == "/api/audio_unmute":
+        self._send_audio_unmute()
       elif parsed.path == "/api/zone_marker":
         self._send_zone_marker()
       elif parsed.path == "/api/context_retrieve":
@@ -1317,6 +1333,22 @@ class Handler(SimpleHTTPRequestHandler):
     if not session:
       raise ValueError("session not found")
     session.commit_audio()
+    self._json({"ok": True})
+
+  def _send_audio_mute(self):
+    data = self._body()
+    session = STATE.get(data.get("session_id"))
+    if not session:
+      raise ValueError("session not found")
+    session.send_mute()
+    self._json({"ok": True})
+
+  def _send_audio_unmute(self):
+    data = self._body()
+    session = STATE.get(data.get("session_id"))
+    if not session:
+      raise ValueError("session not found")
+    session.send_unmute()
     self._json({"ok": True})
 
   def _send_zone_marker(self):
