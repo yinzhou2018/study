@@ -143,6 +143,15 @@ def main():
   assert create_msgs2[1]["items"][0]["content"][0]["text"] == "【主驾】你好", "existing prefix must not double"
   print("== paired context injection with zone prefix OK")
 
+  # --- 打招呼：speech_text_buffer.commit ---
+  session.send_text("你好，我是豆包，有什么可以帮你的吗？")
+  time.sleep(0.3)
+  hello_msgs = [m for m in mock.received_messages if m.get("type") == "speech_text_buffer.commit"]
+  assert hello_msgs, "speech_text_buffer.commit not sent"
+  assert hello_msgs[0].get("text") == "你好，我是豆包，有什么可以帮你的吗？"
+  assert hello_msgs[0].get("event_id"), "greeting should carry event_id"
+  print("== greeting speech_text_buffer.commit OK")
+
   stop.set()
   session.close()
   print("\nALL ASSERTIONS PASSED")

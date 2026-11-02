@@ -880,7 +880,7 @@ body {
   grid-row: 3;
   min-height: 76px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   justify-items: center;
   gap: 18px;
@@ -1215,6 +1215,15 @@ body {
 .ctx-add-btn:disabled {
   opacity: .55;
   cursor: not-allowed;
+}
+
+.greet-dialog {
+  width: min(460px, calc(100vw - 32px));
+  grid-template-rows: auto auto auto;
+}
+
+.call-control-btn.greet svg {
+  stroke-width: 2.2;
 }
 
 .ctx-body {

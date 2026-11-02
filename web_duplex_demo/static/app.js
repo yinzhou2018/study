@@ -71,6 +71,12 @@ const els = {
   qaSearchInput: document.querySelector("#qaSearchInput"),
   qaSearchStatus: document.querySelector("#qaSearchStatus"),
   showContextBtn: document.querySelector("#showContextBtn"),
+  greetBtn: document.querySelector("#greetBtn"),
+  greetModal: document.querySelector("#greetModal"),
+  greetCloseBtn: document.querySelector("#greetCloseBtn"),
+  greetInput: document.querySelector("#greetInput"),
+  greetSendBtn: document.querySelector("#greetSendBtn"),
+  greetNote: document.querySelector("#greetNote"),
   contextModal: document.querySelector("#contextModal"),
   ctxCount: document.querySelector("#ctxCount"),
   ctxRefreshBtn: document.querySelector("#ctxRefreshBtn"),
@@ -1526,6 +1532,7 @@ function setConnected(ok, {keepCallPage = false} = {}) {
   els.closeBtn.disabled = !ok;
   els.recordBtn.disabled = !ok;
   els.forceCommitBtn.disabled = !ok;
+  els.greetBtn.disabled = !ok;
   els.showContextBtn.disabled = !ok;
   els.callCloseBtn.disabled = false;
   if (ok) {
@@ -1563,6 +1570,7 @@ function setConnecting() {
   els.callCloseBtn.disabled = false;
   els.recordBtn.disabled = true;
   els.forceCommitBtn.disabled = true;
+  els.greetBtn.disabled = true;
 }
 
 function clearApiKeyError() {
@@ -3274,6 +3282,7 @@ els.closeBtn.addEventListener("click", async () => {
   els.callCloseBtn.disabled = true;
   els.recordBtn.disabled = true;
   els.forceCommitBtn.disabled = true;
+  els.greetBtn.disabled = true;
   setHeroState("正在关闭...", "connecting");
   await postJSON("/api/close", {session_id: sessionId}, {name: "session.close"}).catch(() => {});
   els.recordHint.textContent = "等待 session.closed ack";
@@ -3310,6 +3319,70 @@ els.forceCommitBtn.addEventListener("click", evt => {
     showErrorToast("强制判停失败", err);
   });
 });
+
+// ---- 打招呼 ----
+
+const GREET_DEFAULT_TEXT = "你好，我是豆包，有什么可以帮你的吗？";
+
+els.greetBtn.addEventListener("click", evt => {
+  evt.preventDefault();
+  openGreetModal();
+});
+
+els.greetCloseBtn.addEventListener("click", closeGreetModal);
+els.greetSendBtn.addEventListener("click", () => {
+  sendGreeting().catch(err => {
+    setGreetNote(err.message, true);
+  });
+});
+els.greetInput.addEventListener("keydown", evt => {
+  if (evt.key === "Enter" && !evt.shiftKey) {
+    evt.preventDefault();
+    els.greetSendBtn.click();
+  }
+});
+els.greetModal.addEventListener("click", evt => {
+  if (evt.target === els.greetModal) closeGreetModal();
+});
+window.addEventListener("keydown", evt => {
+  if (evt.key === "Escape" && !els.greetModal.hidden) closeGreetModal();
+});
+
+function openGreetModal() {
+  els.greetModal.hidden = false;
+  if (!els.greetInput.value.trim()) els.greetInput.value = GREET_DEFAULT_TEXT;
+  setGreetNote("发送后由 TTS 链路合成并播报");
+  els.greetInput.focus();
+  els.greetInput.select();
+}
+
+function closeGreetModal() {
+  els.greetModal.hidden = true;
+}
+
+function setGreetNote(text, isError = false) {
+  els.greetNote.textContent = text;
+  els.greetNote.classList.toggle("is-error", isError);
+}
+
+async function sendGreeting() {
+  if (!sessionId) throw new Error("会话未连接");
+  const text = els.greetInput.value.trim();
+  if (!text) throw new Error("请输入打招呼文本");
+  els.greetSendBtn.disabled = true;
+  try {
+    await sendChain;
+    await postJSON(
+      "/api/text",
+      {session_id: sessionId, text},
+      {name: "speech_text_buffer.commit", detail: text.slice(0, 40)}
+    );
+    addMessage("tool", `打招呼已发送：${text}`);
+    closeGreetModal();
+  } finally {
+    els.greetSendBtn.disabled = false;
+  }
+}
 
 // ---- 历史上下文弹窗 ----
 

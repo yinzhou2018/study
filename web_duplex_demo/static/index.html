@@ -129,6 +129,21 @@
               <path d="M3 5v5h5"/>
             </svg>
           </button>
+          <button
+            id="greetBtn"
+            class="call-control-btn greet"
+            type="button"
+            disabled
+            aria-label="打招呼"
+            title="打招呼，让模型用当前音色主动播报一段固定文本"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.3 8.9 8.9 0 0 1-3.7-.8L3 21l1.9-5a7.8 7.8 0 0 1-.9-3.6 8.4 8.4 0 0 1 8.5-8.3 8.4 8.4 0 0 1 8.5 8.3Z"/>
+              <path d="M8.5 10.5h.01"/>
+              <path d="M12.5 10.5h.01"/>
+              <path d="M16.5 10.5h.01"/>
+            </svg>
+          </button>
           <button id="callCloseBtn" class="call-control-btn hangup" type="button" aria-label="关闭通话" title="关闭通话">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 2v10"/>
@@ -438,6 +453,26 @@
       </div>
       <div class="ctx-body">
         <div id="ctxItems" class="ctx-items"></div>
+      </div>
+    </div>
+  </div>
+  <div id="greetModal" class="ctx-modal" role="dialog" aria-modal="true" aria-labelledby="greetModalTitle" hidden>
+    <div class="ctx-dialog greet-dialog">
+      <div class="ctx-dialog-head">
+        <h3 id="greetModalTitle">打招呼</h3>
+        <div class="ctx-dialog-actions">
+          <button id="greetCloseBtn" type="button" class="ctx-close" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="ctx-summary">
+        <span>让模型用当前音色主动播报一段固定文本（speech_text_buffer.commit）</span>
+      </div>
+      <div class="ctx-add">
+        <textarea id="greetInput" rows="3" spellcheck="false"></textarea>
+        <div class="ctx-add-foot">
+          <span id="greetNote" class="ctx-add-note">发送后由 TTS 链路合成并播报</span>
+          <button id="greetSendBtn" type="button" class="ctx-add-btn">发送</button>
+        </div>
       </div>
     </div>
   </div>
