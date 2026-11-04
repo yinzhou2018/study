@@ -3183,7 +3183,8 @@ els.connectBtn.addEventListener("click", async () => {
         addJsonDetailsMessage("session.create", {type: "session.create", extension: msg.extension || {}});
       }
       if (msg.type === "local.update_diff") {
-        addMessage("tool", `session.update diff:\n${JSON.stringify(msg.diff, null, 2)}`);
+        // 与 session.create 呈现方式一致：默认收缩，展开查看完整发送消息体（不展示 diff）。
+        addJsonDetailsMessage("session.update", msg.event || {});
       }
       if (msg.type === "upstream.event") handleUpstream(msg);
       if (msg.type === "upstream.event" && (msg.event || {}).type === "conversation.item.retrieved") {
