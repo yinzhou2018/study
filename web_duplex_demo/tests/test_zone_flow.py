@@ -43,6 +43,7 @@ def drain_events(session, collected, stop):
 
 def main():
   mock = MockUpstream()
+  mock.hold_session_created = True  # 先扣住 session.created，验证 ready 等待确认
   threading.Thread(target=mock.serve, daemon=True).start()
   time.sleep(0.3)
 
@@ -58,7 +59,20 @@ def main():
   stop = threading.Event()
   threading.Thread(target=drain_events, args=(session, collected, stop), daemon=True).start()
 
-  assert session.ready.wait(timeout=10), "session not ready"
+  # session.create 已发出但 session.created 未返回：会话不应就绪。
+  deadline = time.time() + 5
+  while time.time() < deadline and not any(
+      e.get("type") == "local.outgoing" and (e.get("event") or {}).get("type") == "session.create"
+      for e in collected
+  ):
+    time.sleep(0.05)
+  assert any(e.get("type") == "local.outgoing" for e in collected), "session.create not sent"
+  assert not session.ready.wait(timeout=0.5), "ready must wait for session.created ack"
+  print("\n== ready correctly NOT set before session.created")
+
+  mock.release_session_created()
+  assert session.ready.wait(timeout=5), "ready should be set after session.created"
+  print("== ready set after session.created ack")
   time.sleep(0.2)
 
   # --- 用户开始说话：流式上行音频，第 5 帧后 mock 发 started ---
@@ -151,6 +165,24 @@ def main():
   assert hello_msgs[0].get("text") == "你好，我是豆包，有什么可以帮你的吗？"
   assert hello_msgs[0].get("event_id"), "greeting should carry event_id"
   print("== greeting speech_text_buffer.commit OK")
+
+  # --- 上行事件去重：每个动作恰好一条 local.outgoing（事件面板唯一上行来源） ---
+  def outgoing_count(event_type):
+    return sum(1 for e in collected
+               if e.get("type") == "local.outgoing" and (e.get("event") or {}).get("type") == event_type)
+
+  for event_type, expected in [
+      ("session.create", 1),
+      ("session.update", 1),
+      ("input_audio_mute.commit", 1),
+      ("input_audio_unmute.commit", 1),
+      ("input_audio_buffer.commit", 1),
+      ("conversation.item.create", 2),  # 两次成对注入
+      ("speech_text_buffer.commit", 1),
+  ]:
+    count = outgoing_count(event_type)
+    assert count == expected, f"{event_type}: expected {expected} local.outgoing, got {count}"
+  print("== each uplink action emits exactly one local.outgoing OK")
 
   stop.set()
   session.close()

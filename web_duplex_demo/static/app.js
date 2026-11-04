@@ -1681,7 +1681,8 @@ async function endCallAfterErrorToast() {
 }
 
 async function postJSON(url, payload, eventMeta = null) {
-  if (eventMeta) logEventLine("up", eventMeta.name, eventMeta.detail || "");
+  // 事件面板的上行行统一由服务端 local.outgoing 记录（真实转发到上游后才显示），
+  // 这里不再重复记；eventMeta 仅保留调用侧标注用途。
   const resp = await fetch(url, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -2048,37 +2049,9 @@ function formatClock(ts = Date.now()) {
   return date.toLocaleTimeString("zh-CN", {hour12: false}) + `.${String(date.getMilliseconds()).padStart(3, "0")}`;
 }
 
-function summarizePayload(payload) {
-  if (!payload) return "";
-  const parts = [];
-  if (payload.event_id) parts.push(`event_id=${payload.event_id}`);
-  if (payload.session_id) parts.push(`session=${String(payload.session_id).slice(0, 8)}`);
-  if (payload.logid) parts.push(`logid=${payload.logid}`);
-  if (payload.status) parts.push(`status=${payload.status}`);
-  const text = extractEventText(payload);
-  if (text) parts.push(`text=${JSON.stringify(text.length > 80 ? text.slice(0, 80) + "..." : text)}`);
-  if (payload.audio) parts.push(`audio_b64=${payload.audio.length}`);
-  if (payload.items) parts.push(`items=${Array.isArray(payload.items) ? payload.items.length : 1}`);
-  if (payload.name) parts.push(`name=${payload.name}`);
-  if (payload.message) parts.push(`message=${JSON.stringify(payload.message)}`);
-  return parts.join(" ");
-}
-
-function summarizeResponseTextDone(event) {
-  const parts = [];
-  if (event.event_id) parts.push(`event_id=${event.event_id}`);
-  if (event.logid) parts.push(`logid=${event.logid}`);
-  const text = extractEventText(event);
-  if (text) {
-    parts.push(`text_chars=${text.length}`);
-    parts.push(`preview=${JSON.stringify(text.length > 60 ? text.slice(0, 60) + "..." : text)}`);
-  }
-  return parts.join(" ");
-}
-
-function logEventLine(direction, name, detail = "") {
+function logEventLine(direction, name) {
   const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "•";
-  eventLines.push(`${formatClock()} ${arrow} ${name}${detail ? `  ${detail}` : ""}`);
+  eventLines.push(`${formatClock()} ${arrow} ${name}`);
   if (eventLines.length > 300) eventLines = eventLines.slice(-300);
   els.events.textContent = eventLines.join("\n");
   els.events.scrollTop = els.events.scrollHeight;
@@ -2092,7 +2065,7 @@ function logResponseTextDelta(event) {
   const now = Date.now();
   if (now - lastResponseTextEventAt < RESPONSE_TEXT_LOG_INTERVAL_MS) return;
 
-  logEventLine("down", event.type || "response.output_text.delta", `chunk_nums=${responseTextDeltaCount} text_chars=${responseTextDeltaChars}`);
+  logEventLine("down", event.type || "response.output_text.delta");
   responseTextDeltaCount = 0;
   responseTextDeltaChars = 0;
   lastResponseTextEventAt = now;
@@ -2100,7 +2073,7 @@ function logResponseTextDelta(event) {
 
 function flushResponseTextDelta() {
   if (responseTextDeltaCount <= 0) return;
-  logEventLine("down", "response.output_text.delta", `chunk_nums=${responseTextDeltaCount} text_chars=${responseTextDeltaChars}`);
+  logEventLine("down", "response.output_text.delta");
   responseTextDeltaCount = 0;
   responseTextDeltaChars = 0;
 }
@@ -2119,7 +2092,7 @@ function logResponseAudioDelta(event) {
   const now = Date.now();
   if (now - lastResponseAudioEventAt < RESPONSE_AUDIO_LOG_INTERVAL_MS) return;
 
-  logEventLine("down", event.type || "response.output_audio.delta", `chunk_nums=${responseAudioDeltaCount} audio_b64=${responseAudioDeltaBytes}`);
+  logEventLine("down", event.type || "response.output_audio.delta");
   responseAudioDeltaCount = 0;
   responseAudioDeltaBytes = 0;
   lastResponseAudioEventAt = now;
@@ -2127,7 +2100,7 @@ function logResponseAudioDelta(event) {
 
 function flushResponseAudioDelta() {
   if (responseAudioDeltaCount <= 0) return;
-  logEventLine("down", "response.output_audio.delta", `chunk_nums=${responseAudioDeltaCount} audio_b64=${responseAudioDeltaBytes}`);
+  logEventLine("down", "response.output_audio.delta");
   responseAudioDeltaCount = 0;
   responseAudioDeltaBytes = 0;
 }
@@ -2135,11 +2108,16 @@ function flushResponseAudioDelta() {
 function logInboundEvent(msg) {
   if (msg.type === "local.outgoing") {
     const event = msg.event || {};
-    logEventLine("up", event.type || "local.outgoing", JSON.stringify(event));
+    logEventLine("up", event.type || "local.outgoing");
     return;
   }
+  // local.session_create / local.update_diff 与紧随其后的 local.outgoing 协议行镜像重复，
+  // 完整内容已在 QA 面板展示（session.create 详情 / update diff），不进事件面板。
+  if (msg.type === "local.session_create" || msg.type === "local.update_diff") return;
   if (msg.type === "upstream.event") {
     const event = msg.event || {};
+    // ASR 增量事件量大且碎，不进入事件面板。
+    if (event.type === "conversation.item.input_audio_transcription.delta") return;
     updateCurrentLogid(event);
     if (event.type === "response.output_text.delta") {
       logResponseTextDelta(event);
@@ -2147,12 +2125,12 @@ function logInboundEvent(msg) {
     }
     if (event.type === "response.output_text.done") {
       flushResponseTextDelta();
-      logEventLine("down", event.type, summarizeResponseTextDone(event));
+      logEventLine("down", event.type);
       return;
     }
     if (event.type === "response.output_audio.started") {
       resetResponseAudioDelta();
-      logEventLine("down", event.type, summarizePayload(event));
+      logEventLine("down", event.type);
       return;
     }
     if (event.type === "response.output_audio.delta") {
@@ -2162,14 +2140,14 @@ function logInboundEvent(msg) {
     if (event.type === "response.output_audio.done") {
       flushResponseAudioDelta();
       lastResponseAudioEventAt = 0;
-      logEventLine("down", event.type, summarizePayload(event));
+      logEventLine("down", event.type);
       return;
     }
-    logEventLine("down", event.type || "upstream.event", summarizePayload(event));
+    logEventLine("down", event.type || "upstream.event");
     return;
   }
   updateCurrentLogid(msg);
-  logEventLine("local", msg.type || "local.event", summarizePayload(msg));
+  logEventLine("local", msg.type || "local.event");
 }
 
 function parseToolsJson() {
@@ -3181,7 +3159,8 @@ els.connectBtn.addEventListener("click", async () => {
     source.onmessage = evt => {
       const msg = JSON.parse(evt.data);
       logInboundEvent(msg);
-      if (msg.type === "local.connected" && !autoMicStarted) {
+      if (msg.type === "upstream.event" && (msg.event || {}).type === "session.created" && !autoMicStarted) {
+        // 会话建立确认（session.created）后才启动麦克风，避免音频早于会话建立上行。
         autoMicStarted = true;
         setConnected(true);
         startRecording().catch(err => {

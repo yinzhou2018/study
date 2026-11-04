@@ -36,6 +36,9 @@ class MockUpstream:
     self.completed_sent = False
     self.item_seq = 0
     self._buf = b""
+    self.conn = None
+    self.hold_session_created = False
+    self.session_created_sent = False
 
   def note(self, direction, text):
     line = f"[{time.time():.3f}] {direction} {text}"
@@ -54,6 +57,7 @@ class MockUpstream:
 
   def handle(self, conn):
     conn.settimeout(30)
+    self.conn = conn
     self._handshake(conn)
     while True:
       try:
@@ -84,6 +88,17 @@ class MockUpstream:
     self.note("mock", "handshake ok")
     if rest:
       self._buf = rest
+
+  def _send_session_created(self):
+    if self.session_created_sent or not self.conn:
+      return
+    self.session_created_sent = True
+    self._send_json(self.conn, {"type": "session.created", "event_id": "ev_created",
+                                "session": {"id": self.session_id}})
+
+  def release_session_created(self):
+    """测试钩子：补发被扣住的 session.created。"""
+    self._send_session_created()
 
   def _send_text(self, conn, text):
     data = text.encode("utf-8")
@@ -143,8 +158,10 @@ class MockUpstream:
     self.note("client->up", json.dumps(msg, ensure_ascii=False)[:220])
 
     if mtype == "session.create":
-      self._send_json(conn, {"type": "session.created", "event_id": "ev_created",
-                             "session": {"id": self.session_id}})
+      if self.hold_session_created:
+        self.note("mock", "holding session.created (test harness)")
+        return
+      self._send_session_created()
       return
     if mtype == "session.update":
       self._send_json(conn, {"type": "session.updated", "event_id": msg.get("event_id") or "ev_upd"})

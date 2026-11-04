@@ -705,7 +705,8 @@ class DuplexSession:
       self.emit("local.outgoing", {"event": session_create})
       self.ws.send_json(session_create)
       self._remember_sent_payload(session_create)
-      self.ready.set()
+      # 不在此处置位 ready：等上游 session.created 确认后会话才真正就绪，
+      # 避免音频等上行事件早于会话建立到达上游。
       while not self.closed.is_set():
         raw = self.ws.recv_text()
         try:
@@ -714,6 +715,8 @@ class DuplexSession:
           msg = {"type": "local.unparsed", "raw": raw}
         msg_type = msg.get("type")
         self.emit("upstream.event", {"event": msg})
+        if msg_type == "session.created":
+          self.ready.set()
         if msg_type == "response.function_call_arguments.done":
           self._handle_function_call(msg)
         if msg_type == "conversation.item.input_audio_transcription.started":
@@ -931,7 +934,9 @@ class DuplexSession:
 
   def send_text(self, text):
     self._wait_ready()
-    self.ws.send_json({"type": "speech_text_buffer.commit", "event_id": uuid.uuid4().hex, "text": text})
+    payload = {"type": "speech_text_buffer.commit", "event_id": uuid.uuid4().hex, "text": text}
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
 
   def send_audio(self, audio_b64):
     self._wait_ready()
@@ -984,7 +989,9 @@ class DuplexSession:
 
   def commit_audio(self):
     self._wait_ready()
-    self.ws.send_json({"type": "input_audio_buffer.commit", "event_id": uuid.uuid4().hex})
+    payload = {"type": "input_audio_buffer.commit", "event_id": uuid.uuid4().hex}
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
 
   @staticmethod
   def _normalize_zone(value):
@@ -1169,8 +1176,10 @@ class DuplexSession:
   def close(self):
     self.close_requested.set()
     if self.ws:
+      payload = {"type": "session.close"}
       try:
-        self.ws.send_json({"type": "session.close"})
+        self.ws.send_json(payload)
+        self.emit("local.outgoing", {"event": payload})
       except Exception:
         self.closed.set()
         self.ws.close()

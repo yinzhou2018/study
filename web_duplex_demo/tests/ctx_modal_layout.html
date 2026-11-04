@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ctx modal layout check</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="contextModal" class="ctx-modal" role="dialog" aria-modal="true" aria-labelledby="contextModalTitle">
+  <div class="ctx-dialog">
+    <div class="ctx-dialog-head">
+      <h3 id="contextModalTitle">历史上下文</h3>
+      <div class="ctx-dialog-actions">
+        <span id="ctxCount" class="ctx-count">8 条</span>
+        <button id="ctxRefreshBtn" type="button" class="ctx-refresh-btn">刷新</button>
+        <button id="ctxCloseBtn" type="button" class="ctx-close" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="ctx-summary">
+      <span>当前发言音区：<strong id="ctxZone">副驾</strong></span>
+      <span id="ctxZoneNote" class="ctx-zone-note">（已写入 system prompt）</span>
+      <span id="ctxUpstreamHint">以上为上游返回的原始上下文记录</span>
+    </div>
+    <div class="ctx-add">
+      <div class="ctx-add-head">注入历史上下文（user / assistant 成对）</div>
+      <textarea id="ctxAddInput" rows="3" spellcheck="false"
+        placeholder="每行一轮，用 | 分隔：用户话术 | 助手回复"></textarea>
+      <div class="ctx-add-foot">
+        <span id="ctxAddNote" class="ctx-add-note">user 消息提交时将自动添加【副驾】前缀</span>
+        <button id="ctxAddBtn" type="button" class="ctx-add-btn">提交</button>
+      </div>
+    </div>
+    <div class="ctx-body">
+      <div id="ctxItems" class="ctx-items">
+        <div class="ctx-item ctx-role-user"><span class="ctx-role">用户</span><div class="ctx-text">【主驾】打开空调</div></div>
+        <div class="ctx-item ctx-role-assistant"><span class="ctx-role">助手</span><div class="ctx-text">好的，已为你打开空调。</div></div>
+        <div class="ctx-item ctx-role-user"><span class="ctx-role">用户</span><div class="ctx-text">【主驾】导航去公司</div></div>
+        <div class="ctx-item ctx-role-assistant"><span class="ctx-role">助手</span><div class="ctx-text">正在为你导航去公司，大约 20 分钟。</div></div>
+        <div class="ctx-item ctx-role-user"><span class="ctx-role">用户</span><div class="ctx-text">【副驾】讲个故事</div></div>
+        <div class="ctx-item ctx-role-assistant"><span class="ctx-role">助手</span><div class="ctx-text">从前有座山，山里有座庙……</div></div>
+        <div class="ctx-item ctx-role-user"><span class="ctx-role">用户</span><div class="ctx-text">【副驾】还有多久到</div></div>
+        <div class="ctx-item ctx-role-assistant"><span class="ctx-role">助手</span><div class="ctx-text">大约还有 12 分钟。</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
