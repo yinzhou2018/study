@@ -7,6 +7,7 @@
 - 页面可填写 `Dialog ID`；该字段对应服务内部的 dialog id，用于继承指定上下文。留空时创建新上下文，也可点击“生成 UUID”生成一个新的 UUID 字符串
 - 语音输入：浏览器实时采集麦克风，转成 `pcm` / 16k / int16 / 单声道后，由客户端统一按 20ms 一包发送 `input_audio_buffer.append`；静音、麦克风关闭、麦克风启动失败等场景也保持每 20ms 一包上行，只是客户端事件面板会按聚合策略打印；`强制判停` 仅在模型未自动判停、迟迟不回复时使用，点击后会在待发送音频按 20ms 发完后发送 `input_audio_buffer.commit`，停止收音时也会提交一次
 - FC Tools JSON：页面提供可编辑的 `tools` 数组，默认填入座舱智能控制工具 schema（车控 / 媒体 / 导航），用户可以直接追加或修改工具定义；连接后继续修改会通过 `session.update.session.tools` 同步到上游
+- 系统提示模板：默认 system prompt 独立维护在仓库根目录的 `system-instructions.md`，后端启动后加载该文件（按 mtime 缓存，修改后无需重启）；前端“自定义 SP”文本框的默认内容通过 `GET /api/default_instructions` 从后端获取，展示的是模板原文（含 `{current_speaking_zone}` 占位符）；下发时由后端按当前发言音区实时替换占位符
 - 主动回复：页面开关控制 `session.create.extension.extra.enable_proactive_speak`
 - 联网开关：开启后在 `session.create.extension.dialog.extra` 里传 `enable_volc_websearch=true`；`volc_websearch_type="web_custom_api"` 和 `"web_global_api"` 需要额外传 `volc_websearch_api_key`
 - 唱歌开关：开启后在 `session.create.extension.dialog.extra` 里传 `enable_music=true`
@@ -22,7 +23,7 @@
 
 页面顶部的“说话音区”选择器配合“多音区”开关，模拟车载座舱四个音区（主驾/副驾/左后排/右后排）的多人对话。方案分两层：
 
-- 当前发言音区（机制 A）：音区随 `session.create` 写进 system prompt 末尾的“当前发言音区”一节；切换音区时后端通过 `session.update` 更新 instructions（内容不变时不重复发送）；关闭多音区开关会下发一次不含该节的 instructions 清除状态。
+- 当前发言音区（机制 A）：system prompt 模板 `system-instructions.md` 的「当前说话音区」一节包含 `{current_speaking_zone}` 占位符，后端在每次下发 instructions 前按当前音区实时替换；音区随 `session.create` 写入，切换音区时后端通过 `session.update` 更新 instructions（音区不变时不重复发送）；关闭多音区开关时下发一次占位符替换为「未知」的 instructions 清除状态。
 - 历史发言归属（机制 B）：后端收到 `conversation.item.input_audio_transcription.completed` 后，立即用 `conversation.item.update` 把该轮 ASR 转录条目回写为 `【音区名】+原文`，使历史上下文里每条用户发言都自带音区，续接 dialog id 后依然可辨。
 
 上下文形态：
