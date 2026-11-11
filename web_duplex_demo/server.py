@@ -962,6 +962,12 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
 
+  def cancel_response(self):
+    self._wait_ready()
+    payload = {"type": "response.cancel"}
+    self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
+
   @staticmethod
   def _normalize_zone(value):
     zone = str(value or "").strip()
@@ -1350,6 +1356,8 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_audio()
       elif parsed.path == "/api/audio_commit":
         self._commit_audio()
+      elif parsed.path == "/api/response_cancel":
+        self._cancel_response()
       elif parsed.path == "/api/audio_mute":
         self._send_audio_mute()
       elif parsed.path == "/api/audio_unmute":
@@ -1499,6 +1507,14 @@ class Handler(SimpleHTTPRequestHandler):
     if not session:
       raise ValueError("session not found")
     session.commit_audio()
+    self._json({"ok": True})
+
+  def _cancel_response(self):
+    data = self._body()
+    session = STATE.get(data.get("session_id"))
+    if not session:
+      raise ValueError("session not found")
+    session.cancel_response()
     self._json({"ok": True})
 
   def _send_audio_mute(self):

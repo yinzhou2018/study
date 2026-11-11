@@ -91,6 +91,7 @@ const els = {
   clearEventsBtn: document.querySelector("#clearEventsBtn"),
   recordBtn: document.querySelector("#recordBtn"),
   forceCommitBtn: document.querySelector("#forceCommitBtn"),
+  interruptBtn: document.querySelector("#interruptBtn"),
   zoneBar: document.querySelector("#zoneBar"),
   zoneOptions: document.querySelector("#zoneOptions"),
   enableZones: document.querySelector("#enableZones"),
@@ -1483,6 +1484,7 @@ function setConnected(ok, {keepCallPage = false} = {}) {
   els.closeBtn.disabled = !ok;
   els.recordBtn.disabled = !ok;
   els.forceCommitBtn.disabled = !ok;
+  els.interruptBtn.disabled = !ok;
   els.greetBtn.disabled = !ok;
   els.showContextBtn.disabled = !ok;
   els.callCloseBtn.disabled = false;
@@ -1521,6 +1523,7 @@ function setConnecting() {
   els.callCloseBtn.disabled = false;
   els.recordBtn.disabled = true;
   els.forceCommitBtn.disabled = true;
+  els.interruptBtn.disabled = true;
   els.greetBtn.disabled = true;
 }
 
@@ -2369,6 +2372,30 @@ async function forceCommitAudio(detail = "强制判停") {
   if (shouldRestartPump && sessionId) startInputAudioFramePump();
 }
 
+async function interruptResponse() {
+  if (!sessionId) return;
+  if (pcmPlayer) {
+    pcmPlayer.stop().catch(() => {});
+    pcmPlayer = null;
+  }
+  if (currentTurn && !currentTurn.done) {
+    if (currentTurn.answer) {
+      finishAnswer(currentTurn.answer);
+    } else {
+      currentTurn.answerEl.textContent = "已打断";
+      currentTurn.done = true;
+      lastTurn = currentTurn;
+      currentTurn = null;
+    }
+  }
+  setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
+  await postJSON(
+    "/api/response_cancel",
+    {session_id: sessionId},
+    {name: "response.cancel", detail: "打断模型推理"}
+  ).catch(err => addMessage("tool", `response.cancel failed: ${err.message}`));
+}
+
 async function startRecording() {
   if (recording || !sessionId) return;
   clearInputAudioBuffer();
@@ -3003,6 +3030,23 @@ function handleUpstream(msg) {
       if (currentTurn && currentTurn.answer) finishAnswer("");
       appendResponseDoneDetails(event);
       break;
+    case "response.canceled":
+      if (pcmPlayer) {
+        pcmPlayer.stop().catch(() => {});
+        pcmPlayer = null;
+      }
+      if (currentTurn && !currentTurn.done) {
+        if (currentTurn.answer) {
+          finishAnswer(currentTurn.answer);
+        } else {
+          currentTurn.answerEl.textContent = "已打断";
+          currentTurn.done = true;
+          lastTurn = currentTurn;
+          currentTurn = null;
+        }
+      }
+      setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
+      break;
     case "response.output_audio.started":
       if (pcmPlayer) pcmPlayer.stop().catch(() => {});
       pcmPlayer = createOutputAudioPlayer();
@@ -3260,6 +3304,7 @@ els.closeBtn.addEventListener("click", async () => {
   els.callCloseBtn.disabled = true;
   els.recordBtn.disabled = true;
   els.forceCommitBtn.disabled = true;
+  els.interruptBtn.disabled = true;
   els.greetBtn.disabled = true;
   setHeroState("正在关闭...", "connecting");
   await postJSON("/api/close", {session_id: sessionId}, {name: "session.close"}).catch(() => {});
@@ -3295,6 +3340,14 @@ els.forceCommitBtn.addEventListener("click", evt => {
   forceCommitAudio("强制判停").catch(err => {
     addMessage("tool", `force commit failed: ${err.message}`);
     showErrorToast("强制判停失败", err);
+  });
+});
+
+els.interruptBtn.addEventListener("click", evt => {
+  evt.preventDefault();
+  interruptResponse().catch(err => {
+    addMessage("tool", `打断失败: ${err.message}`);
+    showErrorToast("打断失败", err);
   });
 });
 
