@@ -2000,12 +2000,34 @@ function formatClock(ts = Date.now()) {
   return date.toLocaleTimeString("zh-CN", {hour12: false}) + `.${String(date.getMilliseconds()).padStart(3, "0")}`;
 }
 
-function logEventLine(direction, name) {
+function logEventLine(direction, name, detail = "") {
   const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "•";
-  eventLines.push(`${formatClock()} ${arrow} ${name}`);
+  const suffix = detail ? ` ${detail}` : "";
+  eventLines.push(`${formatClock()} ${arrow} ${name}${suffix}`);
   if (eventLines.length > 300) eventLines = eventLines.slice(-300);
   els.events.textContent = eventLines.join("\n");
   els.events.scrollTop = els.events.scrollHeight;
+}
+
+function truncateEventText(text, max = 40) {
+  const str = String(text || "");
+  return str.length > max ? `${str.slice(0, max)}…` : str;
+}
+
+// conversation.item.update：展示 item id / event id / 更新文本
+function formatItemUpdateDetail(event) {
+  const item = (event.items || [])[0] || {};
+  const text = (item.content || []).map(c => c.text || "").join(" ").trim();
+  const parts = [];
+  if (item.id) parts.push(`item=${item.id}`);
+  if (event.event_id) parts.push(`event=${event.event_id}`);
+  if (text) parts.push(`text="${truncateEventText(text)}"`);
+  return parts.join(" ");
+}
+
+// conversation.item.updated：ack 事件，展示 event id
+function formatItemUpdatedDetail(event) {
+  return event.event_id ? `event=${event.event_id}` : "";
 }
 
 function logResponseTextDelta(event) {
@@ -2059,6 +2081,10 @@ function flushResponseAudioDelta() {
 function logInboundEvent(msg) {
   if (msg.type === "local.outgoing") {
     const event = msg.event || {};
+    if (event.type === "conversation.item.update") {
+      logEventLine("up", event.type, formatItemUpdateDetail(event));
+      return;
+    }
     logEventLine("up", event.type || "local.outgoing");
     return;
   }
@@ -2070,6 +2096,14 @@ function logInboundEvent(msg) {
     // ASR 增量事件量大且碎，不进入事件面板。
     if (event.type === "conversation.item.input_audio_transcription.delta") return;
     updateCurrentLogid(event);
+    if (event.type === "conversation.item.update") {
+      logEventLine("down", event.type, formatItemUpdateDetail(event));
+      return;
+    }
+    if (event.type === "conversation.item.updated") {
+      logEventLine("down", event.type, formatItemUpdatedDetail(event));
+      return;
+    }
     if (event.type === "response.output_text.delta") {
       logResponseTextDelta(event);
       return;
