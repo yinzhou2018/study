@@ -35,6 +35,8 @@ class MockUpstream:
     self.started_sent = False
     self.completed_sent = False
     self.item_seq = 0
+    self.item_content = {}  # item_id -> 当前文本内容（供 retrieve 返回，模拟上游存储）
+    self.overwrite_next_update = False  # 模拟上游后写覆盖：下一个 item.update 被原文覆盖
     self._buf = b""
     self.conn = None
     self.hold_session_created = False
@@ -168,11 +170,11 @@ class MockUpstream:
       return
     if mtype == "conversation.item.update":
       self._send_json(conn, {"type": "conversation.item.updated", "event_id": msg.get("event_id") or "ev_iu",
-                             "items": msg.get("items") or []})
+                             "items": self._apply_item_update(msg)})
       return
     if mtype == "conversation.item.retrieve":
       self._send_json(conn, {"type": "conversation.item.retrieved", "event_id": msg.get("event_id") or "ev_ir",
-                             "items": []})
+                             "items": self._retrieve_items(msg)})
       return
     if mtype == "conversation.item.create":
       self._send_json(conn, {"type": "conversation.item.added", "event_id": msg.get("event_id") or "ev_ic",
@@ -206,18 +208,59 @@ class MockUpstream:
     if self.frame_count >= 12 and self.started_sent and not self.completed_sent:
       pass  # completed is triggered by _finish_turn (server VAD at silence) or commit
 
+  def _apply_item_update(self, msg):
+    """记录 item.update：默认存储新内容；开启覆盖模拟时首个 update 被上游后写覆盖（保留原文）。"""
+    out = []
+    items = msg.get("items") or []
+    if isinstance(items, dict):
+      items = [items]
+    for item in items:
+      if not isinstance(item, dict):
+        continue
+      item_id = str(item.get("id") or "")
+      text = ""
+      content = item.get("content")
+      if isinstance(content, list) and content and isinstance(content[0], dict):
+        text = str(content[0].get("text") or "")
+      if item_id:
+        if self.overwrite_next_update:
+          self.overwrite_next_update = False
+          self.note("mock", f"simulate upstream overwrite: keep original text of {item_id}, discard {text!r}")
+        else:
+          self.item_content[item_id] = text
+        out.append({"id": item_id, "type": "message", "role": "user",
+                    "content": [{"type": "input_text", "text": self.item_content.get(item_id, text)}]})
+    return out
+
+  def _retrieve_items(self, msg):
+    req = msg.get("items") or []
+    if isinstance(req, dict):
+      req = [req]
+    out = []
+    for entry in req:
+      if isinstance(entry, dict) and entry.get("id"):
+        item_id = str(entry["id"])
+        text = self.item_content.get(item_id)
+        if text is None:
+          continue  # 条目尚未入库
+        out.append({"id": item_id, "type": "message", "role": "user",
+                    "content": [{"type": "input_text", "text": text}]})
+    return out
+
   def _finish_turn(self, conn):
     if not self.started_sent or self.completed_sent:
       return
     self.completed_sent = True
+    item_id = f"item_{self.item_seq}"
+    self.item_content[item_id] = "现在是谁在跟你说话"
     self._send_json(conn, {
         "type": "conversation.item.input_audio_transcription.completed",
         "event_id": f"ev_completed_{self.item_seq}",
-        "item_id": f"item_{self.item_seq}",
+        "item_id": item_id,
         "transcript": "现在是谁在跟你说话",
     })
     self._send_json(conn, {"type": "conversation.item.added", "event_id": "ev_added",
-                           "items": [{"id": f"item_{self.item_seq}", "type": "message", "role": "user",
+                           "items": [{"id": item_id, "type": "message", "role": "user",
                                       "content": [{"type": "input_text", "text": "现在是谁在跟你说话"}]}]})
     self._send_json(conn, {"type": "response.output_text.delta", "event_id": "ev_delta", "delta": "是副驾在说话"})
     self._send_json(conn, {"type": "response.output_text.done", "event_id": "ev_done", "text": "是副驾在说话"})

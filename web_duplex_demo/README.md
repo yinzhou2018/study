@@ -47,7 +47,7 @@ assistant: 好的，已打开副驾车窗
 在仓库根目录运行：
 
 ```bash
-python3 web_duplex_demo/server.py --host 127.0.0.1 --port 8765
+python3 server.py --host 127.0.0.1 --port 8765
 ```
 
 打开：

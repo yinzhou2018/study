@@ -2091,6 +2091,19 @@ function logInboundEvent(msg) {
   // local.session_create / local.update_diff 与紧随其后的 local.outgoing 协议行镜像重复，
   // 完整内容已在 QA 面板展示（session.create 详情 / update diff），不进事件面板。
   if (msg.type === "local.session_create" || msg.type === "local.update_diff") return;
+  if (msg.type === "local.zone_stamp") {
+    // 音区盖章生命周期：sent(stamped) → rewritten×n → acked / failed
+    const bits = [`status=${msg.status || (msg.stamped ? "sent" : "pending")}`];
+    if (msg.item_id) bits.push(`item=${msg.item_id}`);
+    if (msg.zone) bits.push(`zone=${msg.zone}`);
+    if (msg.polls) bits.push(`polls=${msg.polls}`);
+    if (msg.rewrites) bits.push(`rewrites=${msg.rewrites}`);
+    if (msg.elapsed_ms != null) bits.push(`${msg.elapsed_ms}ms`);
+    if (msg.status === "rewritten" && msg.actual) bits.push(`actual="${truncateEventText(msg.actual, 20)}"`);
+    if (msg.status === "observed") bits.push(truncateEventText(JSON.stringify(msg.raw_content || ""), 60));
+    logEventLine("local", "zone_stamp", bits.join(" "));
+    return;
+  }
   if (msg.type === "upstream.event") {
     const event = msg.event || {};
     // ASR 增量事件量大且碎，不进入事件面板。

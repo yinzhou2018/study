@@ -51,6 +51,10 @@ LEGACY_TOOL_ROOT_CONTEXT_RE = re.compile(
 INSTRUCTIONS_TEMPLATE_FILE = Path(__file__).resolve().parent / "system-instructions.md"
 CURRENT_SPEAKING_ZONE_PLACEHOLDER = "{current_speaking_zone}"
 CURRENT_SPEAKING_ZONE_UNKNOWN = "未知"
+# 机制 B 盖章轮询：item.update 发出后，定时 retrieve 校验盖章是否真的留存；
+# 若被上游后写覆盖则重发 update，直到确认生效或超过总时长。
+ZONE_STAMP_POLL_INTERVAL_S = 0.1
+ZONE_STAMP_POLL_TIMEOUT_S = 10.0
 
 _INSTRUCTIONS_TEMPLATE_CACHE = {"mtime_ns": None, "text": ""}
 
@@ -638,6 +642,9 @@ class DuplexSession:
     self.turn_zone = None
     self.pending_zone_stamp = None
     self.known_item_ids = []
+    # 盖章轮询状态：item_id -> task；retrieve ack 的 event_id -> item_id 关联表。
+    self.zone_stamp_tasks = {}
+    self.retrieve_watch = {}
     self.thread = threading.Thread(target=self._run, daemon=True)
     self.thread.start()
 
@@ -693,6 +700,8 @@ class DuplexSession:
           self.turn_zone = None
         elif msg_type == "conversation.item.added":
           self._handle_item_added(msg)
+        elif msg_type == "conversation.item.retrieved":
+          self._handle_item_retrieved(msg)
         if msg_type in ("session.closed", "error"):
           break
     except WebSocketError as exc:
@@ -987,6 +996,9 @@ class DuplexSession:
       text = f"【{zone}】{transcript}"
       if item_id:
         self._send_zone_stamp_update(item_id, zone, text)
+        # 发完立即启动轮询：上游可能在 completed 前后用原文覆盖该 item，
+        # 定时 retrieve 校验，被覆盖则重写，直到确认生效。
+        self._start_zone_stamp_poll(item_id, zone, text)
       else:
         # 转录完成事件缺 item_id：先挂起，等 conversation.item.added 带回 id 再补回写。
         self.pending_zone_stamp = {"zone": zone, "text": text, "raw": transcript}
@@ -1009,6 +1021,136 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
 
+  # ---- 盖章轮询：立即写 + 定时 retrieve 校验 + 覆盖即重写 ----
+
+  def _start_zone_stamp_poll(self, item_id, zone, text):
+    task = {
+      "item_id": item_id,
+      "zone": zone,
+      "text": text,
+      "started": time.time(),
+      "rewrites": 0,
+      "polls": 0,
+      "timer": None,
+    }
+    self.zone_stamp_tasks[item_id] = task
+    self._schedule_zone_stamp_poll(item_id, 0.0)
+
+  def _schedule_zone_stamp_poll(self, item_id, delay=ZONE_STAMP_POLL_INTERVAL_S):
+    task = self.zone_stamp_tasks.get(item_id)
+    if not task or self.closed.is_set():
+      return
+    timer = threading.Timer(delay, self._poll_zone_stamp_tick, args=(item_id,))
+    timer.daemon = True
+    task["timer"] = timer
+    timer.start()
+
+  def _poll_zone_stamp_tick(self, item_id):
+    task = self.zone_stamp_tasks.get(item_id)
+    if not task or self.closed.is_set():
+      return
+    task["polls"] = task.get("polls", 0) + 1
+    if time.time() - task["started"] >= ZONE_STAMP_POLL_TIMEOUT_S:
+      self._finish_zone_stamp(item_id, "failed", "轮询超时未确认盖章生效（可能持续被覆盖或 retrieve 无响应）")
+      return
+    event_id = uuid.uuid4().hex
+    with self.state_lock:
+      self.retrieve_watch[event_id] = item_id
+    payload = {
+      "type": "conversation.item.retrieve",
+      "event_id": event_id,
+      "items": [{"id": item_id}],
+    }
+    self.emit("local.outgoing", {"event": payload})
+    try:
+      self.ws.send_json(payload)
+    except Exception:
+      with self.state_lock:
+        self.retrieve_watch.pop(event_id, None)
+      return  # 连接已不可用，停止轮询
+    self._schedule_zone_stamp_poll(item_id)
+
+  def _handle_item_retrieved(self, msg):
+    event_id = str(msg.get("event_id") or "")
+    with self.state_lock:
+      item_id = self.retrieve_watch.pop(event_id, None)
+    if not item_id:
+      # event_id 未回显（或非轮询触发）时的兼容：单条 item 且命中在途任务才视为轮询 ack，
+      # 避免把前端全量刷新（多 item）误认成轮询结果。
+      item_id = self._match_retrieved_fallback(msg)
+      if not item_id:
+        return
+    task = self.zone_stamp_tasks.get(item_id)
+    if not task:
+      return
+    items = msg.get("items") or []
+    if isinstance(items, dict):
+      items = [items]
+    content_text = ""
+    raw_content = None
+    found = False
+    for item in items:
+      if isinstance(item, dict) and str(item.get("id") or "") == item_id:
+        found = True
+        content_text = self._item_content_text(item)
+        raw_content = item.get("content")
+        break
+    if not found:
+      return  # 该条不在本次返回中，等下一轮轮询
+    if not content_text:
+      # 查到了条目但提取不出文本：大概率是内容结构与预期不同（如 input_audio），
+      # 不再静默跳过，把原始 content 交由前端展示以便诊断。
+      self.emit("local.zone_stamp", {
+        "status": "observed",
+        "zone": task["zone"],
+        "item_id": item_id,
+        "raw_content": raw_content,
+        "reason": "retrieve 返回了条目但未提取到文本，请检查 content 结构",
+      })
+      return
+    if task["text"] in content_text:
+      self._finish_zone_stamp(item_id, "acked", "盖章已生效")
+    else:
+      task["rewrites"] += 1
+      self.emit("local.zone_stamp", {
+        "status": "rewritten",
+        "zone": task["zone"],
+        "item_id": item_id,
+        "rewrites": task["rewrites"],
+        "expected": task["text"],
+        "actual": content_text,
+        "reason": "盖章文本被上游覆盖，重发 item.update",
+      })
+      self._send_zone_stamp_update(item_id, task["zone"], task["text"])
+
+  def _match_retrieved_fallback(self, msg):
+    """上游不回显 event_id 时的兜底关联：仅当返回恰好是单条 item 且其 id 命中在途任务。"""
+    items = msg.get("items") or []
+    if isinstance(items, dict):
+      items = [items]
+    if len(items) != 1 or not isinstance(items[0], dict):
+      return None
+    item_id = str(items[0].get("id") or "")
+    return item_id if item_id in self.zone_stamp_tasks else None
+
+  def _finish_zone_stamp(self, item_id, status, reason):
+    task = self.zone_stamp_tasks.pop(item_id, None)
+    if not task:
+      return
+    timer = task.get("timer")
+    if timer:
+      timer.cancel()
+    self.emit("local.zone_stamp", {
+      "status": status,
+      "zone": task["zone"],
+      "item_id": item_id,
+      "text": task["text"],
+      "elapsed_ms": int((time.time() - task["started"]) * 1000),
+      "polls": task.get("polls", 0),
+      "rewrites": task["rewrites"],
+      "reason": reason,
+    })
+
   def _handle_item_added(self, msg):
     items = msg.get("items") or []
     if isinstance(items, dict):
@@ -1023,6 +1165,7 @@ class DuplexSession:
       if pending and item_id and self._matches_pending_item(item, pending):
         self.pending_zone_stamp = None
         self._send_zone_stamp_update(item_id, pending["zone"], pending["text"])
+        self._start_zone_stamp_poll(item_id, pending["zone"], pending["text"])
 
   def _matches_pending_item(self, item, pending):
     if item.get("call_id"):
@@ -1048,7 +1191,8 @@ class DuplexSession:
         if isinstance(part, str):
           parts.append(part)
         elif isinstance(part, dict):
-          parts.append(str(part.get("text") or ""))
+          # 兼容 input_text.text 与 input_audio.transcript 两种内容结构
+          parts.append(str(part.get("text") or part.get("transcript") or ""))
       return "".join(parts).strip()
     return ""
 
@@ -1135,6 +1279,11 @@ class DuplexSession:
 
   def close(self):
     self.close_requested.set()
+    for task in list(self.zone_stamp_tasks.values()):
+      timer = task.get("timer")
+      if timer:
+        timer.cancel()
+    self.zone_stamp_tasks.clear()
     if self.ws:
       payload = {"type": "session.close"}
       try:
