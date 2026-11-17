@@ -1,6 +1,15 @@
-# Seeduplex Web Demo
+# WEB S2S DEMO
 
-这个 demo 根据文档里的新版 `X-Api-Key` 接入方式实现：
+端到端实时语音对话（Speech-to-Speech）Web Demo，支持两家供应商，可在页面上切换：
+
+- **火山 Seeduplex**（默认）：协议细节见 [docs/seeduplex-integration.md](docs/seeduplex-integration.md)
+- **阿里云百炼 Qwen-Audio-Realtime**：协议细节见 [docs/qwen-audio-realtime-integration.md](docs/qwen-audio-realtime-integration.md)
+
+前端功能（实时收音、FC、多音区、打招呼、历史上下文等）两家保持一致，协议差异收敛在后端 `server.py`，详见下文“供应商切换”。下面以 Seeduplex 为基准描述各项功能。
+
+## 功能概览（以 Seeduplex 为例）
+
+Seeduplex 按文档里的新版 `X-Api-Key` 接入方式实现：
 
 - 浏览器输入 API Key，后端用 `X-Api-Key` 连接 `wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue`
 - 创建 `session.create`，固定模型 `1.2.6.1`
@@ -88,7 +97,9 @@ python3 server.py --host 127.0.0.1 --port 8765
 http://127.0.0.1:8765
 ```
 
-页面里填写火山语音控制台的 API Key，并选择音色、语速和音量。需要继承上下文时，在 `Dialog ID` 中填写之前的服务内部 dialog id；需要给客户创建新 id 时点击“生成 UUID”。声音复刻训练同样使用这个 API Key，请填写预付费音色槽位 ID。训练音频可以上传不超过 10MB 的 wav、mp3、ogg、m4a、aac 或 pcm 文件，也可以在页面里直接录音，页面录音会编码成 16k 单声道 wav 后提交；语种固定为中文，会传 `language=0`。本地文件 FC 默认查询当前用户桌面，桌面目录不存在时回退到启动目录；用户指定绝对目录时可查询对应目录的一层文件/目录。
+先在设置区顶部选择供应商。选 Qwen-Audio-Realtime 时填写百炼控制台的 API Key，并按需选择模型、地域、业务空间和音色即可（Qwen 专属配置见上文）。
+
+选 Seeduplex 时填写火山语音控制台的 API Key，并选择音色、语速和音量。需要继承上下文时，在 `Dialog ID` 中填写之前的服务内部 dialog id；需要给客户创建新 id 时点击“生成 UUID”。声音复刻训练同样使用这个 API Key，请填写预付费音色槽位 ID。训练音频可以上传不超过 10MB 的 wav、mp3、ogg、m4a、aac 或 pcm 文件，也可以在页面里直接录音，页面录音会编码成 16k 单声道 wav 后提交；语种固定为中文，会传 `language=0`。本地文件 FC 默认查询当前用户桌面，桌面目录不存在时回退到启动目录；用户指定绝对目录时可查询对应目录的一层文件/目录。
 
 连接成功后，页面会自动请求麦克风权限并开始实时收音；播报期间不会停止麦克风，客户端会把上行音频统一按 20ms 一包持续发送到服务端。关闭麦克风或麦克风启动失败时，客户端会继续每 20ms 发送静音帧保持上行。只有模型未自动判停、迟迟不回复时，才需要点击“强制判停”发送 `input_audio_buffer.commit`。点击“停止实时收音”会关闭麦克风并提交一次，之后可再点击“开始实时收音”继续。浏览器首次录音会请求麦克风权限。
 

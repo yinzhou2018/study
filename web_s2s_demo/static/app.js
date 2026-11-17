@@ -202,7 +202,6 @@ const DEFAULT_OUTPUT_FORMAT = "ogg_opus";
 // 供应商差异集中在这里；未列出的功能两家一致。
 const PROVIDER_PROFILES = {
   seeduplex: {
-    title: "Seeduplex Web Demo",
     apiKeyStorageKey: API_KEY_STORAGE_KEY,
     apiKeyPlaceholder: "从火山语音控制台获取的 X-Api-Key",
     outputFormat: DEFAULT_OUTPUT_FORMAT,
@@ -213,7 +212,6 @@ const PROVIDER_PROFILES = {
     contextAckEvent: "conversation.item.added",
   },
   qwen: {
-    title: "Qwen-Audio-Realtime Web Demo",
     apiKeyStorageKey: QWEN_API_KEY_STORAGE_KEY,
     apiKeyPlaceholder: "百炼控制台 API Key（Authorization: Bearer）",
     outputFormat: "pcm_s16le",
@@ -317,8 +315,6 @@ function applyProviderUi() {
   document.querySelectorAll("[data-provider]").forEach(el => {
     el.classList.toggle("provider-hidden", el.dataset.provider !== provider);
   });
-  els.appTitle.textContent = profile.title;
-  document.title = profile.title;
   els.apiKey.placeholder = profile.apiKeyPlaceholder;
   els.apiKey.value = localStorage.getItem(profile.apiKeyStorageKey) || "";
   els.greetSummary.textContent = profile.greetSummary;
