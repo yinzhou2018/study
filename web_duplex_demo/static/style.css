@@ -1229,7 +1229,8 @@ body {
   grid-template-rows: auto auto auto;
 }
 
-.call-control-btn.greet svg {
+.call-control-btn.greet svg,
+.call-control-btn.text-chat svg {
   stroke-width: 2.2;
 }
 
@@ -1635,6 +1636,26 @@ button:disabled {
 
 .websearch-grid > label {
   grid-column: 1 / -1;
+}
+
+/* 供应商切换：不适用于当前供应商的配置项与按钮整体隐藏 */
+.provider-hidden {
+  display: none !important;
+}
+
+.provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.provider-grid > label {
+  margin: 0 0 12px;
+}
+
+.provider-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .voice-clone-box {

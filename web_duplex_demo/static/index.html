@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Seeduplex Web Demo</title>
-  <link rel="stylesheet" href="/style.css?v=20260807-events-light">
+  <title>Realtime Duplex Web Demo</title>
+  <link rel="stylesheet" href="/style.css?v=20261117-qwen2">
 </head>
 <body>
   <main class="app">
@@ -117,6 +117,7 @@
           </button>
           <button
             id="forceCommitBtn"
+            data-provider="seeduplex"
             class="call-control-btn commit"
             type="button"
             disabled
@@ -156,6 +157,24 @@
               <path d="M16.5 10.5h.01"/>
             </svg>
           </button>
+          <button
+            id="textChatBtn"
+            data-provider="qwen"
+            class="call-control-btn text-chat"
+            type="button"
+            disabled
+            aria-label="文本对话"
+            title="文本对话，输入文字作为用户消息发给模型并触发回复"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="2.5" y="6" width="19" height="12" rx="2"/>
+              <path d="M6.5 10h.01"/>
+              <path d="M10 10h.01"/>
+              <path d="M13.5 10h.01"/>
+              <path d="M17 10h.01"/>
+              <path d="M8 14h8"/>
+            </svg>
+          </button>
           <button id="callCloseBtn" class="call-control-btn hangup" type="button" aria-label="关闭通话" title="关闭通话">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 2v10"/>
@@ -163,7 +182,7 @@
             </svg>
           </button>
         </div>
-        <p class="force-commit-tip">模型迟迟不回复时，点中间按钮强制判停</p>
+        <p class="force-commit-tip" data-provider="seeduplex">模型迟迟不回复时，点中间按钮强制判停</p>
         <div class="meter call-meter"><span id="meterFill"></span></div>
         <p class="call-disclaimer">内容均由人工智能模型生成，不代表平台立场</p>
       </div>
@@ -181,11 +200,19 @@
     <section class="panel settings">
       <div class="title-row">
         <div>
-          <h1>Seeduplex Web Demo</h1>
+          <h1 id="appTitle">Seeduplex Web Demo</h1>
           <p>实时语音对话 + 工具调用</p>
         </div>
         <span id="status" class="status">未连接</span>
       </div>
+
+      <label>
+        <span>供应商</span>
+        <select id="provider">
+          <option value="seeduplex">火山 Seeduplex</option>
+          <option value="qwen">阿里云 Qwen-Audio-Realtime</option>
+        </select>
+      </label>
 
       <label>
         <span>API Key</span>
@@ -206,7 +233,38 @@
         <span id="apiKeyError" class="field-error" hidden>请先填写 API Key，再点击连接</span>
       </label>
 
-      <label>
+      <div class="grid provider-grid" data-provider="qwen">
+        <label>
+          <span>模型 model</span>
+          <select id="qwenModel">
+            <option value="qwen-audio-3.1-realtime-plus">qwen-audio-3.1-realtime-plus</option>
+            <option value="qwen-audio-3.1-realtime-flash">qwen-audio-3.1-realtime-flash</option>
+            <option value="qwen-audio-3.0-realtime-plus">qwen-audio-3.0-realtime-plus</option>
+            <option value="qwen-audio-3.0-realtime-flash">qwen-audio-3.0-realtime-flash</option>
+          </select>
+        </label>
+        <label>
+          <span>轮次检测 turn_detection</span>
+          <select id="qwenTurnDetection">
+            <option value="smart_turn_v2">smart_turn_v2（推荐）</option>
+            <option value="smart_turn">smart_turn</option>
+            <option value="server_vad">server_vad</option>
+          </select>
+        </label>
+        <label>
+          <span>地域 region</span>
+          <select id="qwenRegion">
+            <option value="cn-beijing">华北2（北京）</option>
+            <option value="ap-southeast-1">新加坡</option>
+          </select>
+        </label>
+        <label>
+          <span>业务空间 WorkspaceId</span>
+          <input id="qwenWorkspaceId" autocomplete="off" placeholder="可选，留空走 dashscope 公共域名">
+        </label>
+      </div>
+
+      <label data-provider="seeduplex">
         <span class="label-row">
           Dialog ID
           <span class="tools-json-actions">
@@ -229,7 +287,7 @@
         </label>
         <label>
           <span class="range-label">
-            语速 speed
+            <span id="speedLabel">语速 speed</span>
             <button id="speedReset" class="range-reset" type="button" title="重置为 0" aria-label="重置语速为 0">归零</button>
           </span>
           <span class="range-control">
@@ -237,7 +295,7 @@
             <output id="speedValue" for="speed">0</output>
           </span>
         </label>
-        <label>
+        <label data-provider="seeduplex">
           <span class="range-label">
             音量 loudness
             <button id="loudnessReset" class="range-reset" type="button" title="重置为 0" aria-label="重置音量为 0">归零</button>
@@ -247,9 +305,14 @@
             <output id="loudnessValue" for="loudness">0</output>
           </span>
         </label>
+        <label data-provider="qwen">
+          <span>自定义音色 voice</span>
+          <input id="qwenVoiceCustom" autocomplete="off" placeholder="可选，复刻 voice_id 或其他系统音色">
+        </label>
       </div>
+      <p class="provider-note" data-provider="qwen">Qwen 的音色和轮次检测只在首次 session.update 生效，通话中修改需重新连接。</p>
 
-      <details class="voice-clone-box">
+      <details class="voice-clone-box" data-provider="seeduplex">
         <summary class="voice-clone-summary">
           <span>
             声音复刻音色
@@ -325,7 +388,7 @@
         <span id="toolsJsonStatus" class="tools-json-status" aria-live="polite"></span>
       </label>
 
-      <div class="grid websearch-grid">
+      <div class="grid websearch-grid" data-provider="seeduplex">
         <label>
           <span>联网类型</span>
           <select id="webSearchType">
@@ -409,11 +472,11 @@
           <input id="enableZones" type="checkbox" checked>
           <span>多音区</span>
         </label>
-        <label class="check">
+        <label class="check" data-provider="seeduplex">
           <input id="enableMusic" type="checkbox" checked>
           <span>唱歌</span>
         </label>
-        <label class="check">
+        <label class="check" data-provider="seeduplex">
           <input id="enableProactiveSpeak" type="checkbox">
           <span>主动回复</span>
         </label>
@@ -477,13 +540,33 @@
         </div>
       </div>
       <div class="ctx-summary">
-        <span>让模型用当前音色主动播报一段固定文本（speech_text_buffer.commit）</span>
+        <span id="greetSummary">让模型用当前音色主动播报一段固定文本（speech_text_buffer.commit）</span>
       </div>
       <div class="ctx-add">
         <textarea id="greetInput" rows="3" spellcheck="false"></textarea>
         <div class="ctx-add-foot">
           <span id="greetNote" class="ctx-add-note">发送后由 TTS 链路合成并播报</span>
           <button id="greetSendBtn" type="button" class="ctx-add-btn">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="textChatModal" class="ctx-modal" role="dialog" aria-modal="true" aria-labelledby="textChatModalTitle" hidden>
+    <div class="ctx-dialog greet-dialog">
+      <div class="ctx-dialog-head">
+        <h3 id="textChatModalTitle">文本对话</h3>
+        <div class="ctx-dialog-actions">
+          <button id="textChatCloseBtn" type="button" class="ctx-close" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="ctx-summary">
+        <span>文字作为用户消息写入上下文（conversation.item.create）并触发回复（response.create）；模型回复中发送会先打断</span>
+      </div>
+      <div class="ctx-add">
+        <textarea id="textChatInput" rows="3" spellcheck="false" placeholder="输入要对模型说的话，Enter 发送，Shift+Enter 换行"></textarea>
+        <div class="ctx-add-foot">
+          <span id="textChatNote" class="ctx-add-note">多音区开启时自动添加当前音区前缀</span>
+          <button id="textChatSendBtn" type="button" class="ctx-add-btn">发送</button>
         </div>
       </div>
     </div>
@@ -497,6 +580,6 @@
       <p id="errorToastMessage"></p>
     </div>
   </div>
-  <script src="/app.js?v=20260808-multizone7"></script>
+  <script src="/app.js?v=20261117-qwen2"></script>
 </body>
 </html>

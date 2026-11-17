@@ -19,6 +19,38 @@
 - 页面会聚合 ASR 识别文本和模型回复文本，按完整 QA 对展示
 - 事件面板按一行一个事件展示，`↑` 表示客户端上行，`↓` 表示服务端下行，`•` 表示本地状态
 
+## 供应商切换（Seeduplex / Qwen-Audio-Realtime）
+
+设置区顶部的“供应商”下拉框可在火山 Seeduplex（默认）与阿里云百炼 Qwen-Audio-Realtime 之间切换，选择会保存在浏览器里，通话中锁定。两家的 API Key 分开保存。后端按 `/api/session` 的 `provider` 字段（`seeduplex` / `qwen`）创建对应会话，协议差异收敛在 `server.py` 的 `QwenRealtimeSession` 中，前端功能保持一致。Qwen 协议细节见 [docs/qwen-audio-realtime-integration.md](docs/qwen-audio-realtime-integration.md)。
+
+Qwen 专属配置：模型（3.1/3.0 Plus/Flash）、轮次检测（默认 `smart_turn_v2`）、地域（北京/新加坡）、业务空间 WorkspaceId（留空走 `dashscope.aliyuncs.com` / `dashscope-intl.aliyuncs.com` 公共域名）、自定义音色（覆盖下拉选择，可填复刻 `voice_id`）。鉴权用 `Authorization: Bearer <API Key>`。
+
+| 功能 | Seeduplex | Qwen-Audio-Realtime 适配方式 |
+| --- | --- | --- |
+| 建会话 | `session.create`，收到 `session.created` 后就绪 | 收到 `session.created` 后发首次 `session.update`，收到 `session.updated` 后就绪；音色、轮次检测只在首次生效，通话中锁定 |
+| 输出音频 | `ogg_opus` 流式播放 | 24k PCM，用 `PcmStreamPlayer` 播放 |
+| 语速 / 音量 | `speed` / `loudness` | `speech_rate`（0.5~2.0），无音量参数 |
+| 打断 | `transcription.started` 时停播 | `input_audio_buffer.speech_started` 时停播，并丢弃被取消响应的在途音频分片；`response.done(status=cancelled)` 同样处理 |
+| 打断按钮 | `response.cancel` | 有进行中推理时发 `response.cancel`，否则只停本地播放（避免上游 `invalid_request_error`） |
+| 麦克风关闭 | `input_audio_mute.commit` 静音保活 | 协议无静音事件，持续按 20ms 上行静音帧 |
+| 强制判停 | `input_audio_buffer.commit` | VAD / smart_turn 模式下上游忽略 commit，按钮隐藏 |
+| FC | `conversation.item.create` + `role=tool` | 写回 `function_call_output`，在 `response.done` 后统一发 `response.create` 触发二轮推理；工具 schema 自动转换成 `{"type":"function","function":{...}}` |
+| 联网 | `extension.dialog.extra` | `session.enable_search`，通话中可切换 |
+| 地理位置 | `extension.dialog.location` | 以“用户当前位置”一节追加到系统提示 |
+| 打招呼 | `speech_text_buffer.commit` 纯 TTS | 插入临时 user 指令让模型原样复述，再发 `response.create`；回复结束后删除该指令（用 system 角色会被上游拒绝甚至断开连接） |
+| 文本对话 | — | Qwen 专属：通话页打招呼右侧的键盘按钮，输入文字后作为正式 user 消息写入上下文（`conversation.item.create`，多音区开启时带【音区】前缀）并 `response.create`；模型回复中发送会先 `response.cancel`，待其 `response.done` 后再触发回复 |
+| 音区机制 A | `session.update` 更新 instructions | 同左 |
+| 音区机制 B | `conversation.item.update` + retrieve 轮询 | 协议无 update：本轮回复结束后用 `conversation.item.create`（`previous_item_id` 指向原条目，文本带音区前缀）+ `conversation.item.delete` 原条目替换，再 retrieve 校验；无效轮次（`turn_invalid`）跳过 |
+| 历史上下文 | 一次 `conversation.item.retrieve` 返回最近 20 轮 | retrieve 只能单查：后端按已知 item id（最多 40 条）逐条查询，聚合为 `local.context_retrieved` 返回 |
+| 注入上下文 | 一次 `conversation.item.create` 多条 | 逐条 `conversation.item.create`，assistant 用 `output_text` |
+| 错误 | 任意 `error` 结束会话 | `invalid_request_error` 只提示、不挂断；`server_error` 或首次配置被拒时结束会话 |
+| 关闭 | `session.close` 后等 `session.closed` | 协议无关闭事件，直接关闭 WebSocket |
+| 空闲超时 | — | 上游连续 180 秒未生成任何回复会下发 `error(code=response_idle_timeout)` 并以 1007 关闭连接（文档未列出，实测确认）；按正常结束处理，保留通话页并提示重新开始 |
+
+Dialog ID、声音复刻、唱歌、主动回复是 Seeduplex 独有能力，切到 Qwen 时隐藏。
+
+本地验证：`tests/test_qwen_flow.py` 对接 `tests/mock_qwen_upstream.py`（按文档时序回放的 mock 上游）跑通上述流程。
+
 ## 多音区
 
 页面顶部的“说话音区”选择器配合“多音区”开关，模拟车载座舱四个音区（主驾/副驾/左后排/右后排）的多人对话。方案分两层：

@@ -8,6 +8,15 @@ const els = {
   callStateBubble: document.querySelector("#callStateBubble"),
   callDuration: document.querySelector("#callDuration"),
   callCloseBtn: document.querySelector("#callCloseBtn"),
+  appTitle: document.querySelector("#appTitle"),
+  provider: document.querySelector("#provider"),
+  qwenModel: document.querySelector("#qwenModel"),
+  qwenTurnDetection: document.querySelector("#qwenTurnDetection"),
+  qwenRegion: document.querySelector("#qwenRegion"),
+  qwenWorkspaceId: document.querySelector("#qwenWorkspaceId"),
+  qwenVoiceCustom: document.querySelector("#qwenVoiceCustom"),
+  speedLabel: document.querySelector("#speedLabel"),
+  greetSummary: document.querySelector("#greetSummary"),
   apiKey: document.querySelector("#apiKey"),
   apiKeyError: document.querySelector("#apiKeyError"),
   toggleApiKeyBtn: document.querySelector("#toggleApiKeyBtn"),
@@ -72,6 +81,12 @@ const els = {
   qaSearchStatus: document.querySelector("#qaSearchStatus"),
   showContextBtn: document.querySelector("#showContextBtn"),
   greetBtn: document.querySelector("#greetBtn"),
+  textChatBtn: document.querySelector("#textChatBtn"),
+  textChatModal: document.querySelector("#textChatModal"),
+  textChatCloseBtn: document.querySelector("#textChatCloseBtn"),
+  textChatInput: document.querySelector("#textChatInput"),
+  textChatSendBtn: document.querySelector("#textChatSendBtn"),
+  textChatNote: document.querySelector("#textChatNote"),
   greetModal: document.querySelector("#greetModal"),
   greetCloseBtn: document.querySelector("#greetCloseBtn"),
   greetInput: document.querySelector("#greetInput"),
@@ -154,9 +169,17 @@ let audioFrameBufferedBytes = 0;
 let heroConnectTimer = null;
 let errorToastTimer = null;
 let errorToastEndCallOnClose = false;
+let errorToastKeepCall = false;
 let keepCallPageOnDisconnect = false;
 let preservedQaScrollTop = null;
+let uiProvider = "";
+let currentResponseId = "";
+const lastVoiceByProvider = {};
+const cancelledResponseIds = new Set();
 const API_KEY_STORAGE_KEY = "seeduplex_demo_api_key";
+const QWEN_API_KEY_STORAGE_KEY = "seeduplex_demo_api_key_qwen";
+const PROVIDER_STORAGE_KEY = "seeduplex_demo_provider";
+const QWEN_SETTINGS_STORAGE_KEY = "seeduplex_demo_qwen_settings";
 const ZONE_STORAGE_KEY = "seeduplex_demo_sound_zone";
 const DIALOG_ID_STORAGE_KEY = "seeduplex_demo_dialog_id";
 const WEBSEARCH_API_KEY_STORAGE_KEY = "seeduplex_demo_websearch_api_key";
@@ -176,6 +199,36 @@ const COLUMN_HANDLE_WIDTH = 8;
 const COLUMN_MIN_WIDTHS = {left: 280, center: 340, right: 240};
 const COLUMN_DEFAULT_WIDTHS = {left: 410, right: 350};
 const DEFAULT_OUTPUT_FORMAT = "ogg_opus";
+// 供应商差异集中在这里；未列出的功能两家一致。
+const PROVIDER_PROFILES = {
+  seeduplex: {
+    title: "Seeduplex Web Demo",
+    apiKeyStorageKey: API_KEY_STORAGE_KEY,
+    apiKeyPlaceholder: "从火山语音控制台获取的 X-Api-Key",
+    outputFormat: DEFAULT_OUTPUT_FORMAT,
+    speed: {label: "语速 speed", min: -50, max: 100, step: 1, value: 0, resetText: "归零"},
+    traceLabel: "logid",
+    greetSummary: "让模型用当前音色主动播报一段固定文本（speech_text_buffer.commit）",
+    greetNote: "发送后由 TTS 链路合成并播报",
+    contextAckEvent: "conversation.item.added",
+  },
+  qwen: {
+    title: "Qwen-Audio-Realtime Web Demo",
+    apiKeyStorageKey: QWEN_API_KEY_STORAGE_KEY,
+    apiKeyPlaceholder: "百炼控制台 API Key（Authorization: Bearer）",
+    outputFormat: "pcm_s16le",
+    speed: {label: "语速 speech_rate", min: 0.5, max: 2, step: 0.05, value: 1, resetText: "重置"},
+    traceLabel: "session",
+    greetSummary: "Qwen 无纯 TTS 播报事件：插入临时 user 指令让模型原样复述，再 response.create",
+    greetNote: "回复结束后自动删除临时指令",
+    contextAckEvent: "conversation.item.created",
+  },
+};
+const QWEN_VOICES = {
+  "3.1": ["longanqian_v3.1"],
+  "3.0": ["longanqian", "longanlingxin", "longanlingxi", "longanxiaoxin", "longanlufeng"],
+};
+const QWEN_WORKSPACE_ID_RE = /^[A-Za-z0-9-]*$/;
 const DEFAULT_VOICE_OPTIONS = Array.from(els.voice.options).map(option => ({
   value: option.value,
   label: option.textContent,
@@ -199,6 +252,89 @@ function clampNumber(value, min, max, fallback = min) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, parsed));
+}
+
+function currentProvider() {
+  return els.provider.value === "qwen" ? "qwen" : "seeduplex";
+}
+
+function isQwenProvider() {
+  return currentProvider() === "qwen";
+}
+
+function providerProfile(provider = currentProvider()) {
+  return PROVIDER_PROFILES[provider];
+}
+
+function loadQwenSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(QWEN_SETTINGS_STORAGE_KEY) || "{}") || {};
+  } catch {}
+  [
+    [els.qwenModel, saved.model],
+    [els.qwenTurnDetection, saved.turn_detection],
+    [els.qwenRegion, saved.region],
+  ].forEach(([select, value]) => {
+    if (value && Array.from(select.options).some(option => option.value === value)) select.value = value;
+  });
+  els.qwenWorkspaceId.value = saved.workspace_id || "";
+  els.qwenVoiceCustom.value = saved.voice_custom || "";
+}
+
+function persistQwenSettings() {
+  localStorage.setItem(QWEN_SETTINGS_STORAGE_KEY, JSON.stringify({
+    model: els.qwenModel.value,
+    turn_detection: els.qwenTurnDetection.value,
+    region: els.qwenRegion.value,
+    workspace_id: trimmedValue(els.qwenWorkspaceId),
+    voice_custom: trimmedValue(els.qwenVoiceCustom),
+  }));
+}
+
+function currentQwenWorkspaceId() {
+  const value = trimmedValue(els.qwenWorkspaceId);
+  if (!QWEN_WORKSPACE_ID_RE.test(value)) throw new Error("WorkspaceId 只能包含字母、数字和连字符");
+  return value;
+}
+
+function applySpeedRange() {
+  const speed = providerProfile().speed;
+  els.speedLabel.textContent = speed.label;
+  els.speed.min = String(speed.min);
+  els.speed.max = String(speed.max);
+  els.speed.step = String(speed.step);
+  els.speed.value = String(speed.value);
+  els.speedReset.textContent = speed.resetText;
+  els.speedReset.title = `重置为 ${speed.value}`;
+  els.speedReset.setAttribute("aria-label", `重置语速为 ${speed.value}`);
+  syncRangeValue(els.speed, els.speedValue);
+}
+
+function applyProviderUi() {
+  const provider = currentProvider();
+  const profile = providerProfile(provider);
+  document.querySelectorAll("[data-provider]").forEach(el => {
+    el.classList.toggle("provider-hidden", el.dataset.provider !== provider);
+  });
+  els.appTitle.textContent = profile.title;
+  document.title = profile.title;
+  els.apiKey.placeholder = profile.apiKeyPlaceholder;
+  els.apiKey.value = localStorage.getItem(profile.apiKeyStorageKey) || "";
+  els.greetSummary.textContent = profile.greetSummary;
+  applySpeedRange();
+  renderVoiceOptions(lastVoiceByProvider[provider]);
+  syncMusicControls();
+}
+
+function setProviderControlsLocked(locked) {
+  // Qwen 的音色 / 轮次检测只在首次 session.update 生效，通话中锁定避免误以为已切换。
+  [els.provider, els.qwenModel, els.qwenTurnDetection, els.qwenRegion, els.qwenWorkspaceId].forEach(el => {
+    el.disabled = locked;
+  });
+  const lockVoice = locked && isQwenProvider();
+  els.voice.disabled = lockVoice;
+  els.qwenVoiceCustom.disabled = lockVoice;
 }
 
 function isResizableColumnsEnabled() {
@@ -492,9 +628,12 @@ async function resetInstructions() {
 resetToolsJson();
 resetInstructions();
 
-els.apiKey.value = localStorage.getItem(API_KEY_STORAGE_KEY) || "";
+els.provider.value = PROVIDER_PROFILES[localStorage.getItem(PROVIDER_STORAGE_KEY)] ? localStorage.getItem(PROVIDER_STORAGE_KEY) : "seeduplex";
+uiProvider = els.provider.value;
+loadQwenSettings();
+els.apiKey.value = localStorage.getItem(providerProfile().apiKeyStorageKey) || "";
 els.apiKey.addEventListener("input", () => {
-  localStorage.setItem(API_KEY_STORAGE_KEY, els.apiKey.value);
+  localStorage.setItem(providerProfile().apiKeyStorageKey, els.apiKey.value);
   if (els.apiKey.value.trim()) clearApiKeyError();
 });
 els.dialogId.value = localStorage.getItem(DIALOG_ID_STORAGE_KEY) || "";
@@ -557,7 +696,24 @@ function setCloneStatus(text, state = "") {
   els.voiceCloneStatus.classList.toggle("error", state === "error");
 }
 
+function qwenVoiceOptions() {
+  return QWEN_VOICES[els.qwenModel.value.includes("-3.1-") ? "3.1" : "3.0"];
+}
+
+function renderQwenVoiceOptions(preferredValue) {
+  const voices = qwenVoiceOptions();
+  els.voice.textContent = "";
+  voices.forEach((voice, index) => {
+    els.voice.appendChild(new Option(index === 0 ? `${voice}（默认）` : voice, voice));
+  });
+  els.voice.value = voices.includes(preferredValue) ? preferredValue : voices[0];
+}
+
 function renderVoiceOptions(preferredValue = els.voice.value) {
+  if (isQwenProvider()) {
+    renderQwenVoiceOptions(preferredValue);
+    return;
+  }
   const current = preferredValue || DEFAULT_VOICE_OPTIONS[0].value;
   els.voice.textContent = "";
 
@@ -1295,9 +1451,9 @@ function sendNextInputAudioFrame() {
     stopInputAudioFramePump();
     return;
   }
-  // 静音态不发音频帧，改用 input_audio_mute.commit 静音保活；
-  // 这里仅作兑底防护，正常路径下静音时帧泵已停止。
-  if (micMuted) return;
+  // seeduplex 静音态不发音频帧，改用 input_audio_mute.commit 静音保活（这里仅作兜底防护，正常路径下帧泵已停止）；
+  // Qwen 没有静音保活事件，静音时继续按 20ms 上行静音帧。
+  if (micMuted && !isQwenProvider()) return;
   queueAudio(nextInputAudioFrame());
 }
 
@@ -1342,6 +1498,13 @@ function updateMicUi() {
 }
 
 function currentOutputAudioConfig() {
+  if (isQwenProvider()) {
+    return {
+      voice: trimmedValue(els.qwenVoiceCustom) || els.voice.value.trim(),
+      model: els.qwenModel.value,
+      speech_rate: clampNumber(els.speed.value, 0.5, 2, 1),
+    };
+  }
   return {
     voice: els.voice.value.trim(),
     model: FIXED_MODEL,
@@ -1379,6 +1542,16 @@ function currentDialogId() {
 }
 
 function currentRuntimeConfig() {
+  if (isQwenProvider()) {
+    // Qwen 的联网是 session 字段，可随 session.update 实时切换；地理位置由后端拼进系统提示。
+    return {
+      ...currentOutputAudioConfig(),
+      ...currentToolsConfig(),
+      enable_websearch: els.enableWebSearch.checked,
+      instructions: els.instructions.value,
+      location: currentLocationConfig(),
+    };
+  }
   return {
     ...currentOutputAudioConfig(),
     ...currentToolsConfig(),
@@ -1389,11 +1562,22 @@ function currentRuntimeConfig() {
 }
 
 function currentCreateConfig() {
+  if (isQwenProvider()) {
+    return {
+      ...currentRuntimeConfig(),
+      provider: "qwen",
+      zone: zonesEnabled() ? activeZone : "",
+      region: els.qwenRegion.value,
+      workspace_id: currentQwenWorkspaceId(),
+      turn_detection: els.qwenTurnDetection.value,
+    };
+  }
   if (els.enableWebSearch.checked && webSearchTypeNeedsKey() && !els.webSearchApiKey.value.trim()) {
     throw new Error(`${els.webSearchType.value} 需要填写搜索 API Key`);
   }
   return {
     ...currentRuntimeConfig(),
+    provider: "seeduplex",
     dialog_id: currentDialogId(),
     zone: zonesEnabled() ? activeZone : "",
     enable_websearch: els.enableWebSearch.checked,
@@ -1426,6 +1610,22 @@ function scheduleSessionUpdate() {
     ).catch(err => addMessage("tool", `session.update failed: ${err.message}`));
   }, 250);
 }
+
+els.provider.addEventListener("change", () => {
+  if (sessionId) return;
+  lastVoiceByProvider[uiProvider] = els.voice.value;
+  uiProvider = currentProvider();
+  localStorage.setItem(PROVIDER_STORAGE_KEY, uiProvider);
+  clearApiKeyError();
+  applyProviderUi();
+});
+els.qwenModel.addEventListener("change", () => {
+  renderVoiceOptions();
+  persistQwenSettings();
+});
+[els.qwenTurnDetection, els.qwenRegion].forEach(input => input.addEventListener("change", persistQwenSettings));
+[els.qwenWorkspaceId, els.qwenVoiceCustom].forEach(input => input.addEventListener("input", persistQwenSettings));
+els.enableWebSearch.addEventListener("change", scheduleSessionUpdate);
 
 ["change", "input"].forEach(eventName => {
   els.voice.addEventListener(eventName, scheduleSessionUpdate);
@@ -1466,7 +1666,7 @@ syncZoneOptionUi();
     });
   });
   reset.addEventListener("click", () => {
-    input.value = "0";
+    input.value = input === els.speed ? String(providerProfile().speed.value) : "0";
     syncRangeValue(input, output);
     scheduleSessionUpdate();
   });
@@ -1486,8 +1686,10 @@ function setConnected(ok, {keepCallPage = false} = {}) {
   els.forceCommitBtn.disabled = !ok;
   els.interruptBtn.disabled = !ok;
   els.greetBtn.disabled = !ok;
+  els.textChatBtn.disabled = !ok;
   els.showContextBtn.disabled = !ok;
   els.callCloseBtn.disabled = false;
+  setProviderControlsLocked(ok);
   if (ok) {
     showCallPage();
     startCallTimer();
@@ -1525,6 +1727,8 @@ function setConnecting() {
   els.forceCommitBtn.disabled = true;
   els.interruptBtn.disabled = true;
   els.greetBtn.disabled = true;
+  els.textChatBtn.disabled = true;
+  setProviderControlsLocked(true);
 }
 
 function clearApiKeyError() {
@@ -1597,6 +1801,7 @@ function showErrorToast(title, err, options = {}) {
   els.errorToastTitle.textContent = title || "操作失败";
   els.errorToastMessage.textContent = message;
   errorToastEndCallOnClose = Boolean(options.endCallOnClose);
+  errorToastKeepCall = Boolean(options.keepCall);
   els.errorToast.hidden = false;
   window.clearTimeout(errorToastTimer);
   const duration = Number.isFinite(options.duration) ? options.duration : 0;
@@ -1611,7 +1816,7 @@ function showErrorToast(title, err, options = {}) {
 function closeErrorToast() {
   window.clearTimeout(errorToastTimer);
   els.errorToast.hidden = true;
-  const shouldEndCall = errorToastEndCallOnClose || Boolean(sessionId || source);
+  const shouldEndCall = errorToastEndCallOnClose || (!errorToastKeepCall && Boolean(sessionId || source));
   errorToastEndCallOnClose = false;
   if (shouldEndCall) endCallAfterErrorToast().catch(() => {});
 }
@@ -1769,11 +1974,14 @@ function extractLogid(payload) {
 }
 
 function updateCurrentLogid(payload) {
-  const logid = extractLogid(payload);
+  // Qwen 没有 logid，用 session.created 下发的会话 id 作为排查线索。
+  const logid = isQwenProvider()
+    ? (payload && payload.type === "session.created" && payload.session ? payload.session.id || "" : "")
+    : extractLogid(payload);
   if (!logid) return;
   currentLogid = logid;
   if (currentTurn && currentTurn.logidEl) {
-    currentTurn.logidEl.textContent = `logid: ${currentLogid}`;
+    currentTurn.logidEl.textContent = `${providerProfile().traceLabel}: ${currentLogid}`;
   }
 }
 
@@ -1782,7 +1990,7 @@ function ensureTurn() {
   const card = document.createElement("div");
   card.className = "qa-card";
   card.innerHTML = [
-    `<div class="qa-meta">logid: ${currentLogid || "等待中"}${zonesEnabled() && activeZone ? ` · 【${activeZone}】` : ""}</div>`,
+    `<div class="qa-meta">${providerProfile().traceLabel}: ${currentLogid || "等待中"}${zonesEnabled() && activeZone ? ` · 【${activeZone}】` : ""}</div>`,
     '<div class="qa-row">',
     '<div class="qa-label">Q</div>',
     '<div class="qa-text question">正在听...</div>',
@@ -1979,6 +2187,7 @@ function setThinking() {
 function appendAnswer(text) {
   if (!text) return;
   const turn = ensureTurn();
+  turn.awaitingTextReply = false;
   turn.answer += text;
   turn.answerEl.textContent = turn.answer;
   setHeroState("正在回复...", "ok");
@@ -2033,8 +2242,21 @@ function formatItemUpdatedDetail(event) {
   return event.event_id ? `event=${event.event_id}` : "";
 }
 
+// 两家的流式文本 / 音频事件名不同，事件面板按同一节流策略聚合。
+const RESPONSE_TEXT_DELTA_TYPES = new Set(["response.output_text.delta", "response.audio_transcript.delta", "response.text.delta"]);
+const RESPONSE_TEXT_DONE_TYPES = new Set(["response.output_text.done", "response.audio_transcript.done", "response.text.done"]);
+const RESPONSE_AUDIO_DELTA_TYPES = new Set(["response.output_audio.delta", "response.audio.delta"]);
+const RESPONSE_AUDIO_DONE_TYPES = new Set(["response.output_audio.done", "response.audio.done"]);
+const SILENT_EVENT_TYPES = new Set([
+  "conversation.item.input_audio_transcription.delta",
+  "conversation.item.ambient_audio_transcription.delta",
+]);
+let lastResponseTextDeltaType = "response.output_text.delta";
+let lastResponseAudioDeltaType = "response.output_audio.delta";
+
 function logResponseTextDelta(event) {
   const text = extractEventText(event);
+  lastResponseTextDeltaType = event.type || lastResponseTextDeltaType;
   responseTextDeltaCount += 1;
   responseTextDeltaChars += text.length;
 
@@ -2049,7 +2271,7 @@ function logResponseTextDelta(event) {
 
 function flushResponseTextDelta() {
   if (responseTextDeltaCount <= 0) return;
-  logEventLine("down", "response.output_text.delta");
+  logEventLine("down", lastResponseTextDeltaType);
   responseTextDeltaCount = 0;
   responseTextDeltaChars = 0;
 }
@@ -2062,6 +2284,7 @@ function resetResponseAudioDelta() {
 
 function logResponseAudioDelta(event) {
   const audio = event.audio || event.delta || "";
+  lastResponseAudioDeltaType = event.type || lastResponseAudioDeltaType;
   responseAudioDeltaCount += 1;
   responseAudioDeltaBytes += audio.length;
 
@@ -2076,7 +2299,7 @@ function logResponseAudioDelta(event) {
 
 function flushResponseAudioDelta() {
   if (responseAudioDeltaCount <= 0) return;
-  logEventLine("down", "response.output_audio.delta");
+  logEventLine("down", lastResponseAudioDeltaType);
   responseAudioDeltaCount = 0;
   responseAudioDeltaBytes = 0;
 }
@@ -2086,6 +2309,11 @@ function logInboundEvent(msg) {
     const event = msg.event || {};
     if (event.type === "conversation.item.update") {
       logEventLine("up", event.type, formatItemUpdateDetail(event));
+      return;
+    }
+    if (Array.isArray(event.item_ids)) {
+      // Qwen 历史上下文按条 retrieve，合并为一行。
+      logEventLine("up", event.type, `×${event.item_ids.length}`);
       return;
     }
     logEventLine("up", event.type || "local.outgoing");
@@ -2098,19 +2326,25 @@ function logInboundEvent(msg) {
     // 音区盖章生命周期：sent(stamped) → rewritten×n → acked / failed
     const bits = [`status=${msg.status || (msg.stamped ? "sent" : "pending")}`];
     if (msg.item_id) bits.push(`item=${msg.item_id}`);
+    if (msg.replaced_item_id) bits.push(`replaced=${msg.replaced_item_id}`);
     if (msg.zone) bits.push(`zone=${msg.zone}`);
     if (msg.polls) bits.push(`polls=${msg.polls}`);
     if (msg.rewrites) bits.push(`rewrites=${msg.rewrites}`);
     if (msg.elapsed_ms != null) bits.push(`${msg.elapsed_ms}ms`);
-    if (msg.status === "rewritten" && msg.actual) bits.push(`actual="${truncateEventText(msg.actual, 20)}"`);
+    if (msg.actual && msg.status !== "acked") bits.push(`actual="${truncateEventText(msg.actual, 20)}"`);
     if (msg.status === "observed") bits.push(truncateEventText(JSON.stringify(msg.raw_content || ""), 60));
     logEventLine("local", "zone_stamp", bits.join(" "));
+    return;
+  }
+  if (msg.type === "local.context_retrieved") {
+    const missing = (msg.missing || []).length;
+    logEventLine("local", "context_retrieved", `items=${(msg.items || []).length}${missing ? ` missing=${missing}` : ""}`);
     return;
   }
   if (msg.type === "upstream.event") {
     const event = msg.event || {};
     // ASR 增量事件量大且碎，不进入事件面板。
-    if (event.type === "conversation.item.input_audio_transcription.delta") return;
+    if (SILENT_EVENT_TYPES.has(event.type)) return;
     updateCurrentLogid(event);
     if (event.type === "conversation.item.update") {
       logEventLine("down", event.type, formatItemUpdateDetail(event));
@@ -2120,11 +2354,11 @@ function logInboundEvent(msg) {
       logEventLine("down", event.type, formatItemUpdatedDetail(event));
       return;
     }
-    if (event.type === "response.output_text.delta") {
+    if (RESPONSE_TEXT_DELTA_TYPES.has(event.type)) {
       logResponseTextDelta(event);
       return;
     }
-    if (event.type === "response.output_text.done") {
+    if (RESPONSE_TEXT_DONE_TYPES.has(event.type)) {
       flushResponseTextDelta();
       logEventLine("down", event.type);
       return;
@@ -2134,11 +2368,11 @@ function logInboundEvent(msg) {
       logEventLine("down", event.type);
       return;
     }
-    if (event.type === "response.output_audio.delta") {
+    if (RESPONSE_AUDIO_DELTA_TYPES.has(event.type)) {
       logResponseAudioDelta(event);
       return;
     }
-    if (event.type === "response.output_audio.done") {
+    if (RESPONSE_AUDIO_DONE_TYPES.has(event.type)) {
       flushResponseAudioDelta();
       lastResponseAudioEventAt = 0;
       logEventLine("down", event.type);
@@ -2359,7 +2593,8 @@ function clearZoneMarker() {
 }
 
 async function forceCommitAudio(detail = "强制判停") {
-  if (!sessionId) return;
+  // Qwen 在 VAD / smart_turn 模式下忽略 input_audio_buffer.commit，判停完全由服务端负责。
+  if (!sessionId || isQwenProvider()) return;
   const shouldRestartPump = Boolean(audioFrameTimer && recording);
   stopInputAudioFramePump({clearBuffer: false});
   await drainInputAudioBuffer();
@@ -2372,12 +2607,18 @@ async function forceCommitAudio(detail = "强制判停") {
   if (shouldRestartPump && sessionId) startInputAudioFramePump();
 }
 
-async function interruptResponse() {
-  if (!sessionId) return;
+function stopOutputPlayback() {
+  // 被打断的响应可能还有在途音频分片，按 response_id 丢弃，避免残音。
+  if (currentResponseId) cancelledResponseIds.add(currentResponseId);
   if (pcmPlayer) {
     pcmPlayer.stop().catch(() => {});
     pcmPlayer = null;
   }
+}
+
+async function interruptResponse() {
+  if (!sessionId) return;
+  stopOutputPlayback();
   if (currentTurn && !currentTurn.done) {
     if (currentTurn.answer) {
       finishAnswer(currentTurn.answer);
@@ -2463,6 +2704,20 @@ async function toggleMicrophone() {
   if (!sessionId) return;
   micMuted = !micMuted;
   updateMicUi();
+  if (isQwenProvider()) {
+    clearInputAudioBuffer();
+    if (micMuted) {
+      els.meterFill.style.width = "0%";
+      setHeroState("麦克风已关", "ok");
+      addMessage("tool", "麦克风已关闭，Qwen 无静音保活事件，继续按 20ms 上行静音帧。");
+      return;
+    }
+    startInputAudioFramePump();
+    setHeroState("正在听...", "listening");
+    addMessage("tool", "麦克风已打开，恢复上行实时音频。");
+    if (!recording) await startRecording();
+    return;
+  }
   if (micMuted) {
     els.meterFill.style.width = "0%";
     stopInputAudioFramePump({clearBuffer: false});
@@ -2980,11 +3235,12 @@ function sampleToFloat(sample, format) {
 }
 
 function createOutputAudioPlayer() {
-  if (DEFAULT_OUTPUT_FORMAT === "pcm_s16le") return new PcmStreamPlayer(24000);
-  if (DEFAULT_OUTPUT_FORMAT === "ogg_opus" && MediaSourceEncodedAudioPlayer.isSupported("audio/ogg; codecs=opus")) {
+  const format = providerProfile().outputFormat;
+  if (format === "pcm_s16le") return new PcmStreamPlayer(24000);
+  if (format === "ogg_opus" && MediaSourceEncodedAudioPlayer.isSupported("audio/ogg; codecs=opus")) {
     return new MediaSourceEncodedAudioPlayer("audio/ogg; codecs=opus");
   }
-  if (DEFAULT_OUTPUT_FORMAT === "ogg_opus") return new WebCodecsOggOpusPlayer();
+  if (format === "ogg_opus") return new WebCodecsOggOpusPlayer();
   return new BufferedEncodedAudioPlayer("audio/ogg; codecs=opus");
 }
 
@@ -2998,6 +3254,33 @@ function enqueueOutputAudio(event) {
   });
 }
 
+function handleResponseCanceled() {
+  stopOutputPlayback();
+  if (currentTurn && !currentTurn.done && !currentTurn.awaitingTextReply) {
+    if (currentTurn.answer) {
+      finishAnswer(currentTurn.answer);
+    } else {
+      currentTurn.answerEl.textContent = "已打断";
+      currentTurn.done = true;
+      lastTurn = currentTurn;
+      currentTurn = null;
+    }
+  }
+  setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
+}
+
+function markTurnInvalid() {
+  // smart_turn 判定为无效轮次（无语义内容）时不会触发推理，收起本轮卡片。
+  const turn = currentTurn;
+  if (!turn || turn.answer) return;
+  turn.questionEl.textContent = `${turn.question || "（未识别）"}（无效轮次，未触发回复）`;
+  turn.answerEl.textContent = "—";
+  turn.done = true;
+  lastTurn = turn;
+  currentTurn = null;
+  setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
+}
+
 function handleUpstream(msg) {
   const event = msg.event || {};
   switch (event.type) {
@@ -3009,8 +3292,17 @@ function handleUpstream(msg) {
       pcmPlayer = null;
       resetTurnForSpeech();
       break;
+    case "input_audio_buffer.speech_started":
+      // Qwen：VAD 检测到开口即打断播报，对齐 seeduplex 的 transcription.started。
+      stopOutputPlayback();
+      resetTurnForSpeech();
+      break;
+    case "input_audio_buffer.speech_stopped":
+      if (event.reason === "turn_invalid") markTurnInvalid();
+      break;
     case "conversation.item.input_audio_transcription.delta":
-      setQuestion(extractEventText(event));
+      // Qwen 的 delta 为已确定文本 text + 暂存文本 stash，每次以最新值覆盖显示。
+      setQuestion(typeof event.stash === "string" ? `${event.text || ""}${event.stash}` : extractEventText(event));
       break;
     case "conversation.item.input_audio_transcription.completed":
       setQuestion(extractEventText(event));
@@ -3020,41 +3312,44 @@ function handleUpstream(msg) {
       setQuestion("语音识别失败");
       setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
       break;
+    case "response.created":
+      currentResponseId = (event.response || {}).id || "";
+      break;
     case "response.output_text.delta":
+    case "response.audio_transcript.delta":
+    case "response.text.delta":
+      if (event.response_id && cancelledResponseIds.has(event.response_id)) break;
       appendAnswer(extractEventText(event));
       break;
     case "response.output_text.done":
+    case "response.audio_transcript.done":
+    case "response.text.done":
+      if (event.response_id && cancelledResponseIds.has(event.response_id)) break;
       finishAnswer(extractEventText(event));
       break;
     case "response.done":
-      if (currentTurn && currentTurn.answer) finishAnswer("");
+      if (isQwenProvider() && (event.response || {}).status === "cancelled") {
+        handleResponseCanceled();
+      } else if (currentTurn && currentTurn.answer) {
+        finishAnswer("");
+      }
+      currentResponseId = "";
       appendResponseDoneDetails(event);
       break;
     case "response.canceled":
-      if (pcmPlayer) {
-        pcmPlayer.stop().catch(() => {});
-        pcmPlayer = null;
-      }
-      if (currentTurn && !currentTurn.done) {
-        if (currentTurn.answer) {
-          finishAnswer(currentTurn.answer);
-        } else {
-          currentTurn.answerEl.textContent = "已打断";
-          currentTurn.done = true;
-          lastTurn = currentTurn;
-          currentTurn = null;
-        }
-      }
-      setHeroState(recording && !micMuted ? "正在听..." : "已连接", recording && !micMuted ? "listening" : "ok");
+      handleResponseCanceled();
       break;
     case "response.output_audio.started":
       if (pcmPlayer) pcmPlayer.stop().catch(() => {});
       pcmPlayer = createOutputAudioPlayer();
       break;
     case "response.output_audio.delta":
+    case "response.audio.delta":
+      if (event.response_id && cancelledResponseIds.has(event.response_id)) break;
       enqueueOutputAudio(event);
       break;
     case "response.output_audio.done":
+    case "response.audio.done":
       if (pcmPlayer && typeof pcmPlayer.finish === "function") {
         pcmPlayer.finish().catch(err => {
           addMessage("tool", `audio playback failed: ${err.message}`);
@@ -3063,6 +3358,14 @@ function handleUpstream(msg) {
       }
       break;
     case "error":
+      // 空闲超时由 local.session_expired 统一提示，这里不再弹错误。
+      if (isQwenProvider() && (event.error || {}).code === "response_idle_timeout") break;
+      if (isQwenProvider() && (event.error || {}).type === "invalid_request_error") {
+        // Qwen 客户端类错误连接保持，只提示不挂断。
+        addMessage("tool", `upstream error（连接保持）: ${JSON.stringify(event, null, 2)}`);
+        showErrorToast("上游拒绝了请求", (event.error || {}).message || JSON.stringify(event, null, 2), {duration: 6000, keepCall: true});
+        break;
+      }
       addMessage("tool", `upstream error: ${JSON.stringify(event, null, 2)}`);
       showErrorToast("上游返回错误", event.message || JSON.stringify(event, null, 2), {duration: 0, endCallOnClose: true});
       break;
@@ -3193,16 +3496,18 @@ els.connectBtn.addEventListener("click", async () => {
     sessionId = data.session_id;
     lastRuntimeConfigKey = JSON.stringify(currentRuntimeConfig());
     currentLogid = "";
+    currentResponseId = "";
+    cancelledResponseIds.clear();
     currentTurn = null;
     lastTurn = null;
     els.recordHint.textContent = "连接中，成功后将自动请求麦克风权限";
-    addMessage("tool", `session: ${sessionId}${createConfig.dialog_id ? `\ndialog_id: ${createConfig.dialog_id}` : ""}\ntool_root: ${data.tool_root}`);
+    addMessage("tool", `provider: ${data.provider}\nsession: ${sessionId}${createConfig.dialog_id ? `\ndialog_id: ${createConfig.dialog_id}` : ""}\ntool_root: ${data.tool_root}`);
     source = new EventSource(`/api/events?session_id=${encodeURIComponent(sessionId)}`);
     source.onmessage = evt => {
       const msg = JSON.parse(evt.data);
       logInboundEvent(msg);
-      if (msg.type === "upstream.event" && (msg.event || {}).type === "session.created" && !autoMicStarted) {
-        // 会话建立确认（session.created）后才启动麦克风，避免音频早于会话建立上行。
+      if (msg.type === "local.ready" && !autoMicStarted) {
+        // 会话就绪（seeduplex: session.created；Qwen: 首次 session.updated）后才启动麦克风，避免音频早于会话配置上行。
         autoMicStarted = true;
         setConnected(true);
         startRecording().catch(err => {
@@ -3213,13 +3518,18 @@ els.connectBtn.addEventListener("click", async () => {
           els.recordHint.textContent = "麦克风启动失败，已改用静音保活";
           setHeroState("麦克风已关", "ok");
           const message = microphoneErrorMessage(err);
-          addMessage("tool", `${message}\n已发送 input_audio_mute.commit 静音保活。`);
           showErrorToast("麦克风启动失败", message);
+          if (isQwenProvider()) {
+            addMessage("tool", `${message}\n继续按 20ms 上行静音帧保活。`);
+            startInputAudioFramePump();
+            return;
+          }
+          addMessage("tool", `${message}\n已发送 input_audio_mute.commit 静音保活。`);
           sendMuteCommit("麦克风启动失败");
         });
       }
       if (msg.type === "local.session_create") {
-        addJsonDetailsMessage("session.create", msg.event || {});
+        addJsonDetailsMessage(msg.title || "session.create", msg.event || {});
       }
       if (msg.type === "local.session_extension") {
         addJsonDetailsMessage("session.create", {type: "session.create", extension: msg.extension || {}});
@@ -3229,9 +3539,11 @@ els.connectBtn.addEventListener("click", async () => {
         addJsonDetailsMessage("session.update", msg.event || {});
       }
       if (msg.type === "upstream.event") handleUpstream(msg);
-      if (msg.type === "upstream.event" && (msg.event || {}).type === "conversation.item.retrieved") {
+      // Qwen 的 retrieve 只能单查，由后端聚合后以 local.context_retrieved 返回。
+      if (msg.type === "upstream.event" && (msg.event || {}).type === "conversation.item.retrieved" && !isQwenProvider()) {
         handleContextRetrieved(msg.event);
       }
+      if (msg.type === "local.context_retrieved") handleContextRetrieved(msg);
       if (isContextLiveEvent(msg)) scheduleContextLiveRefresh();
       if (msg.type === "upstream.event" && (msg.event || {}).type === "session.closed") {
         addMessage("tool", "session.closed ack received");
@@ -3243,6 +3555,12 @@ els.connectBtn.addEventListener("click", async () => {
         appendToolResult(msg);
       }
       if (msg.type === "local.warning") addMessage("tool", `warning: ${msg.message}`);
+      if (msg.type === "local.session_expired") {
+        // 上游按规则结束会话属于正常结束：保留通话页与 QA 记录，随后由 local.closed 收尾。
+        keepCallPageOnDisconnect = true;
+        rememberQaScroll();
+        addMessage("tool", msg.message);
+      }
       if (msg.type === "local.error") {
         stopRecording({commit: false, hint: "连接已断开，实时收音已停止"}).catch(() => {});
         if (pcmPlayer) pcmPlayer.stop().catch(() => {});
@@ -3306,6 +3624,7 @@ els.closeBtn.addEventListener("click", async () => {
   els.forceCommitBtn.disabled = true;
   els.interruptBtn.disabled = true;
   els.greetBtn.disabled = true;
+  els.textChatBtn.disabled = true;
   setHeroState("正在关闭...", "connecting");
   await postJSON("/api/close", {session_id: sessionId}, {name: "session.close"}).catch(() => {});
   els.recordHint.textContent = "等待 session.closed ack";
@@ -3382,7 +3701,7 @@ window.addEventListener("keydown", evt => {
 function openGreetModal() {
   els.greetModal.hidden = false;
   if (!els.greetInput.value.trim()) els.greetInput.value = GREET_DEFAULT_TEXT;
-  setGreetNote("发送后由 TTS 链路合成并播报");
+  setGreetNote(providerProfile().greetNote);
   els.greetInput.focus();
   els.greetInput.select();
 }
@@ -3412,6 +3731,83 @@ async function sendGreeting() {
     closeGreetModal();
   } finally {
     els.greetSendBtn.disabled = false;
+  }
+}
+
+// ---- 文本对话（Qwen）----
+
+els.textChatBtn.addEventListener("click", evt => {
+  evt.preventDefault();
+  openTextChatModal();
+});
+els.textChatCloseBtn.addEventListener("click", closeTextChatModal);
+els.textChatSendBtn.addEventListener("click", () => {
+  sendTextChat().catch(err => setTextChatNote(err.message, true));
+});
+els.textChatInput.addEventListener("keydown", evt => {
+  if (evt.key === "Enter" && !evt.shiftKey && !evt.isComposing) {
+    evt.preventDefault();
+    els.textChatSendBtn.click();
+  }
+});
+els.textChatModal.addEventListener("click", evt => {
+  if (evt.target === els.textChatModal) closeTextChatModal();
+});
+window.addEventListener("keydown", evt => {
+  if (evt.key === "Escape" && !els.textChatModal.hidden) closeTextChatModal();
+});
+
+function openTextChatModal() {
+  els.textChatModal.hidden = false;
+  setTextChatNote(zonesEnabled() ? `将自动添加【${activeZone}】前缀` : "多音区未启用，不加音区前缀");
+  els.textChatInput.focus();
+}
+
+function closeTextChatModal() {
+  els.textChatModal.hidden = true;
+}
+
+function setTextChatNote(text, isError = false) {
+  els.textChatNote.textContent = text;
+  els.textChatNote.classList.toggle("is-error", isError);
+}
+
+function startTextTurn(text) {
+  // 文本消息开启新一轮：收起上一轮，并在请求发出前建好卡片——上游回复可能先于 HTTP 响应到达。
+  if (currentTurn && !currentTurn.done && (currentTurn.question || currentTurn.answer)) {
+    if (currentTurn.answer) {
+      finishAnswer(currentTurn.answer);
+    } else {
+      currentTurn.done = true;
+      lastTurn = currentTurn;
+      currentTurn = null;
+    }
+  }
+  setQuestion(text);
+  setThinking();
+  currentTurn.awaitingTextReply = true;
+}
+
+async function sendTextChat() {
+  if (!sessionId) throw new Error("会话未连接");
+  const text = els.textChatInput.value.trim();
+  if (!text) throw new Error("请输入要发送的文本");
+  els.textChatSendBtn.disabled = true;
+  try {
+    await sendChain;
+    stopOutputPlayback();
+    startTextTurn(text);
+    try {
+      await postJSON("/api/text_chat", {session_id: sessionId, text}, {name: "conversation.item.create", detail: text.slice(0, 40)});
+    } catch (err) {
+      if (currentTurn) currentTurn.awaitingTextReply = false;
+      finishAnswer(`发送失败：${err.message}`);
+      throw err;
+    }
+    els.textChatInput.value = "";
+    closeTextChatModal();
+  } finally {
+    els.textChatSendBtn.disabled = false;
   }
 }
 
@@ -3498,7 +3894,7 @@ async function submitContextPairs() {
       {session_id: sessionId, pairs},
       {name: "conversation.item.create", detail: `注入 ${pairs.length} 轮成对上下文`}
     );
-    setCtxAddNote(`已提交 ${result.added} 条上下文条目，等待 conversation.item.added 确认。`);
+    setCtxAddNote(`已提交 ${result.added} 条上下文条目，等待 ${providerProfile().contextAckEvent} 确认。`);
     els.ctxAddInput.value = "";
     refreshContext({retrieve: true});
   } finally {
@@ -3638,6 +4034,7 @@ function buildContextItemRow(item) {
 }
 
 function ctxRoleKey(role) {
+  if (role === "function_call_output") return "tool";
   return ["user", "assistant", "function_call", "tool"].includes(role) ? role : "unknown";
 }
 
@@ -3645,7 +4042,8 @@ function ctxRoleLabel(role) {
   if (role === "user") return "用户";
   if (role === "assistant") return "助手";
   if (role === "function_call") return "调用";
-  if (role === "tool") return "结果";
+  if (role === "tool" || role === "function_call_output") return "结果";
+  if (role === "system") return "系统";
   return role || "未知";
 }
 
@@ -3655,10 +4053,11 @@ function handleContextRetrieved(event) {
   window.clearTimeout(ctxRetrieveTimeoutTimer);
   const raw = event.items;
   const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const missing = (event.missing || []).length;
   renderRetrievedItems(items);
-  els.ctxUpstreamHint.textContent = items.length
+  els.ctxUpstreamHint.textContent = (items.length
     ? "以上为上游返回的原始上下文记录，按先后顺序展示，内容未做任何加工。"
-    : "上游返回了空列表（或条目已被服务端淘汰）。";
+    : "上游返回了空列表（或条目已被服务端淘汰）。") + (missing ? `另有 ${missing} 条未在超时内返回。` : "");
 }
 
 function extractContextItemText(item) {
@@ -3667,10 +4066,13 @@ function extractContextItemText(item) {
   if (Array.isArray(content)) {
     return content.map(part => {
       if (typeof part === "string") return part;
-      return (part && typeof part.text === "string") ? part.text : "";
+      if (part && typeof part.text === "string") return part.text;
+      // Qwen 的用户音频条目只回传转写文本 transcript。
+      return (part && typeof part.transcript === "string") ? part.transcript : "";
     }).join("");
   }
   if (typeof content === "string") return content;
+  if (typeof item.output === "string") return item.output;
   if (typeof item.arguments === "string") return item.arguments;
   return JSON.stringify(item);
 }
@@ -3681,8 +4083,11 @@ function isContextLiveEvent(msg) {
   const type = msg.type === "upstream.event" ? (msg.event || {}).type : "";
   return type === "conversation.item.input_audio_transcription.completed"
     || type === "response.output_text.done"
+    || type === "response.audio_transcript.done"
     || type === "response.function_call_arguments.done"
-    || type === "conversation.item.added";
+    || type === "conversation.item.added"
+    || type === "conversation.item.created"
+    || type === "conversation.item.deleted";
 }
 
 function scheduleContextLiveRefresh() {
@@ -3758,3 +4163,5 @@ els.toolsJson.addEventListener("input", () => {
   setToolsJsonStatus("");
   scheduleSessionUpdate();
 });
+
+applyProviderUi();

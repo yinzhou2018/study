@@ -20,12 +20,11 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 UPSTREAM_HOST = "openspeech.bytedance.com"
 UPSTREAM_PATH = "/api/v3/duplex/realtime/dialogue"
 SOUND_ZONES = ("主驾", "副驾", "左后排", "右后排")
-UPSTREAM_URL = f"wss://{UPSTREAM_HOST}{UPSTREAM_PATH}"
 VOICE_CLONE_TRAIN_URL = "https://openspeech.bytedance.com/api/v3/tts/voice_clone"
 VOICE_CLONE_STATUS_URL = "https://openspeech.bytedance.com/api/v3/tts/get_voice"
 MAX_READ_BYTES = 64 * 1024
@@ -55,6 +54,36 @@ CURRENT_SPEAKING_ZONE_UNKNOWN = "未知"
 # 若被上游后写覆盖则重发 update，直到确认生效或超过总时长。
 ZONE_STAMP_POLL_INTERVAL_S = 0.1
 ZONE_STAMP_POLL_TIMEOUT_S = 10.0
+
+# 供应商：seeduplex（火山）为默认；qwen 为阿里云百炼 Qwen-Audio-Realtime（docs/qwen-audio-realtime-integration.md）。
+PROVIDER_SEEDUPLEX = "seeduplex"
+PROVIDER_QWEN = "qwen"
+PROVIDERS = (PROVIDER_SEEDUPLEX, PROVIDER_QWEN)
+QWEN_UPSTREAM_PATH = "/api-ws/v1/realtime"
+QWEN_MODELS = (
+    "qwen-audio-3.1-realtime-plus",
+    "qwen-audio-3.1-realtime-flash",
+    "qwen-audio-3.0-realtime-plus",
+    "qwen-audio-3.0-realtime-flash",
+)
+QWEN_DEFAULT_MODEL = QWEN_MODELS[0]
+# region -> (业务空间专属域名后缀, 未填 WorkspaceId 时回退的公共域名)
+QWEN_REGION_HOSTS = {
+    "cn-beijing": ("cn-beijing.maas.aliyuncs.com", "dashscope.aliyuncs.com"),
+    "ap-southeast-1": ("ap-southeast-1.maas.aliyuncs.com", "dashscope-intl.aliyuncs.com"),
+}
+QWEN_DEFAULT_REGION = "cn-beijing"
+QWEN_TURN_DETECTION_TYPES = ("smart_turn_v2", "smart_turn", "server_vad")
+QWEN_DEFAULT_TURN_DETECTION = "smart_turn_v2"
+QWEN_WORKSPACE_ID_RE = re.compile(r"^[A-Za-z0-9-]+$")
+# Qwen 未提供会话内检索全部历史的能力，上下文弹窗按已知 item id 逐条 retrieve 后聚合返回。
+QWEN_CONTEXT_RETRIEVE_LIMIT = 40
+QWEN_CONTEXT_RETRIEVE_TIMEOUT_S = 4.0
+# 上游连续 180 秒未生成任何回复会下发该错误码并以 1007 关闭连接（接入文档未列出，实测确认）。
+QWEN_IDLE_TIMEOUT_ERROR_CODE = "response_idle_timeout"
+# Qwen 打招呼没有纯 TTS 事件：插入一条临时 user 指令让模型复述，回复结束后删除该指令。
+# 不能用 system 角色：上下文末尾不是 user 消息时 response.create 会被拒，已有对话时更会 InternalError 并断开连接。
+QWEN_GREET_INSTRUCTION = "请直接用当前音色原样说出下面这段话，不要增减任何内容，也不要做任何解释：\n"
 
 _INSTRUCTIONS_TEMPLATE_CACHE = {"mtime_ns": None, "text": ""}
 
@@ -152,6 +181,13 @@ def normalize_dialog_id(value):
   if any(ch.isspace() for ch in dialog_id):
     raise ValueError("dialog_id must not contain whitespace")
   return dialog_id
+
+
+def normalize_provider(value):
+  provider = str(value or PROVIDER_SEEDUPLEX).strip().lower()
+  if provider not in PROVIDERS:
+    raise ValueError("provider must be one of: " + ", ".join(PROVIDERS))
+  return provider
 
 
 def clone_speaker_payload(data):
@@ -261,6 +297,9 @@ class MinimalWebSocketClient:
     self.insecure_tls_fallback = insecure_tls_fallback
     self.used_insecure_tls = False
     self.sock = None
+    self.closing = False
+    # 握手响应之后已读到的帧字节（上游可能在 101 后立刻下发首个事件，与响应头同包到达）。
+    self._rx_buffer = b""
     self._lock = threading.Lock()
     self.response_status = None
     self.response_headers = {}
@@ -335,6 +374,9 @@ class MinimalWebSocketClient:
         continue
       key, value = line.split(":", 1)
       headers[key.strip()] = value.strip()
+    if " 101 " in status:
+      self._rx_buffer = body
+      return status, headers, ""
     content_length = int(headers.get("Content-Length", "0") or "0")
     while content_length and len(body) < content_length:
       body += self.sock.recv(content_length - len(body))
@@ -378,7 +420,10 @@ class MinimalWebSocketClient:
       if opcode == 0x1:
         return data.decode("utf-8", errors="replace")
       if opcode == 0x8:
-        raise WebSocketError("upstream closed")
+        # Close 帧载荷：2 字节关闭码（大端）+ UTF-8 原因，上游的断开原因只在这里。
+        code = struct.unpack("!H", data[:2])[0] if len(data) >= 2 else None
+        reason = data[2:].decode("utf-8", errors="replace")
+        raise WebSocketError(f"upstream closed: code={code} reason={reason!r}", body=reason)
       if opcode == 0x9:
         self._send_pong(data)
       elif opcode == 0xA:
@@ -395,12 +440,18 @@ class MinimalWebSocketClient:
       self.sock.sendall(bytes(header) + mask + masked)
 
   def _recv_exact(self, size):
-    buf = bytearray()
+    buf = bytearray(self._rx_buffer[:size])
+    self._rx_buffer = self._rx_buffer[size:]
     while len(buf) < size:
       try:
         chunk = self.sock.recv(size - len(buf))
       except (BlockingIOError, ssl.SSLWantReadError, ssl.SSLWantWriteError, InterruptedError):
         time.sleep(0.01)
+        continue
+      except socket.timeout:
+        # 上游在用户静默期间可能长时间不下发事件（如 Qwen 对 append 无回包），读超时不代表断连。
+        if self.closing:
+          raise
         continue
       if not chunk:
         raise WebSocketError("upstream socket closed")
@@ -408,8 +459,14 @@ class MinimalWebSocketClient:
     return bytes(buf)
 
   def close(self):
+    self.closing = True
     if not self.sock:
       return
+    try:
+      # 先 shutdown 唤醒阻塞在 recv 上的读线程，再释放 fd。
+      self.sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+      pass
     try:
       self.sock.close()
     except OSError:
@@ -627,6 +684,8 @@ class LocalFileTools:
 
 
 class DuplexSession:
+  provider = PROVIDER_SEEDUPLEX
+
   def __init__(self, config):
     self.id = uuid.uuid4().hex
     self.config = config
@@ -636,6 +695,8 @@ class DuplexSession:
     self.ready = threading.Event()
     self.closed = threading.Event()
     self.close_requested = threading.Event()
+    # 上游按协议主动结束会话（如 Qwen 180 秒无回复）：随后的断连属于预期，不再上报为错误。
+    self.remote_close_expected = threading.Event()
     self.sent_state = {}
     self.state_lock = threading.Lock()
     self.zone = self._normalize_zone(config.get("zone"))
@@ -645,83 +706,122 @@ class DuplexSession:
     # 盖章轮询状态：item_id -> task；retrieve ack 的 event_id -> item_id 关联表。
     self.zone_stamp_tasks = {}
     self.retrieve_watch = {}
+    self._init_provider_state()
     self.thread = threading.Thread(target=self._run, daemon=True)
     self.thread.start()
+
+  def _init_provider_state(self):
+    """子类在启动读线程前初始化各自的协议状态。"""
 
   def emit(self, event_type, payload):
     payload = {"type": event_type, "ts": time.time(), **payload}
     self.events.put(payload)
 
+  def _mark_ready(self):
+    if self.ready.is_set():
+      return
+    self.ready.set()
+    # 与供应商无关的就绪信号：前端据此启动麦克风上行。
+    self.emit("local.ready", {"provider": self.provider})
+
+  def _upstream_endpoint(self):
+    """返回 (host, path, headers)。"""
+    headers = {
+        "X-Api-Key": self.config["api_key"],
+        "X-Api-Connect-Id": self.id,
+    }
+    return UPSTREAM_HOST, UPSTREAM_PATH, headers
+
   def _run(self):
     try:
-      headers = {
-          "X-Api-Key": self.config["api_key"],
-          "X-Api-Connect-Id": self.id,
-      }
+      host, path, headers = self._upstream_endpoint()
       headers.update(self.config.get("upstream_headers") or {})
-      self.ws = MinimalWebSocketClient(UPSTREAM_HOST, UPSTREAM_PATH, headers=headers)
+      self.ws = MinimalWebSocketClient(host, path, headers=headers)
       self.ws.connect()
       forwarded_header_names = sorted((self.config.get("upstream_headers") or {}).keys())
       if forwarded_header_names:
         self.emit("local.forwarded_headers", {"headers": forwarded_header_names})
       self.emit("local.connected", {
           "session_id": self.id,
-          "upstream": UPSTREAM_URL,
+          "provider": self.provider,
+          "upstream": f"wss://{host}{path}",
           "logid": self.ws.response_header("X-Tt-Logid"),
       })
       if self.ws.used_insecure_tls:
         self.emit("local.warning", {
                   "message": "Python TLS trust store rejected the upstream certificate; demo continued with certificate verification disabled."})
-      session_create = self._build_session_create()
-      self.emit("local.session_create", {"event": session_create})
-      self.emit("local.outgoing", {"event": session_create})
-      self.ws.send_json(session_create)
-      self._remember_sent_payload(session_create)
-      # 不在此处置位 ready：等上游 session.created 确认后会话才真正就绪，
-      # 避免音频等上行事件早于会话建立到达上游。
+      connected_at = time.time()
+      last_upstream_type = None
+      self._send_initial_config()
       while not self.closed.is_set():
         raw = self.ws.recv_text()
         try:
           msg = json.loads(raw)
         except json.JSONDecodeError:
           msg = {"type": "local.unparsed", "raw": raw}
-        msg_type = msg.get("type")
+        last_upstream_type = msg.get("type")
         self.emit("upstream.event", {"event": msg})
-        if msg_type == "session.created":
-          self.ready.set()
-        if msg_type == "response.function_call_arguments.done":
-          self._handle_function_call(msg)
-        if msg_type == "conversation.item.input_audio_transcription.started":
-          self.turn_zone = self.zone
-        elif msg_type == "conversation.item.input_audio_transcription.completed":
-          self._stamp_transcript_zone(msg)
-          self.turn_zone = None
-        elif msg_type == "conversation.item.input_audio_transcription.failed":
-          self.turn_zone = None
-        elif msg_type == "conversation.item.added":
-          self._handle_item_added(msg)
-        elif msg_type == "conversation.item.retrieved":
-          self._handle_item_retrieved(msg)
-        if msg_type in ("session.closed", "error"):
+        self._handle_upstream_event(msg)
+        if self._is_terminal_event(msg):
           break
     except WebSocketError as exc:
-      payload = exc.to_payload()
-      print(
-          "upstream websocket error:",
-          f"status={payload.get('status')}",
-          f"logid={payload.get('logid')}",
-          f"body={payload.get('body')[:300]!r}",
-          flush=True,
-      )
-      self.emit("local.error", payload)
+      if not (self.close_requested.is_set() or self.remote_close_expected.is_set()):
+        payload = exc.to_payload()
+        if self.ws and " 101 " in (self.ws.response_status or ""):
+          # 握手后断开：记录存活时长与断开前最后一个下行事件，便于区分配置被拒 / 空闲超时等。
+          payload["after_ms"] = int((time.time() - connected_at) * 1000)
+          payload["last_upstream_event"] = last_upstream_type
+        print(
+            "upstream websocket error:",
+            f"message={payload.get('message')!r}",
+            f"after_ms={payload.get('after_ms')}",
+            f"last_upstream_event={payload.get('last_upstream_event')}",
+            f"status={payload.get('status')}",
+            f"logid={payload.get('logid')}",
+            f"body={payload.get('body')[:300]!r}",
+            flush=True,
+        )
+        self.emit("local.error", payload)
     except Exception as exc:
-      self.emit("local.error", {"message": str(exc)})
+      # 主动关闭时 socket 被本端关掉，recv 抛出的异常属于预期，不再上报为错误。
+      if not (self.close_requested.is_set() or self.remote_close_expected.is_set()):
+        self.emit("local.error", {"message": str(exc)})
     finally:
       self.closed.set()
       self.ready.set()
       if self.ws:
         self.ws.close()
       self.emit("local.closed", {})
+
+  def _send_initial_config(self):
+    session_create = self._build_session_create()
+    self.emit("local.session_create", {"event": session_create})
+    self.emit("local.outgoing", {"event": session_create})
+    self.ws.send_json(session_create)
+    self._remember_sent_payload(session_create)
+    # 不在此处置位 ready：等上游 session.created 确认后会话才真正就绪，
+    # 避免音频等上行事件早于会话建立到达上游。
+
+  def _handle_upstream_event(self, msg):
+    msg_type = msg.get("type")
+    if msg_type == "session.created":
+      self._mark_ready()
+    if msg_type == "response.function_call_arguments.done":
+      self._handle_function_call(msg)
+    if msg_type == "conversation.item.input_audio_transcription.started":
+      self.turn_zone = self.zone
+    elif msg_type == "conversation.item.input_audio_transcription.completed":
+      self._stamp_transcript_zone(msg)
+      self.turn_zone = None
+    elif msg_type == "conversation.item.input_audio_transcription.failed":
+      self.turn_zone = None
+    elif msg_type == "conversation.item.added":
+      self._handle_item_added(msg)
+    elif msg_type == "conversation.item.retrieved":
+      self._handle_item_retrieved(msg)
+
+  def _is_terminal_event(self, msg):
+    return msg.get("type") in ("session.closed", "error")
 
   def _build_session_create(self):
     dialog_id = normalize_dialog_id(self.config.get("dialog_id"))
@@ -907,6 +1007,9 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
 
+  def send_user_text(self, text):
+    raise ValueError("当前供应商不支持文本对话")
+
   def send_audio(self, audio_b64):
     self._wait_ready()
     self.ws.send_json({"type": "input_audio_buffer.append", "event_id": uuid.uuid4().hex, "audio": audio_b64})
@@ -930,13 +1033,7 @@ class DuplexSession:
     """
     self._wait_ready()
     items = []
-    for pair in pairs:
-      user_text = str(pair.get("user") or "").strip()
-      assistant_text = str(pair.get("assistant") or "").strip()
-      if not user_text or not assistant_text:
-        raise ValueError("each pair needs non-empty user and assistant text")
-      if self.zone and not user_text.startswith("【"):
-        user_text = f"【{self.zone}】{user_text}"
+    for user_text, assistant_text in self._context_pair_texts(pairs):
       items.append({
           "type": "message",
           "role": "user",
@@ -955,6 +1052,19 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
     return len(items)
+
+  def _context_pair_texts(self, pairs):
+    """校验成对上下文并给 user 文本补当前音区前缀，返回 [(user, assistant), ...]。"""
+    texts = []
+    for pair in pairs:
+      user_text = str(pair.get("user") or "").strip()
+      assistant_text = str(pair.get("assistant") or "").strip()
+      if not user_text or not assistant_text:
+        raise ValueError("each pair needs non-empty user and assistant text")
+      if self.zone and not user_text.startswith("【"):
+        user_text = f"【{self.zone}】{user_text}"
+      texts.append((user_text, assistant_text))
+    return texts
 
   def commit_audio(self):
     self._wait_ready()
@@ -1244,6 +1354,27 @@ class DuplexSession:
     self.emit("local.outgoing", {"event": payload})
     self.ws.send_json(payload)
 
+  def parse_runtime_update(self, data):
+    """把 /api/session_update 请求体规整为 update_runtime_config 所需的配置增量。"""
+    voice = str(data.get("voice", "")).strip()
+    if not voice:
+      raise ValueError("voice is required")
+    speed = max(-50, min(100, int(data.get("speed", 0))))
+    loudness = max(-50, min(100, int(data.get("loudness", 0))))
+    output_format = str(data.get("output_format") or DEFAULT_OUTPUT_FORMAT).strip()
+    update = {
+        "voice": voice,
+        "model": str(data.get("model") or DEFAULT_MODEL).strip(),
+        "output_format": output_format,
+        "speed": speed,
+        "loudness": loudness,
+        "enable_music": truthy_value(data.get("enable_music")) and not is_music_forced_off_voice(voice),
+        "instructions": sanitize_instructions(data.get("instructions")),
+    }
+    if "location" in data:
+      update["location"] = data.get("location")
+    return update
+
   def update_runtime_config(self, config):
     self._wait_ready()
     self.config.update(config)
@@ -1300,13 +1431,502 @@ class DuplexSession:
         self.ws.close()
 
 
+def normalize_qwen_create_config(data):
+  model = str(data.get("model") or QWEN_DEFAULT_MODEL).strip()
+  if model not in QWEN_MODELS:
+    raise ValueError("model must be one of: " + ", ".join(QWEN_MODELS))
+  region = str(data.get("region") or QWEN_DEFAULT_REGION).strip()
+  if region not in QWEN_REGION_HOSTS:
+    raise ValueError("region must be one of: " + ", ".join(QWEN_REGION_HOSTS))
+  # workspace_id 会拼进上游域名，必须严格校验字符集。
+  workspace_id = str(data.get("workspace_id") or "").strip()
+  if workspace_id and not QWEN_WORKSPACE_ID_RE.match(workspace_id):
+    raise ValueError("workspace_id may only contain letters, digits and hyphens")
+  turn_detection = str(data.get("turn_detection") or QWEN_DEFAULT_TURN_DETECTION).strip()
+  if turn_detection not in QWEN_TURN_DETECTION_TYPES:
+    raise ValueError("turn_detection must be one of: " + ", ".join(QWEN_TURN_DETECTION_TYPES))
+  return {
+      "model": model,
+      "region": region,
+      "workspace_id": workspace_id,
+      "turn_detection": turn_detection,
+      "dialog_id": "",
+  }
+
+
+class QwenRealtimeSession(DuplexSession):
+  """阿里云百炼 Qwen-Audio-Realtime 适配，协议差异收敛在这里，前端功能与 seeduplex 保持一致：
+
+  - 会话配置：连接后等 session.created 再发首次 session.update，收到 session.updated 才就绪；
+    voice / turn_detection 只在首次 session.update 生效。
+  - FC：结果以 function_call_output 写回，并在 response.done 后显式 response.create 触发二轮推理。
+  - 音区机制 B：协议没有 conversation.item.update，改为本轮回复结束后
+    create（插在原条目之后、带音区前缀）+ delete 原条目，再 retrieve 校验。
+  - 历史上下文：retrieve 只能按 item_id 单查，按已知条目逐条查询后聚合为 local.context_retrieved。
+  - 静音保活 / 强制判停：协议无对应事件（VAD 模式下 commit 被忽略），不下发。
+  """
+  provider = PROVIDER_QWEN
+
+  def _init_provider_state(self):
+    self.response_active = False
+    self.pending_tool_outputs = []
+    self.pending_greet_item_ids = []
+    self.pending_text_response = False
+    self.pending_zone_stamps = []
+    self.invalid_turn_item_ids = set()
+    self.zone_replace_tasks = {}
+    self.context_retrieve_task = None
+
+  def _upstream_endpoint(self):
+    model = self.config.get("model") or QWEN_DEFAULT_MODEL
+    workspace_suffix, public_host = QWEN_REGION_HOSTS[self.config.get("region") or QWEN_DEFAULT_REGION]
+    workspace_id = self.config.get("workspace_id") or ""
+    host = f"{workspace_id}.{workspace_suffix}" if workspace_id else public_host
+    headers = {"Authorization": f"Bearer {self.config['api_key']}"}
+    if workspace_id:
+      headers["X-DashScope-WorkSpace"] = workspace_id
+    return host, f"{QWEN_UPSTREAM_PATH}?model={quote(model)}", headers
+
+  def _send_event(self, payload, log=True):
+    if log:
+      self.emit("local.outgoing", {"event": payload})
+    self.ws.send_json(payload)
+
+  # ---- 会话配置 ----
+
+  def _send_initial_config(self):
+    """Qwen 由服务端先下发 session.created，收到后再发首次 session.update。"""
+
+  def _send_first_session_update(self):
+    payload = {"type": "session.update", "session": self._build_session_config(initial=True)}
+    self.emit("local.session_create", {"event": payload, "title": "session.update（首次）"})
+    self._send_event(payload)
+    self._remember_sent_payload(payload)
+
+  def _build_session_config(self, initial):
+    session = {
+        "modalities": ["text", "audio"],
+        "instructions": self._instructions(),
+        "speech_rate": self._bounded_float("speech_rate", 0.5, 2.0, 1.0),
+        "tools": self._configured_tools(),
+        "enable_search": self._truthy("enable_websearch"),
+    }
+    if session["enable_search"]:
+      session["search_options"] = {"enable_source": True}
+    if initial:
+      session["voice"] = self._voice()
+      session["input_audio_format"] = "pcm"
+      session["output_audio_format"] = "pcm"
+      session["turn_detection"] = {"type": self.config.get("turn_detection") or QWEN_DEFAULT_TURN_DETECTION}
+    return session
+
+  def _voice(self):
+    voice = str(self.config.get("voice") or "").strip()
+    if voice:
+      return voice
+    return "longanqian_v3.1" if "-3.1-" in str(self.config.get("model") or QWEN_DEFAULT_MODEL) else "longanqian"
+
+  def _bounded_float(self, key, low, high, default):
+    try:
+      value = float(self.config.get(key, default))
+    except (TypeError, ValueError):
+      value = default
+    return round(max(low, min(high, value)), 2)
+
+  def _instructions(self):
+    # Qwen 没有地理位置字段，有值时以文本形式追加到系统提示末尾。
+    instructions = super()._instructions()
+    location = self._build_dialog_location()
+    if not location:
+      return instructions
+    labels = (
+        ("address", "地址"), ("country", "国家"), ("province", "省份"), ("city", "城市"),
+        ("district", "区县"), ("town", "乡镇"), ("longitude", "经度"), ("latitude", "纬度"),
+    )
+    lines = [f"- {label}：{location[key]}" for key, label in labels if key in location]
+    return instructions.rstrip() + "\n\n# 用户当前位置\n" + "\n".join(lines)
+
+  def _configured_tools(self):
+    # Qwen 工具结构为 {"type":"function","function":{name,description,parameters}}。
+    tools = []
+    for tool in super()._configured_tools():
+      if isinstance(tool, dict) and tool.get("type") == "function" and tool.get("name"):
+        spec = {key: tool[key] for key in ("name", "description", "parameters") if key in tool}
+        tools.append({"type": "function", "function": spec})
+      else:
+        tools.append(tool)
+    return tools
+
+  def parse_runtime_update(self, data):
+    update = {
+        "voice": str(data.get("voice") or "").strip(),
+        "speech_rate": data.get("speech_rate", 1.0),
+        "instructions": sanitize_instructions(data.get("instructions")),
+        "enable_websearch": truthy_value(data.get("enable_websearch")),
+    }
+    if "location" in data:
+      update["location"] = data.get("location")
+    return update
+
+  def update_runtime_config(self, config):
+    self._wait_ready()
+    voice_before = self._voice()
+    self.config.update(config)
+    if "tool_root" in config:
+      self.tools = LocalFileTools(self.config["tool_root"])
+    if self._voice() != voice_before:
+      self.emit("local.warning", {"message": "Qwen 仅首次 session.update 可设置音色，新音色需重新连接后生效。"})
+    self._send_update_payload({"type": "session.update", "session": self._build_session_config(initial=False)})
+
+  # ---- 下行事件 ----
+
+  def _handle_upstream_event(self, msg):
+    msg_type = msg.get("type")
+    if msg_type == "session.created":
+      self._send_first_session_update()
+    elif msg_type == "session.updated":
+      self._mark_ready()
+    elif msg_type == "error" and (msg.get("error") or {}).get("code") == QWEN_IDLE_TIMEOUT_ERROR_CODE:
+      self.remote_close_expected.set()
+      self.emit("local.session_expired", {
+          "message": "连续 180 秒没有产生任何回复，Qwen 上游已结束本次会话，如需继续请重新开始通话。",
+      })
+    elif msg_type == "error" and not self.ready.is_set():
+      error = msg.get("error") or {}
+      self.emit("local.error", {
+          "message": f"首次 session.update 被拒绝: {error.get('message') or error.get('code') or 'unknown'}",
+          "body": json.dumps(msg, ensure_ascii=False),
+      })
+    elif msg_type == "input_audio_buffer.speech_started":
+      # 对齐 seeduplex 的 transcription.started：以开口时刻的音区作为本轮发言归属。
+      self.turn_zone = self.zone
+    elif msg_type == "input_audio_buffer.speech_stopped":
+      if msg.get("reason") == "turn_invalid":
+        self.invalid_turn_item_ids.add(str(msg.get("item_id") or ""))
+        self.turn_zone = None
+    elif msg_type == "conversation.item.input_audio_transcription.completed":
+      self._queue_zone_stamp(msg)
+      self.turn_zone = None
+    elif msg_type == "conversation.item.input_audio_transcription.failed":
+      self.turn_zone = None
+    elif msg_type == "conversation.item.created":
+      self._handle_item_created(msg)
+    elif msg_type == "conversation.item.deleted":
+      self._handle_item_deleted(msg)
+    elif msg_type == "conversation.item.retrieved":
+      self._handle_item_retrieved(msg)
+    elif msg_type == "response.created":
+      self.response_active = True
+    elif msg_type == "response.function_call_arguments.done":
+      self._handle_function_call(msg)
+    elif msg_type == "response.done":
+      self._handle_response_done(msg)
+
+  def _is_terminal_event(self, msg):
+    if msg.get("type") != "error":
+      return False
+    # invalid_request_error 连接保持；server_error、空闲超时连接终止；就绪前的错误视为建会话失败。
+    error = msg.get("error") or {}
+    return (error.get("type") == "server_error" or error.get("code") == QWEN_IDLE_TIMEOUT_ERROR_CODE
+            or not self.ready.is_set())
+
+  def _handle_function_call(self, msg):
+    call_id = msg.get("call_id")
+    name = msg.get("name")
+    raw_args = msg.get("arguments") or "{}"
+    self._track_item_id(msg.get("item_id"))
+    try:
+      args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+      result = self.tools.call(name, args)
+    except Exception as exc:
+      result = {"ok": False, "error": str(exc)}
+    self.emit("local.tool_result", {"call_id": call_id, "name": name, "arguments": raw_args, "result": result})
+    # 一轮可能包含多个 function_call：先暂存，response.done 后统一写回再触发二轮推理。
+    self.pending_tool_outputs.append({
+        "type": "function_call_output",
+        "call_id": call_id,
+        "output": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
+    })
+
+  def _handle_response_done(self, msg):
+    self.response_active = False
+    outputs, self.pending_tool_outputs = self.pending_tool_outputs, []
+    for item in outputs:
+      self._send_event({"type": "conversation.item.create", "item": item})
+    if outputs and (msg.get("response") or {}).get("status") == "completed":
+      # 写回 function_call_output 不会自动推理；二轮回复结束后再做上下文改写，避免与推理并发改链表。
+      self._send_event({"type": "response.create"})
+      return
+    if self.pending_text_response:
+      # 文本对话打断了进行中的回复：等其结束后再触发对文本消息的回复。
+      self.pending_text_response = False
+      self._send_event({"type": "response.create"})
+      return
+    greet_ids, self.pending_greet_item_ids = self.pending_greet_item_ids, []
+    for item_id in greet_ids:
+      self._send_event({"type": "conversation.item.delete", "item_id": item_id})
+    self._flush_zone_stamps()
+
+  def _handle_item_created(self, msg):
+    item = msg.get("item") or {}
+    item_id = str(item.get("id") or "").strip()
+    if not item_id:
+      return
+    task = self.zone_replace_tasks.get(item_id)
+    if not task:
+      self._track_item_id(item_id)
+      return
+    # 盖章条目：放在原条目之后保持已知顺序，随后删除原条目完成替换。
+    if item_id not in self.known_item_ids:
+      try:
+        index = self.known_item_ids.index(task["item_id"]) + 1
+      except ValueError:
+        index = len(self.known_item_ids)
+      self.known_item_ids.insert(index, item_id)
+    task["phase"] = "delete"
+    self._send_event({"type": "conversation.item.delete", "item_id": task["item_id"]})
+
+  def _handle_item_deleted(self, msg):
+    item_id = str(msg.get("item_id") or "").strip()
+    if item_id in self.known_item_ids:
+      self.known_item_ids.remove(item_id)
+    for new_item_id, task in list(self.zone_replace_tasks.items()):
+      if task["item_id"] == item_id and task["phase"] == "delete":
+        task["phase"] = "verify"
+        self._send_event({"type": "conversation.item.retrieve", "item_id": new_item_id})
+
+  def _handle_item_retrieved(self, msg):
+    item = msg.get("item") or {}
+    item_id = str(item.get("id") or "").strip()
+    task = self.zone_replace_tasks.get(item_id)
+    if task and task["phase"] == "verify":
+      actual = self._item_content_text(item)
+      if task["text"] in actual:
+        self._finish_zone_replace(item_id, "acked", "盖章已生效（原条目已替换）")
+      else:
+        self._finish_zone_replace(item_id, "failed", "retrieve 返回的文本不含音区前缀", actual=actual)
+    with self.state_lock:
+      ctx = self.context_retrieve_task
+      done = False
+      if ctx and item_id in ctx["pending"]:
+        ctx["pending"].discard(item_id)
+        ctx["items"][item_id] = item
+        done = not ctx["pending"]
+    if done:
+      self._finish_context_retrieve(ctx["event_id"])
+
+  # ---- 音区机制 B：create + delete 替换 ----
+
+  def _queue_zone_stamp(self, msg):
+    zone = self.turn_zone or self.zone
+    item_id = str(msg.get("item_id") or "").strip()
+    transcript = str(msg.get("transcript") or "").strip()
+    if item_id:
+      self._track_item_id(item_id)
+    if not (zone and item_id and transcript) or transcript.startswith("【"):
+      return
+    stamp = {"item_id": item_id, "zone": zone, "text": f"【{zone}】{transcript}"}
+    with self.state_lock:
+      self.pending_zone_stamps.append(stamp)
+    self.emit("local.zone_stamp", {
+        **stamp,
+        "status": "queued",
+        "reason": "Qwen 无 conversation.item.update，等本轮回复结束后以 create+delete 替换该条目",
+    })
+    if not self.response_active:
+      # 转写完成可能晚于 response.done，此时没有后续 response.done 可挂靠：稍后若仍空闲则直接执行。
+      timer = threading.Timer(3.0, self._flush_zone_stamps_if_idle)
+      timer.daemon = True
+      timer.start()
+
+  def _flush_zone_stamps_if_idle(self):
+    if not self.response_active and not self.closed.is_set():
+      self._flush_zone_stamps()
+
+  def _flush_zone_stamps(self):
+    with self.state_lock:
+      stamps, self.pending_zone_stamps = self.pending_zone_stamps, []
+    for stamp in stamps:
+      self._start_zone_replace(stamp)
+
+  def _start_zone_replace(self, stamp):
+    item_id = stamp["item_id"]
+    if item_id in self.invalid_turn_item_ids or item_id not in self.known_item_ids:
+      self.emit("local.zone_stamp", {**stamp, "status": "failed", "reason": "该条目未写入上下文（无效轮次或已删除），跳过改写"})
+      return
+    new_item_id = f"item_zone_{uuid.uuid4().hex[:20]}"
+    timer = threading.Timer(ZONE_STAMP_POLL_TIMEOUT_S, self._finish_zone_replace,
+                            args=(new_item_id, "failed", "超时未确认改写生效（create/delete 可能被拒绝）"))
+    timer.daemon = True
+    self.zone_replace_tasks[new_item_id] = {**stamp, "phase": "create", "started": time.time(), "timer": timer}
+    timer.start()
+    self.emit("local.zone_stamp", {"stamped": True, "status": "sent", **stamp, "new_item_id": new_item_id})
+    self._send_event({
+        "type": "conversation.item.create",
+        "previous_item_id": item_id,
+        "item": {
+            "id": new_item_id,
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": stamp["text"]}],
+        },
+    })
+
+  def _finish_zone_replace(self, new_item_id, status, reason, actual=None):
+    task = self.zone_replace_tasks.pop(new_item_id, None)
+    if not task:
+      return
+    task["timer"].cancel()
+    payload = {
+        "status": status,
+        "zone": task["zone"],
+        "item_id": new_item_id,
+        "replaced_item_id": task["item_id"],
+        "text": task["text"],
+        "elapsed_ms": int((time.time() - task["started"]) * 1000),
+        "reason": reason,
+    }
+    if actual is not None:
+      payload["actual"] = actual
+    self.emit("local.zone_stamp", payload)
+
+  # ---- 历史上下文：逐条 retrieve 后聚合 ----
+
+  def retrieve_context(self):
+    self._wait_ready()
+    event_id = uuid.uuid4().hex
+    item_ids = list(self.known_item_ids[-QWEN_CONTEXT_RETRIEVE_LIMIT:])
+    timer = threading.Timer(QWEN_CONTEXT_RETRIEVE_TIMEOUT_S, self._finish_context_retrieve, args=(event_id,))
+    timer.daemon = True
+    with self.state_lock:
+      previous = self.context_retrieve_task
+      self.context_retrieve_task = {
+          "event_id": event_id, "order": item_ids, "pending": set(item_ids), "items": {}, "timer": timer,
+      }
+    if previous:
+      previous["timer"].cancel()
+    if not item_ids:
+      self._finish_context_retrieve(event_id)
+      return event_id
+    timer.start()
+    # 逐条查询的上行事件在事件面板合并成一行展示。
+    self.emit("local.outgoing", {"event": {"type": "conversation.item.retrieve", "item_ids": item_ids}})
+    for item_id in item_ids:
+      self._send_event({"type": "conversation.item.retrieve", "item_id": item_id}, log=False)
+    return event_id
+
+  def _finish_context_retrieve(self, event_id):
+    with self.state_lock:
+      task = self.context_retrieve_task
+      if not task or task["event_id"] != event_id:
+        return
+      self.context_retrieve_task = None
+    task["timer"].cancel()
+    self.emit("local.context_retrieved", {
+        "event_id": event_id,
+        "items": [task["items"][item_id] for item_id in task["order"] if item_id in task["items"]],
+        "missing": [item_id for item_id in task["order"] if item_id in task["pending"]],
+    })
+
+  # ---- 上行操作 ----
+
+  def send_text(self, text):
+    self._wait_ready()
+    if self.response_active:
+      raise ValueError("模型正在回复，请先打断或等回复结束后再打招呼")
+    item_id = f"item_greet_{uuid.uuid4().hex[:20]}"
+    self.pending_greet_item_ids.append(item_id)
+    self._send_event({
+        "type": "conversation.item.create",
+        "item": {
+            "id": item_id,
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": QWEN_GREET_INSTRUCTION + text}],
+        },
+    })
+    self._send_event({"type": "response.create"})
+
+  def send_user_text(self, text):
+    """文本对话：写入一条正式的 user 文本消息（保留在上下文中）并触发回复。
+
+    多音区开启时直接带【音区】前缀，与语音轮次经机制 B 改写后的形态一致。
+    有回复进行中时先 response.cancel，待其 response.done 后再 response.create（推理中不允许重复触发）。
+    """
+    self._wait_ready()
+    if self.zone and not text.startswith("【"):
+      text = f"【{self.zone}】{text}"
+    if self.response_active:
+      self.pending_text_response = True
+      self._send_event({"type": "response.cancel"})
+    self._send_event({
+        "type": "conversation.item.create",
+        "item": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]},
+    })
+    if not self.pending_text_response:
+      self._send_event({"type": "response.create"})
+    return text
+
+  def send_audio(self, audio_b64):
+    self._wait_ready()
+    self.ws.send_json({"type": "input_audio_buffer.append", "audio": audio_b64})
+
+  def send_mute(self):
+    self._wait_ready()
+
+  def send_unmute(self):
+    self._wait_ready()
+
+  def commit_audio(self):
+    self._wait_ready()
+
+  def cancel_response(self):
+    self._wait_ready()
+    if not self.response_active:
+      # 无进行中推理时 response.cancel 会被上游以 invalid_request_error 拒绝。
+      self.emit("local.warning", {"message": "当前没有进行中的推理，仅停止了本地播放。"})
+      return
+    self._send_event({"type": "response.cancel"})
+
+  def add_context_pairs(self, pairs):
+    self._wait_ready()
+    items = []
+    for user_text, assistant_text in self._context_pair_texts(pairs):
+      items.append({"type": "message", "role": "user", "content": [{"type": "input_text", "text": user_text}]})
+      items.append({"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": assistant_text}]})
+    # Qwen 的 conversation.item.create 一次只能写一条。
+    for item in items:
+      self._send_event({"type": "conversation.item.create", "item": item})
+    return len(items)
+
+  def close(self):
+    self.close_requested.set()
+    for task in list(self.zone_replace_tasks.values()):
+      task["timer"].cancel()
+    self.zone_replace_tasks.clear()
+    with self.state_lock:
+      ctx, self.context_retrieve_task = self.context_retrieve_task, None
+    if ctx:
+      ctx["timer"].cancel()
+    # Qwen 没有 session.close 事件，会话随 WebSocket 关闭结束；读线程随后补发 local.closed。
+    self.closed.set()
+    if self.ws:
+      self.ws.close()
+
+
+SESSION_CLASSES = {
+    PROVIDER_SEEDUPLEX: DuplexSession,
+    PROVIDER_QWEN: QwenRealtimeSession,
+}
+
+
 class DemoState:
   def __init__(self):
     self.sessions = {}
     self.lock = threading.Lock()
 
   def create(self, config):
-    session = DuplexSession(config)
+    session = SESSION_CLASSES[config.get("provider") or PROVIDER_SEEDUPLEX](config)
     with self.lock:
       self.sessions[session.id] = session
     return session
@@ -1352,6 +1972,8 @@ class Handler(SimpleHTTPRequestHandler):
         self._update_session()
       elif parsed.path == "/api/text":
         self._send_text()
+      elif parsed.path == "/api/text_chat":
+        self._send_text_chat()
       elif parsed.path == "/api/audio":
         self._send_audio()
       elif parsed.path == "/api/audio_commit":
@@ -1431,7 +2053,10 @@ class Handler(SimpleHTTPRequestHandler):
     tools_config = self._normalize_tools_config(data)
     data["api_key"] = api_key
     data.update(tools_config)
+    data["provider"] = normalize_provider(data.get("provider"))
     data["dialog_id"] = normalize_dialog_id(data.get("dialog_id"))
+    if data["provider"] == PROVIDER_QWEN:
+      data.update(normalize_qwen_create_config(data))
     data["instructions"] = sanitize_instructions(data.get("instructions"))
     zone = str(data.get("zone", "")).strip()
     if zone and zone not in SOUND_ZONES:
@@ -1439,7 +2064,7 @@ class Handler(SimpleHTTPRequestHandler):
     data["zone"] = zone
     data["upstream_headers"] = self._forwarded_upstream_headers()
     session = STATE.create(data)
-    self._json({"ok": True, "session_id": session.id,
+    self._json({"ok": True, "session_id": session.id, "provider": data["provider"],
                "dialog_id": data["dialog_id"], "tool_root": tools_config["tool_root"]})
 
   def _forwarded_upstream_headers(self):
@@ -1457,23 +2082,7 @@ class Handler(SimpleHTTPRequestHandler):
     session = STATE.get(data.get("session_id"))
     if not session:
       raise ValueError("session not found")
-    voice = str(data.get("voice", "")).strip()
-    if not voice:
-      raise ValueError("voice is required")
-    speed = max(-50, min(100, int(data.get("speed", 0))))
-    loudness = max(-50, min(100, int(data.get("loudness", 0))))
-    output_format = str(data.get("output_format") or DEFAULT_OUTPUT_FORMAT).strip()
-    update = {
-        "voice": voice,
-        "model": str(data.get("model") or DEFAULT_MODEL).strip(),
-        "output_format": output_format,
-        "speed": speed,
-        "loudness": loudness,
-        "enable_music": truthy_value(data.get("enable_music")) and not is_music_forced_off_voice(voice),
-        "instructions": sanitize_instructions(data.get("instructions")),
-    }
-    if "location" in data:
-      update["location"] = data.get("location")
+    update = session.parse_runtime_update(data)
     if any(key in data for key in ("enable_tools", "tool_root", "tools")):
       update.update(self._normalize_tools_config(data, session.config))
     session.update_runtime_config(update)
@@ -1489,6 +2098,16 @@ class Handler(SimpleHTTPRequestHandler):
       raise ValueError("text is required")
     session.send_text(text)
     self._json({"ok": True})
+
+  def _send_text_chat(self):
+    data = self._body()
+    session = STATE.get(data.get("session_id"))
+    if not session:
+      raise ValueError("session not found")
+    text = str(data.get("text", "")).strip()
+    if not text:
+      raise ValueError("text is required")
+    self._json({"ok": True, "text": session.send_user_text(text)})
 
   def _send_audio(self):
     data = self._body()
