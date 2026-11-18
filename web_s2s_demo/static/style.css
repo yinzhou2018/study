@@ -1579,6 +1579,10 @@ textarea {
   align-items: center;
 }
 
+.actions {
+  flex-wrap: wrap;
+}
+
 button {
   border: 1px solid var(--accent);
   background: var(--accent);

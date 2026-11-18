@@ -73,6 +73,7 @@ def main():
       "tools": None,
       "instructions": "你是座舱助手。当前说话音区：{current_speaking_zone}",
       "zone": "主驾",
+      "enable_zone_history_labels": True,
       "voice": "",
       "speech_rate": 1.2,
       "location": {"city": "杭州市"},
@@ -167,6 +168,21 @@ def main():
   item = sent(mock, "conversation.item.create")[before]["item"]
   assert item["role"] == "user" and item["content"][0]["text"] == "【副驾】讲个笑话", item
   assert ("user", "【副驾】讲个笑话") in mock.context_texts()
+
+  update_count = len(sent(mock, "session.update"))
+  session.update_runtime_config(session.parse_runtime_update({
+      "voice": session._voice(),
+      "instructions": session.config["instructions"],
+      "enable_zone_history_labels": False,
+  }))
+  wait_for(lambda: len(sent(mock, "session.update")) > update_count, what="history label session.update")
+  updated_instructions = sent(mock, "session.update")[-1]["session"]["instructions"]
+  assert server.ZONE_HISTORY_LABEL_INSTRUCTION not in updated_instructions
+  before = len(sent(mock, "conversation.item.create"))
+  assert session.send_user_text("不加音区前缀") == "不加音区前缀"
+  wait_for(lambda: len(sent(mock, "conversation.item.create")) > before, what="unlabeled text item")
+  assert sent(mock, "conversation.item.create")[before]["item"]["content"][0]["text"] == "不加音区前缀"
+
   # 回复进行中：先 response.cancel，response.done 之后才补发 response.create
   session.response_active = True
   replies = len(sent(mock, "response.create"))

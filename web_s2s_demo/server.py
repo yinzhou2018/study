@@ -49,6 +49,7 @@ LEGACY_TOOL_ROOT_CONTEXT_RE = re.compile(
 # 模板中的 {current_speaking_zone} 占位符在每次下发 instructions 前按当前音区实时替换。
 INSTRUCTIONS_TEMPLATE_FILE = Path(__file__).resolve().parent / "system-instructions.md"
 CURRENT_SPEAKING_ZONE_PLACEHOLDER = "{current_speaking_zone}"
+ZONE_HISTORY_LABEL_INSTRUCTION = "- 每条用户历史发言以【音区名称】前缀开头，例如【主驾】打开空调，音区前缀用于判断这条历史发言来自哪个音区。"
 CURRENT_SPEAKING_ZONE_UNKNOWN = "未知"
 # 机制 B 盖章轮询：item.update 发出后，定时 retrieve 校验盖章是否真的留存；
 # 若被上游后写覆盖则重发 update，直到确认生效或超过总时长。
@@ -858,10 +859,16 @@ class DuplexSession:
 
   def _instructions(self):
     """渲染当前生效的系统提示：自定义 SP 优先，否则用 system-instructions.md 模板；
-    再把 {current_speaking_zone} 占位符实时替换为当前发言音区。"""
+    再按开关调整历史对话音区标签指令，并实时替换当前发言音区占位符。"""
     instructions = self.config.get("instructions") or load_default_instructions()
     zone = self.zone or CURRENT_SPEAKING_ZONE_UNKNOWN
-    return instructions.replace(CURRENT_SPEAKING_ZONE_PLACEHOLDER, zone)
+    lines = [
+        line for line in instructions.replace(CURRENT_SPEAKING_ZONE_PLACEHOLDER, zone).splitlines()
+        if line.strip() != ZONE_HISTORY_LABEL_INSTRUCTION
+    ]
+    if truthy_value(self.config.get("enable_zone_history_labels", False)):
+      lines.append(ZONE_HISTORY_LABEL_INSTRUCTION)
+    return "\n".join(lines)
 
   def _build_dialog_location(self):
     raw = self.config.get("location")
@@ -1061,7 +1068,7 @@ class DuplexSession:
       assistant_text = str(pair.get("assistant") or "").strip()
       if not user_text or not assistant_text:
         raise ValueError("each pair needs non-empty user and assistant text")
-      if self.zone and not user_text.startswith("【"):
+      if self.zone and truthy_value(self.config.get("enable_zone_history_labels", False)) and not user_text.startswith("【"):
         user_text = f"【{self.zone}】{user_text}"
       texts.append((user_text, assistant_text))
     return texts
@@ -1107,6 +1114,8 @@ class DuplexSession:
     transcript = str(msg.get("transcript") or msg.get("text") or "").strip()
     if item_id:
       self._track_item_id(item_id)
+    if not truthy_value(self.config.get("enable_zone_history_labels", False)):
+      return
     text = transcript
     if zone and transcript and not transcript.startswith("【"):
       text = f"【{zone}】{transcript}"
@@ -1370,6 +1379,9 @@ class DuplexSession:
         "loudness": loudness,
         "enable_music": truthy_value(data.get("enable_music")) and not is_music_forced_off_voice(voice),
         "instructions": sanitize_instructions(data.get("instructions")),
+        "enable_zone_history_labels": truthy_value(
+            data.get("enable_zone_history_labels", self.config.get("enable_zone_history_labels", False))
+        ),
     }
     if "location" in data:
       update["location"] = data.get("location")
@@ -1563,6 +1575,9 @@ class QwenRealtimeSession(DuplexSession):
         "speech_rate": data.get("speech_rate", 1.0),
         "instructions": sanitize_instructions(data.get("instructions")),
         "enable_websearch": truthy_value(data.get("enable_websearch")),
+        "enable_zone_history_labels": truthy_value(
+            data.get("enable_zone_history_labels", self.config.get("enable_zone_history_labels", False))
+        ),
     }
     if "location" in data:
       update["location"] = data.get("location")
@@ -1723,6 +1738,8 @@ class QwenRealtimeSession(DuplexSession):
     transcript = str(msg.get("transcript") or "").strip()
     if item_id:
       self._track_item_id(item_id)
+    if not truthy_value(self.config.get("enable_zone_history_labels", False)):
+      return
     if not (zone and item_id and transcript) or transcript.startswith("【"):
       return
     stamp = {"item_id": item_id, "zone": zone, "text": f"【{zone}】{transcript}"}
@@ -1854,7 +1871,7 @@ class QwenRealtimeSession(DuplexSession):
     有回复进行中时先 response.cancel，待其 response.done 后再 response.create（推理中不允许重复触发）。
     """
     self._wait_ready()
-    if self.zone and not text.startswith("【"):
+    if self.zone and truthy_value(self.config.get("enable_zone_history_labels", False)) and not text.startswith("【"):
       text = f"【{self.zone}】{text}"
     if self.response_active:
       self.pending_text_response = True

@@ -67,6 +67,7 @@ def check(mode, port):
       "zone": "主驾",
       "enable_tools": False,
       "input_format": "pcm",
+      "enable_zone_history_labels": True,
   }
   session = server.STATE.create(config)
   collected = []

@@ -67,12 +67,22 @@ def main():
   ):
     time.sleep(0.05)
   assert any(e.get("type") == "local.outgoing" for e in collected), "session.create not sent"
+  create_event = next(
+      e["event"] for e in collected
+      if e.get("type") == "local.outgoing" and (e.get("event") or {}).get("type") == "session.create"
+  )
+  assert server.ZONE_HISTORY_LABEL_INSTRUCTION not in create_event["session"]["instructions"]
   assert not session.ready.wait(timeout=0.5), "ready must wait for session.created ack"
   print("\n== ready correctly NOT set before session.created")
 
   mock.release_session_created()
   assert session.ready.wait(timeout=5), "ready should be set after session.created"
   print("== ready set after session.created ack")
+  session.update_runtime_config(session.parse_runtime_update({
+      "voice": session.config.get("voice", "zh_female_vv_jupiter_bigtts"),
+      "instructions": session.config.get("instructions", ""),
+      "enable_zone_history_labels": True,
+  }))
   time.sleep(0.2)
 
   # --- 用户开始说话：流式上行音频，第 5 帧后 mock 发 started ---
@@ -117,7 +127,8 @@ def main():
   # --- 线上顺序验证：session.update 应插在音频帧之间，音频帧不中断 ---
   types_in_order = mock.received_types
   print(f"\n== upstream received sequence: {types_in_order}")
-  idx_update = types_in_order.index("session.update")
+  first_update = types_in_order.index("session.update")
+  idx_update = types_in_order.index("session.update", first_update + 1)
   appends_before = sum(1 for t in types_in_order[:idx_update] if t == "input_audio_buffer.append")
   appends_after = sum(1 for t in types_in_order[idx_update:] if t == "input_audio_buffer.append")
   print(f"== appends before update: {appends_before}, after update: {appends_after}")
@@ -157,6 +168,24 @@ def main():
   assert create_msgs2[1]["items"][0]["content"][0]["text"] == "【主驾】你好", "existing prefix must not double"
   print("== paired context injection with zone prefix OK")
 
+  # 关闭历史音区标签：更新 system prompt 并停止给新注入内容和转录盖章加前缀。
+  updates_before = len([m for m in mock.received_messages if m.get("type") == "conversation.item.update"])
+  session.update_runtime_config(session.parse_runtime_update({
+      "voice": session.config.get("voice", "zh_female_vv_jupiter_bigtts"),
+      "instructions": session.config.get("instructions", ""),
+      "enable_zone_history_labels": False,
+  }))
+  time.sleep(0.2)
+  update_msgs = [m for m in mock.received_messages if m.get("type") == "session.update"]
+  assert update_msgs and server.ZONE_HISTORY_LABEL_INSTRUCTION not in update_msgs[-1]["session"]["instructions"]
+  session.add_context_pairs([{"user": "继续开空调", "assistant": "好的"}])
+  time.sleep(0.2)
+  create_msgs3 = [m for m in mock.received_messages if m.get("type") == "conversation.item.create"]
+  assert create_msgs3[2]["items"][0]["content"][0]["text"] == "继续开空调"
+  session._stamp_transcript_zone({"item_id": "item_no_zone", "transcript": "关闭标签测试"})
+  assert len([m for m in mock.received_messages if m.get("type") == "conversation.item.update"]) == updates_before
+  print("== disabling history zone labels updates prompt and stops new prefixes OK")
+
   # --- 打招呼：speech_text_buffer.commit ---
   session.send_text("你好，我是豆包，有什么可以帮你的吗？")
   time.sleep(0.3)
@@ -173,11 +202,11 @@ def main():
 
   for event_type, expected in [
       ("session.create", 1),
-      ("session.update", 1),
+      ("session.update", 3),  # 开启标签 + 音区切换 + 关闭标签
       ("input_audio_mute.commit", 1),
       ("input_audio_unmute.commit", 1),
       ("input_audio_buffer.commit", 1),
-      ("conversation.item.create", 2),  # 两次成对注入
+      ("conversation.item.create", 3),  # 两次成对注入 + 关闭前缀后的成对注入
       ("speech_text_buffer.commit", 1),
   ]:
     count = outgoing_count(event_type)

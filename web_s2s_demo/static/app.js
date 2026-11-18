@@ -59,6 +59,7 @@ const els = {
   webSearchApiKey: document.querySelector("#webSearchApiKey"),
   enableMusic: document.querySelector("#enableMusic"),
   enableProactiveSpeak: document.querySelector("#enableProactiveSpeak"),
+  enableZoneHistoryLabels: document.querySelector("#enableZoneHistoryLabels"),
   openLocationMapBtn: document.querySelector("#openLocationMapBtn"),
   useBrowserLocationBtn: document.querySelector("#useBrowserLocationBtn"),
   clearLocationBtn: document.querySelector("#clearLocationBtn"),
@@ -1545,6 +1546,7 @@ function currentRuntimeConfig() {
       ...currentToolsConfig(),
       enable_websearch: els.enableWebSearch.checked,
       instructions: els.instructions.value,
+      enable_zone_history_labels: els.enableZoneHistoryLabels.checked,
       location: currentLocationConfig(),
     };
   }
@@ -1553,6 +1555,7 @@ function currentRuntimeConfig() {
     ...currentToolsConfig(),
     enable_music: els.enableMusic.checked && !isMusicForcedOffVoice(),
     instructions: els.instructions.value,
+    enable_zone_history_labels: els.enableZoneHistoryLabels.checked,
     location: currentLocationConfig(),
   };
 }
@@ -1628,6 +1631,7 @@ els.enableWebSearch.addEventListener("change", scheduleSessionUpdate);
   if (els.toolRoot) els.toolRoot.addEventListener(eventName, scheduleSessionUpdate);
   els.enableTools.addEventListener(eventName, scheduleSessionUpdate);
   els.enableMusic.addEventListener(eventName, scheduleSessionUpdate);
+  els.enableZoneHistoryLabels.addEventListener(eventName, scheduleSessionUpdate);
   els.instructions.addEventListener(eventName, scheduleSessionUpdate);
 });
 

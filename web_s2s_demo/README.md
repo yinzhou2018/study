@@ -65,7 +65,7 @@ Dialog ID、声音复刻、唱歌、主动回复是 Seeduplex 独有能力，切
 页面顶部的“说话音区”选择器配合“多音区”开关，模拟车载座舱四个音区（主驾/副驾/左后排/右后排）的多人对话。方案分两层：
 
 - 当前发言音区（机制 A）：system prompt 模板 `system-instructions.md` 的「当前说话音区」一节包含 `{current_speaking_zone}` 占位符，后端在每次下发 instructions 前按当前音区实时替换；音区随 `session.create` 写入，切换音区时后端通过 `session.update` 更新 instructions（音区不变时不重复发送）；关闭多音区开关时下发一次占位符替换为「未知」的 instructions 清除状态。
-- 历史发言归属（机制 B）：后端收到 `conversation.item.input_audio_transcription.completed` 后，立即用 `conversation.item.update` 把该轮 ASR 转录条目回写为 `【音区名】+原文`，使历史上下文里每条用户发言都自带音区，续接 dialog id 后依然可辨。
+- 历史发言归属（机制 B）：「历史对话音区标签」开关默认关闭；开启后，ASR 转录、注入的历史消息和 Qwen 文本对话都会带 `【音区名】` 前缀，后端通过 `conversation.item.update`（Qwen 使用 create+delete）写回语音转录。开关变化会同步更新系统指令；关闭后停止为新消息添加前缀，并从下发的系统指令中移除音区标签说明。
 
 上下文形态：
 
